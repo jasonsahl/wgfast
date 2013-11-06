@@ -160,6 +160,8 @@ def filter_vcf(vcf, ref_coords, name):
                 try:
                     if merged_fields in ref_coords:
                         print >> vcf_out, line,
+                    else:
+                        pass
                 except:
                     print "Are you sure you have the correct reference?"
             else:
@@ -186,6 +188,8 @@ def parse_vcf(vcf, coverage, proportion, name):
                             print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
                     else:
                         print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                else:
+                    pass
             elif "." == fields[4]:
                 nosnp_fields=fields[7].split(';')
                 cov_fields=nosnp_fields[1].replace("DP=","")
@@ -198,6 +202,7 @@ def parse_vcf(vcf, coverage, proportion, name):
                      print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
             else:
                 print "error in vcf file found!"
+                sys.exit()
     vcf_in.close()
     vcf_out.close()
 
