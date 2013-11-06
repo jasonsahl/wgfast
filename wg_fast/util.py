@@ -172,7 +172,7 @@ def parse_vcf(vcf, coverage, proportion, name):
     vcf_out = open("%s.filtered.vcf" % name, "w")
     for line in vcf_in:
         if line.startswith('#'):
-           continue
+           pass
         else:
             fields=line.split()
             if "." != fields[4]:
