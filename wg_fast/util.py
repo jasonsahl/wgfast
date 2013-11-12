@@ -16,6 +16,8 @@ def get_seq_name(in_fasta):
     return os.path.basename(in_fasta)
 
 def get_readFile_components(full_file_path):
+    """function taken directly from:
+    https://github.com/katholt/srst2"""
     (file_path,file_name) = os.path.split(full_file_path)
     m1 = re.match("(.*).gz",file_name)
     ext = ""
@@ -27,6 +29,8 @@ def get_readFile_components(full_file_path):
     return(file_path,file_name_before_ext,full_ext)
 
 def read_file_sets(dir_path):        
+    """match up pairs of sequence data, adapted from
+    https://github.com/katholt/srst2"""
     fileSets = {} 
     forward_reads = {}
     reverse_reads = {} 
@@ -46,7 +50,7 @@ def read_file_sets(dir_path):
                     (baseName,read) = m.groups()
                     reverse_reads[baseName] = infile
                 else:
-                    print "Could not determine forward/reverse read status for input file " + fastq
+                    print "Could not determine forward/reverse read status for input file "
         else:
             baseName, read  = m.groups()[0], m.groups()[3]
             if read == "_R1":
@@ -54,7 +58,7 @@ def read_file_sets(dir_path):
             elif read == "_R2":
                 reverse_reads[baseName] = infile
             else:
-                print "Could not determine forward/reverse read status for input file " + fastq
+                print "Could not determine forward/reverse read status for input file "
                 fileSets[file_name_before_ext] = infile
                 num_single_readsets += 1
     for sample in forward_reads:
@@ -82,6 +86,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
     files_and_temp_names = [(str(idx), list(f))
                             for idx, f in fileSets.iteritems()]
     def _perform_workflow(data):
+        """idx is the sample name, f is the file dictionary"""
         idx, f = data
         run_bwa(reference, f[0], f[1], processors, idx)
         process_sam("%s.sam" % idx, idx)
@@ -93,6 +98,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                               num_workers=processors))
 
 def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
+    """controller for bwa, currently only works with bwa mem"""
     mem_arguments = ['bwa', 'mem', '-v', '2', '-M', '-t', '%s' % processors]
     for opt in my_opts.items():
         mem_arguments.extend(opt)
@@ -116,6 +122,7 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
     bwa.wait()
 
 def run_bwa(reference, read1, read2, processors, name):
+    """launces bwa. Adds in read_group for compatability with GATK"""
     read_group = '@RG\tID:%s\tSM:vac6wt\tPL:ILLUMINA\tPU:vac6wt' % name
     bwa(reference,read1, read2,"%s.sam" % name, processors, log_file='%s.sam.log' % name,**{'-R':read_group}) 
 
@@ -128,6 +135,7 @@ def process_sam(in_sam, name):
     subprocess.check_call("rm %s.1.bam %s.2.bam %s.3.bam %s" % (name, name, name, in_sam), shell=True)
 
 def run_gatk(reference, processors, name, gatk):
+    """gatk controller"""
     args = ['java', '-jar', '%s' % gatk, '-T', 'UnifiedGenotyper',
             '-R', '%s' % reference, '-nt', '%s' % processors, '-S', 'silent',
             '-mbq', '17', '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
@@ -148,26 +156,36 @@ def run_gatk(reference, processors, name, gatk):
         log_isg.logPrint("GATK encountered problems and did not run")
 
 def filter_vcf(vcf, ref_coords, name):
+    """filters a VCF for coordinates only present in the provided
+    NASP SNP matrix"""
     vcf_in = open(vcf, "U")
     vcf_out = open("%s.vcf.filtered" % name, "w")
     for line in vcf_in:
+        """skip VCF comment lines"""
         if line.startswith("#"):
             print >> vcf_out, line,
         else:
             fields=line.split()
+            """skip INFO lines put in by GATK"""
             if "INFO" not in fields[0]:
+                """must adapt for NASP format"""
                 merged_fields=fields[0]+"::"+fields[1]
                 try:
+                    """checks to see what's in the NASP coord list"""
                     if merged_fields in ref_coords:
                         print >> vcf_out, line,
                 except:
+                    """if no coords are in your ref list, there is likely a problem"""
                     print "Are you sure you have the correct reference?"
+                    sys.exit()
             else:
                 continue
     vcf_in.close()
     vcf_out.close()
 
 def parse_vcf(vcf, coverage, proportion, name):
+    """finds SNPs that pass user-defined thresholds
+    for coverage and proportion"""
     vcf_in = open(vcf, "U")
     vcf_out = open("%s.filtered.vcf" % name, "w")
     for line in vcf_in:
@@ -175,6 +193,9 @@ def parse_vcf(vcf, coverage, proportion, name):
            continue
         else:
             fields=line.split()
+            """for GATK, a period signifies a reference call.
+            First we want to look at the situation where this is
+            not the case"""
             if "." != fields[4]:
                 snp_fields=fields[9].split(':')
                 if int(len(snp_fields))>2:
@@ -184,8 +205,11 @@ def parse_vcf(vcf, coverage, proportion, name):
                             print >> vcf_out, fields[0]+"::"+fields[1],fields[4]+"\n",
                         else:
                             print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                        """if problems are encountered, throw in a gap.  Could be too conservative"""
                     else:
                         print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                else:
+                    pass
             elif "." == fields[4]:
                 nosnp_fields=fields[7].split(';')
                 cov_fields=nosnp_fields[1].replace("DP=","")
@@ -206,6 +230,7 @@ def merge_vcfs(matrix):
     all_ids= [ ]
     names=[ ]
     in_matrix = open(matrix, "U")
+    """these are all of the screened SNPs"""
     matrix_ids=[ ]
     firstLine = in_matrix.readline()
     for line in in_matrix:
@@ -235,6 +260,7 @@ def merge_vcfs(matrix):
             value_dict.update({fields[0]:fields[1]})
         for k,v in value_dict.iteritems():
             if k in nr: new_dicts.update({k:v})
+            else: new_dicts.update({k:"-"})
         for x in nr:
             if x not in value_dict.keys():new_dicts.update({x:"-"})
         for key in sorted(new_dicts.iterkeys()):
@@ -451,9 +477,9 @@ def compare_subsample_results(true_dists):
         for x in true_dists:
             if x[0] == split_fields[0] and x[1] == split_fields[1]:
                 for dists in all_dists:
-                    if int(x[2])>int(dists):
+                    if float(x[2])>float(dists):
                         dists_greater_than_true.append("1")
-                    elif int(x[2])==int(dists):
+                    elif float(x[2])==float(dists):
                         dists_equal_to_true.append("1")
                     else:
                         dists_less_than_true.append("1")

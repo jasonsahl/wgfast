@@ -25,9 +25,7 @@ import errno
 from igs.utils import logging as log_isg
 
 WGFAST_PATH="/Users/jsahl/wg_fast"
-os.system("export WGFAST_DIR=%s" % WGFAST_PATH)
-os.system("export PYTHONPATH=$WGFAST_DIR:$PYTHONPATH")
-os.system("export PATH=$WGFAST_DIR/bin:$PATH")
+sys.exec.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 
@@ -118,7 +116,6 @@ def main(aligner,matrix,tree,reference,directory,processors,coverage,proportion,
     matrix_to_fasta("combined.matrix")
     os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
     true_dists=dist_seqs("all.fasta", outnames)
-    #print true_dists
     """add in code for the use of multiple aligners"""
     #if "bwa" == aligner:
     #    subprocess.check_call("bwa index %s > /dev/null 2>&1" % ref_path, shell=True)
@@ -144,7 +141,7 @@ def main(aligner,matrix,tree,reference,directory,processors,coverage,proportion,
     if keep == "T":
         pass
     else:
-        subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix", shell=True)
+        subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist", shell=True)
         for outname in outnames:
             subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log" % (outname,outname,outname,outname), shell=True)
             os.chdir("%s" % ap)
