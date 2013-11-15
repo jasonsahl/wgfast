@@ -24,8 +24,10 @@ from wg_fast.util import *
 import errno
 from igs.utils import logging as log_isg
 
+WGFAST_PATH="/home/jsahl/tools/wgfast"
+sys.path.append("%s" % WGFAST_PATH)
 WGFAST_PATH="/Users/jsahl/wg_fast"
-sys.exec.append("%s" % WGFAST_PATH)
+#sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 
@@ -93,6 +95,8 @@ def main(aligner,matrix,tree,reference,directory,processors,coverage,proportion,
     """index reference file.  GATK appears to do this incorrectly"""
     subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % (ap), shell=True)
     subprocess.check_call("bwa index %s/scratch/reference.fasta > /dev/null 2>&1" % (ap), shell=True)
+    """write reduced matrix with only the SNP data"""
+    write_reduced_matrix(matrix)
     ref_name=get_seq_name(reference)
     reduced=ref_name.replace(".fasta","")
     """creates dict file with picard tools.  In testing, GATK does this incorrectly"""
@@ -110,9 +114,11 @@ def main(aligner,matrix,tree,reference,directory,processors,coverage,proportion,
         for k,v in used_snps.iteritems():
             if name==k:
                 log_isg.logPrint("number of usable SNPs in genome %s = %s" % (k,v))
-    subprocess.check_call("paste ref.list *.tmp.matrix > merged.vcf", shell=True)
-    subprocess.check_call("rm -rf ref.list *.tmp.matrix", shell=True)
-    merge_matrix(matrix, "merged.vcf")
+                #subprocess.check_call("paste ref.list *.tmp.matrix > merged.vcf", shell=True)
+    subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
+    subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
+    #merge_matrix(matrix, "merged.vcf")
+    subprocess.check_call("paste temp.matrix merged.vcf > combined.matrix", shell=True)
     matrix_to_fasta("combined.matrix")
     os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
     true_dists=dist_seqs("all.fasta", outnames)
@@ -128,6 +134,7 @@ def main(aligner,matrix,tree,reference,directory,processors,coverage,proportion,
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     try:
         run_raxml("out.fasta", tree, processors)
+        transform_tree("tree_including_unknowns_noedges.tree")
     except:
         print "raxml encountered an error and unknown couldn't be added"
     if subsample=="T":
@@ -141,7 +148,7 @@ def main(aligner,matrix,tree,reference,directory,processors,coverage,proportion,
     if keep == "T":
         pass
     else:
-        subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist", shell=True)
+        subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist *subsample.distances.txt temp.matrix", shell=True)
         for outname in outnames:
             subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log" % (outname,outname,outname,outname), shell=True)
             os.chdir("%s" % ap)

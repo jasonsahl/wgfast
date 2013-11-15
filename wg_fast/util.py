@@ -5,6 +5,7 @@ import glob
 import subprocess
 from subprocess import Popen
 from Bio import SeqIO
+from Bio import Phylo
 import glob
 from igs.threading import functional as p_func
 from igs.utils import logging as log_isg
@@ -228,6 +229,10 @@ def parse_vcf(vcf, coverage, proportion, name):
     vcf_in.close()
     vcf_out.close()
 
+def sort_information(x):
+    fields = x.split("::")
+    return int(fields[1])
+
 def merge_vcfs(matrix):
     curr_dir= os.getcwd()
     all_ids= [ ]
@@ -246,10 +251,10 @@ def merge_vcfs(matrix):
             names.append(infile)
     combined=matrix_ids+all_ids
     nr=[x for i, x in enumerate(combined) if x not in combined[i+1:]]
-    nr_sorted=sorted(nr)
-    open("ref.list", "a").write("\n")
-    for x in nr_sorted:
-        open("ref.list", "a").write("%s\n" % x)
+    nr_sorted=sorted(nr, key=sort_information)
+    #open("ref.list", "a").write("\n")
+    #for x in nr_sorted:
+    #    open("ref.list", "a").write("%s\n" % x)
     outnames=[]
     for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
         name=get_seq_name(infile)
@@ -262,11 +267,11 @@ def merge_vcfs(matrix):
             fields=line.split()
             value_dict.update({fields[0]:fields[1]})
         for k,v in value_dict.iteritems():
-            if k in nr: new_dicts.update({k:v})
+            if k in nr_sorted: new_dicts.update({k:v})
             else: new_dicts.update({k:"-"})
-        for x in nr:
+        for x in nr_sorted:
             if x not in value_dict.keys():new_dicts.update({x:"-"})
-        for key in sorted(new_dicts.iterkeys()):
+        for key in sorted(new_dicts.iterkeys(), key=sort_information):
             open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts[key])
     return outnames
     in_matrix.close()
@@ -293,18 +298,30 @@ def merge_matrix(matrix, merged_vcf):
                 pass
     in_matrix.close()
     out_matrix.close()
+    #print >> out_matrix, "\t".join(first_fields[:last]),"\t","\t".join(vcf_first_fields),"\t","\t".join(first_fields[last:])
+    #for inline in open(matrix,"U"):
+    
+        #def merge_matrix(matrix, merged_vcf):
+        #in_matrix = open(matrix, "U")
+        #out_matrix = open("combined.matrix", "a")
+        #in_vcf = open(merged_vcf, "U")
+        #firstLine = in_matrix.readline()
+        #first_fields = firstLine.split()
+        #last = first_fields.index("#SNPcall")
+        #vcf_first = in_vcf.readline()
+        #vcf_first_fields=vcf_first.split()
             
 def matrix_to_fasta(matrix_in):
     reduced = [ ]
     out_fasta = open("all.fasta", "w")
-    in_matrix = open(matrix_in, "U")
-    firstLine = in_matrix.readline()
-    first_fields=firstLine.split()
-    last=first_fields.index("#SNPcall")
-    in_matrix.close()
+    #in_matrix = open(matrix_in, "U")
+    #firstLine = in_matrix.readline()
+    #first_fields=firstLine.split()
+    #last=first_fields.index("#SNPcall")
+    #in_matrix.close()
     for line in open(matrix_in,"U"):
         fields = line.split()
-        reduced.append(fields[1:last])
+        reduced.append(fields[1:])
     test=map(list, zip(*reduced))
     for x in test:
         print >> out_fasta, ">"+str(x[0])
@@ -450,7 +467,10 @@ def process_temp_matrices():
        name=get_seq_name(infile)
        split_fields=name.split(".")
        outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
-       matrix_to_fasta(infile)
+       try:
+           matrix_to_fasta(infile)
+       except:
+           print "problem encountered with file ",infile
        os.system('mothur "#dist.seqs(fasta=all.fasta, calc=nogaps)" > /dev/null 2>&1')
        os.system('sed "s/.filtered.vcf//g" all.dist > renamed.dist')
        for line in open("renamed.dist", "U"):
@@ -498,4 +518,50 @@ def compare_subsample_results(true_dists):
         print "Subsample distances between %s and %s equal to true value = %s" % (split_fields[0],split_fields[1],equals)
         print "Subsample distances between %s and %s less than true value = %s" % (split_fields[0],split_fields[1],lessers)    
         print ""
+
+def transform_tree(tree):
+    infile = open(tree, "U")
+    tree_string = []
+    for line in infile:
+        tree_string.append(line)
+    infile.close()
+    mytree = Phylo.read(tree, 'newick')
+    tree_names = [ ]
+    for clade in mytree.find_clades():
+        if clade.name:
+            tree_names.append(clade.name)
+    outfile = open("transformed.tree", "w")
+    print >> outfile, "#NEXUS"+"\n",
+    print >> outfile, "begin taxa;"+"\n",
+    print >> outfile, "\t"+"dimensions ntax="+str(len(tree_names))+";"+"\n",
+    print >> outfile, "\t"+"taxlabels"+"\n",
+    for clade in mytree.find_clades():
+        if clade.name:
+            tree_names.append(clade.name)
+    nr=[x for i, x in enumerate(tree_names) if x not in tree_names[i+1:]]
+    for tree_name in nr:
+        if "QUERY__" in tree_name:
+            print >> outfile, "\t"+"'%s'" % tree_name+"[&!color=#-3407821]"+"\n",
+        else:
+            print >> outfile, "\t"+tree_name+"\n",
+    print >> outfile, ";"+"\n",
+    print >> outfile, "end;"+"\n",
+    print >> outfile, ""+"\n",
+    print >> outfile, "begin trees;"+"\n",
+    for x in tree_string:
+        print >> outfile, "\t"+"tree tree_1 = [&R] ",str(x)+"\n",
+    print >> outfile, "end;"+"\n",
+
+def write_reduced_matrix(matrix):
+    in_matrix = open(matrix, "U")
+    outfile = open("temp.matrix", "w")
+    firstLine = in_matrix.readline()
+    first_fields=firstLine.split()
+    last=first_fields.index("#SNPcall")
+    print >> outfile, "\t".join(first_fields[:last])+"\n",
+    for line in in_matrix:
+        fields = line.split()
+        print >> outfile, "\t".join(fields[:last])
+    outfile.close()
+    in_matrix.close()
         
