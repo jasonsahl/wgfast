@@ -17,7 +17,7 @@ def get_seq_name(in_fasta):
     return os.path.basename(in_fasta)
 
 def get_readFile_components(full_file_path):
-    """function taken directly from:
+    """function adapted from:
     https://github.com/katholt/srst2"""
     (file_path,file_name) = os.path.split(full_file_path)
     m1 = re.match("(.*).gz",file_name)
@@ -41,14 +41,14 @@ def read_file_sets(dir_path):
         (file_path,file_name_before_ext,full_ext) = get_readFile_components(infile)
         m=re.match("(.*)(_S.*)(_L.*)(_R.*)(_.*)", file_name_before_ext)
         if m==None:
-            m=re.match("(.*)("+"_1"+")$",file_name_before_ext)
+            m=re.match("(.*)("+"_R1"+")(_.*)$",file_name_before_ext)
             if m!=None:
-                (baseName,read) = m.groups()
+                (baseName,read) = m.groups()[0], m.groups()[1]
                 forward_reads[baseName] = infile
             else:
-                m=re.match("(.*)("+"_2"+")$",file_name_before_ext)
+                m=re.match("(.*)("+"_R2"+")(_.*)$",file_name_before_ext)
                 if m!=None:
-                    (baseName,read) = m.groups()
+                    (baseName,read) = m.groups()[0], m.groups()[1]
                     reverse_reads[baseName] = infile
                 else:
                     print "Could not determine forward/reverse read status for input file "
@@ -92,8 +92,9 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         run_bwa(reference, f[0], f[1], processors, idx)
         process_sam("%s.sam" % idx, idx)
         run_gatk(reference, processors, idx, gatk)
-        filter_vcf("%s.vcf.out" % idx, ref_coords, idx)
-        parse_vcf("%s.vcf.filtered" % idx, coverage, proportion, idx)
+        #filter_vcf("%s.vcf.out" % idx, ref_coords, idx)
+        #parse_vcf("%s.vcf.filtered" % idx, coverage, proportion, idx)
+        process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
     results = set(p_func.pmap(_perform_workflow,
                               files_and_temp_names,
                               num_workers=processors))
@@ -161,6 +162,7 @@ def filter_vcf(vcf, ref_coords, name):
     NASP SNP matrix"""
     vcf_in = open(vcf, "U")
     vcf_out = open("%s.vcf.filtered" % name, "w")
+    outdata = [ ]
     for line in vcf_in:
         """skip VCF comment lines"""
         if line.startswith("#"):
@@ -175,6 +177,7 @@ def filter_vcf(vcf, ref_coords, name):
                     """checks to see what's in the NASP coord list"""
                     if merged_fields in ref_coords:
                         print >> vcf_out, line,
+                        #outdata.append(merged_fields)
                     else:
                         pass
                 except:
@@ -185,12 +188,14 @@ def filter_vcf(vcf, ref_coords, name):
                 continue
     vcf_in.close()
     vcf_out.close()
-
+    return outdata
+    
 def parse_vcf(vcf, coverage, proportion, name):
     """finds SNPs that pass user-defined thresholds
     for coverage and proportion"""
     vcf_in = open(vcf, "U")
     vcf_out = open("%s.filtered.vcf" % name, "w")
+    outdata = []
     for line in vcf_in:
         if line.startswith('#'):
            pass
@@ -206,11 +211,14 @@ def parse_vcf(vcf, coverage, proportion, name):
                     if int(snp_fields[2])>=coverage:
                         if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
                             print >> vcf_out, fields[0]+"::"+fields[1],fields[4]+"\n",
+                            outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
                         else:
                             print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                            outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                         """if problems are encountered, throw in a gap.  Could be too conservative"""
                     else:
                         print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                 else:
                     pass
             elif "." == fields[4]:
@@ -219,15 +227,76 @@ def parse_vcf(vcf, coverage, proportion, name):
                 try:
                     if int(cov_fields)>=coverage:
                         print >> vcf_out, fields[0]+"::"+fields[1],fields[3]+"\n",
+                        outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
                     else:
-                        print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n", 
+                        print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                 except:
                      print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                     outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
             else:
                 print "error in vcf file found!"
                 sys.exit()
     vcf_in.close()
     vcf_out.close()
+    return outdata
+
+def process_vcf(vcf, ref_coords, coverage, proportion, name):
+    """finds SNPs that pass user-defined thresholds
+    for coverage and proportion"""
+    vcf_in = open(vcf, "U")
+    vcf_out = open("%s.filtered.vcf" % name, "w")
+    outdata = []
+    for line in vcf_in:
+        if line.startswith('#'):
+           pass
+        elif line.startswith('INFO'):
+            pass
+        else:
+            fields=line.split()
+            """for GATK, a period signifies a reference call.
+            First we want to look at the situation where this is
+            not the case"""
+            merged_fields=fields[0]+"::"+fields[1]
+            if merged_fields in ref_coords:
+                if "." != fields[4]:
+                    snp_fields=fields[9].split(':')
+                    if int(len(snp_fields))>2:
+                        prop_fields=snp_fields[1].split(',')
+                        if int(snp_fields[2])>=coverage:
+                            if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
+                                print >> vcf_out, fields[0]+"::"+fields[1],fields[4]+"\n",
+                                outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
+                            else:
+                                print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                                outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                            """if problems are encountered, throw in a gap.  Could be too conservative"""
+                        else:
+                            print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                            outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                    else:
+                        pass
+                elif "." == fields[4]:
+                    nosnp_fields=fields[7].split(';')
+                    cov_fields=nosnp_fields[1].replace("DP=","")
+                    try:
+                        if int(cov_fields)>=coverage:
+                            print >> vcf_out, fields[0]+"::"+fields[1],fields[3]+"\n",
+                            outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
+                        else:
+                            print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                            outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                    except:
+                        print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                else:
+                    print "error in vcf file found!"
+                    sys.exit()
+            else:
+                pass
+    vcf_in.close()
+    vcf_out.close()
+    return outdata
 
 def sort_information(x):
     fields = x.split("::")
@@ -298,27 +367,10 @@ def merge_matrix(matrix, merged_vcf):
                 pass
     in_matrix.close()
     out_matrix.close()
-    #print >> out_matrix, "\t".join(first_fields[:last]),"\t","\t".join(vcf_first_fields),"\t","\t".join(first_fields[last:])
-    #for inline in open(matrix,"U"):
-    
-        #def merge_matrix(matrix, merged_vcf):
-        #in_matrix = open(matrix, "U")
-        #out_matrix = open("combined.matrix", "a")
-        #in_vcf = open(merged_vcf, "U")
-        #firstLine = in_matrix.readline()
-        #first_fields = firstLine.split()
-        #last = first_fields.index("#SNPcall")
-        #vcf_first = in_vcf.readline()
-        #vcf_first_fields=vcf_first.split()
-            
+                
 def matrix_to_fasta(matrix_in):
     reduced = [ ]
     out_fasta = open("all.fasta", "w")
-    #in_matrix = open(matrix_in, "U")
-    #firstLine = in_matrix.readline()
-    #first_fields=firstLine.split()
-    #last=first_fields.index("#SNPcall")
-    #in_matrix.close()
     for line in open(matrix_in,"U"):
         fields = line.split()
         reduced.append(fields[1:])

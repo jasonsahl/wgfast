@@ -24,10 +24,9 @@ from wg_fast.util import *
 import errno
 from igs.utils import logging as log_isg
 
-WGFAST_PATH="/home/jsahl/tools/wgfast"
-sys.path.append("%s" % WGFAST_PATH)
+#WGFAST_PATH="/home/jsahl/tools/wgfast"
 WGFAST_PATH="/Users/jsahl/wg_fast"
-#sys.path.append("%s" % WGFAST_PATH)
+sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 
@@ -54,7 +53,7 @@ def test_filter(option, opt_str, value, parser):
         print "option not supported.  Only select from T and F"
         sys.exit()
 
-def main(aligner,matrix,tree,reference,directory,processors,coverage,proportion,keep,subsample,subnums):
+def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,subsample,subnums):
     start_dir = os.getcwd()
     log_isg.logPrint('testing the paths of all dependencies')
     ap=os.path.abspath("%s" % start_dir)
@@ -114,23 +113,14 @@ def main(aligner,matrix,tree,reference,directory,processors,coverage,proportion,
         for k,v in used_snps.iteritems():
             if name==k:
                 log_isg.logPrint("number of usable SNPs in genome %s = %s" % (k,v))
-                #subprocess.check_call("paste ref.list *.tmp.matrix > merged.vcf", shell=True)
     subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
+    """deletes temporary files that could be confused later on"""
     subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
-    #merge_matrix(matrix, "merged.vcf")
     subprocess.check_call("paste temp.matrix merged.vcf > combined.matrix", shell=True)
     matrix_to_fasta("combined.matrix")
     os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
     true_dists=dist_seqs("all.fasta", outnames)
-    """add in code for the use of multiple aligners"""
-    #if "bwa" == aligner:
-    #    subprocess.check_call("bwa index %s > /dev/null 2>&1" % ref_path, shell=True)
-    #    run_bwa(reference, read1, read2, processors, name)
-    #elif "novoalign" == aligner:
-    #    """stuff for novoalign"""
-    #else:
-    #    print "invalid aligner option; choose from bwa or novoalign"   
-    """end of code to add in"""
+    """this fixes the VIPER output to conform with RAxML"""
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     try:
         run_raxml("out.fasta", tree, processors)
@@ -158,9 +148,6 @@ def main(aligner,matrix,tree,reference,directory,processors,coverage,proportion,
 if __name__ == "__main__":
     usage="usage: %prog [options]"
     parser = OptionParser(usage=usage) 
-    parser.add_option("-a", "--aligner", dest="aligner",
-                      help="aligner to use, either bwa or novoalign, defaults to bwa",
-                      action="store", type="string", default="bwa")
     parser.add_option("-m", "--snp_matrix", dest="matrix",
                       help="path to NASP snp_matrix [REQUIRED]",
                       action="callback", callback=test_file, type="string")
@@ -201,6 +188,6 @@ if __name__ == "__main__":
             parser.print_help()
             exit(-1)
 
-    main(options.aligner,options.matrix,options.tree,options.reference,options.directory,
+    main(options.matrix,options.tree,options.reference,options.directory,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
          options.subnums)
