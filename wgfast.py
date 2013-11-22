@@ -105,10 +105,10 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         print "dict wasn't created"
     fileSets=read_file_sets(dir_path)
     ref_coords = grab_matrix_coords(matrix)
-    run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion)
+    run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
-    outnames=merge_vcfs(matrix)
+    outnames=grab_names()
     for name in outnames:
         for k,v in used_snps.iteritems():
             if name==k:

@@ -83,7 +83,7 @@ def read_file_sets(dir_path):
 
     return fileSets
 
-def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion):
+def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix):
     files_and_temp_names = [(str(idx), list(f))
                             for idx, f in fileSets.iteritems()]
     def _perform_workflow(data):
@@ -95,6 +95,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         #filter_vcf("%s.vcf.out" % idx, ref_coords, idx)
         #parse_vcf("%s.vcf.filtered" % idx, coverage, proportion, idx)
         process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
+        make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
     results = set(p_func.pmap(_perform_workflow,
                               files_and_temp_names,
                               num_workers=processors))
@@ -388,7 +389,7 @@ def dist_seqs(fasta_in, outnames):
         mydict={}
         outfile = open("%s.distances.txt" % name, "w")
         for line in open("all.dist", "U"):
-            if line.startswith('%s.' % name):
+            if line.startswith('%s' % name):
 		fields = line.split()
 		str1 = "".join(fields[1])
 		str2 = "".join(fields[2])
@@ -617,3 +618,35 @@ def write_reduced_matrix(matrix):
     outfile.close()
     in_matrix.close()
         
+def make_temp_matrix(vcf, matrix, name):
+    in_matrix = open(matrix, "U")
+    """these are all of the screened SNPs"""
+    matrix_ids=[ ]
+    firstLine = in_matrix.readline()
+    for line in in_matrix:
+        mfields=line.split()
+        matrix_ids.append(mfields[0])
+    open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
+    value_dict={}
+    new_dicts={}
+    nr_sorted=sorted(matrix_ids, key=sort_information)
+    for line in open(vcf, "U"):
+        fields=line.split()
+        value_dict.update({fields[0]:fields[1]})
+    for k,v in value_dict.iteritems():
+        if k in nr_sorted: new_dicts.update({k:v})
+        else: new_dicts.update({k:"-"})
+    for x in nr_sorted:
+        if x not in value_dict.keys():new_dicts.update({x:"-"})
+    for key in sorted(new_dicts.iterkeys(), key=sort_information):
+        open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts[key])
+
+def grab_names():
+    curr_dir= os.getcwd()
+    outnames = [ ]
+    for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
+        name=get_seq_name(infile)
+        reduced=name.replace(".filtered.vcf","")
+        outnames.append(reduced)
+    return outnames
+
