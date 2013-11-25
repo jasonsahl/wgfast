@@ -248,6 +248,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     vcf_in = open(vcf, "U")
     vcf_out = open("%s.filtered.vcf" % name, "w")
     outdata = []
+    ref_set = set(ref_coords)
     for line in vcf_in:
         if line.startswith('#'):
            pass
@@ -259,7 +260,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
             First we want to look at the situation where this is
             not the case"""
             merged_fields=fields[0]+"::"+fields[1]
-            if merged_fields in ref_coords:
+            if merged_fields in ref_set:
                 if "." != fields[4]:
                     snp_fields=fields[9].split(':')
                     if int(len(snp_fields))>2:
@@ -300,8 +301,11 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     return outdata
 
 def sort_information(x):
-    fields = x.split("::")
-    return int(fields[1])
+    try:
+        fields = x.split("::")
+        return int(fields[1])
+    except:
+        raise TypeError("problem encountered parsing fields")
 
 def merge_vcfs(matrix):
     curr_dir= os.getcwd()
@@ -317,11 +321,11 @@ def merge_vcfs(matrix):
     for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
         for line in open(infile, "U"):
             fields=line.split()
-            all_ids.append(fields[0])
+            #all_ids.append(fields[0])
             names.append(infile)
-    combined=matrix_ids+all_ids
-    nr=[x for i, x in enumerate(combined) if x not in combined[i+1:]]
-    nr_sorted=sorted(nr, key=sort_information)
+            #combined=matrix_ids+all_ids
+            #nr=[x for i, x in enumerate(combined) if x not in combined[i+1:]]
+    nr_sorted=sorted(matrix_ids, key=sort_information)
     #open("ref.list", "a").write("\n")
     #for x in nr_sorted:
     #    open("ref.list", "a").write("%s\n" % x)
@@ -372,6 +376,7 @@ def merge_matrix(matrix, merged_vcf):
 def matrix_to_fasta(matrix_in):
     reduced = [ ]
     out_fasta = open("all.fasta", "w")
+    redux = [ ]
     for line in open(matrix_in,"U"):
         fields = line.split()
         reduced.append(fields[1:])
@@ -379,7 +384,9 @@ def matrix_to_fasta(matrix_in):
     for x in test:
         print >> out_fasta, ">"+str(x[0])
         print >> out_fasta, "".join(x[1:])
+        redux.append(">"+str(x[0])+"".join(x[1:3]))
     out_fasta.close()
+    return redux
 
 def dist_seqs(fasta_in, outnames):
     os.system('mothur "#dist.seqs(fasta=%s, calc=nogaps)" > /dev/null 2>&1' % fasta_in)
@@ -548,8 +555,11 @@ def compare_subsample_results(true_dists):
             all_dists.append(line)
         name=get_seq_name(infile)
         split_fields=name.split(".")
-        max_dist=max(all_dists)
-        print "maximum subsample distance between %s and %s = %s" % (split_fields[0],split_fields[1],max_dist),
+        try:
+            max_dist=max(all_dists)
+            print "maximum subsample distance between %s and %s = %s" % (split_fields[0],split_fields[1],max_dist),
+        except:
+            print "problem found in input file: ", infile
         for x in true_dists:
             if x[0] == split_fields[0] and x[1] == split_fields[1]:
                 for dists in all_dists:
@@ -608,6 +618,7 @@ def transform_tree(tree):
 def write_reduced_matrix(matrix):
     in_matrix = open(matrix, "U")
     outfile = open("temp.matrix", "w")
+    outdata = [ ]
     firstLine = in_matrix.readline()
     first_fields=firstLine.split()
     last=first_fields.index("#SNPcall")
@@ -615,8 +626,10 @@ def write_reduced_matrix(matrix):
     for line in in_matrix:
         fields = line.split()
         print >> outfile, "\t".join(fields[:last])
+        outdata.append(len(fields[:last]))
     outfile.close()
     in_matrix.close()
+    return outdata
         
 def make_temp_matrix(vcf, matrix, name):
     in_matrix = open(matrix, "U")
