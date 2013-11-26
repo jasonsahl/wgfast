@@ -138,7 +138,10 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     if keep == "T":
         pass
     else:
-        subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist *subsample.distances.txt temp.matrix", shell=True)
+        try:
+            subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist *subsample.distances.txt temp.matrix", shell=True, stderr=open(os.devnull, 'w'))
+        except:
+            pass
         for outname in outnames:
             subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log" % (outname,outname,outname,outname), shell=True)
             os.chdir("%s" % ap)

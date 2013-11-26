@@ -92,8 +92,6 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         run_bwa(reference, f[0], f[1], processors, idx)
         process_sam("%s.sam" % idx, idx)
         run_gatk(reference, processors, idx, gatk)
-        #filter_vcf("%s.vcf.out" % idx, ref_coords, idx)
-        #parse_vcf("%s.vcf.filtered" % idx, coverage, proportion, idx)
         process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
         make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
     results = set(p_func.pmap(_perform_workflow,
@@ -125,7 +123,7 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
     bwa.wait()
 
 def run_bwa(reference, read1, read2, processors, name):
-    """launces bwa. Adds in read_group for compatability with GATK"""
+    """launches bwa. Adds in read_group for compatability with GATK"""
     read_group = '@RG\tID:%s\tSM:vac6wt\tPL:ILLUMINA\tPU:vac6wt' % name
     bwa(reference,read1, read2,"%s.sam" % name, processors, log_file='%s.sam.log' % name,**{'-R':read_group}) 
 
@@ -141,8 +139,8 @@ def run_gatk(reference, processors, name, gatk):
     """gatk controller"""
     args = ['java', '-jar', '%s' % gatk, '-T', 'UnifiedGenotyper',
             '-R', '%s' % reference, '-nt', '%s' % processors, '-S', 'silent',
-            '-mbq', '17', '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
-            '-stand_call_conf', '30', '-stand_emit_conf', '30', '-I', '%s.bam' % name,
+            '-mbq', '25', '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
+            '-stand_call_conf', '60', '-stand_emit_conf', '60', '-I', '%s.bam' % name,
             '-rf', 'BadCigar']
     try:
         vcf_fh = open('%s.vcf.out' % name, 'w')
@@ -158,90 +156,7 @@ def run_gatk(reference, processors, name, gatk):
     except:
         log_isg.logPrint("GATK encountered problems and did not run")
 
-def filter_vcf(vcf, ref_coords, name):
-    """filters a VCF for coordinates only present in the provided
-    NASP SNP matrix"""
-    vcf_in = open(vcf, "U")
-    vcf_out = open("%s.vcf.filtered" % name, "w")
-    outdata = [ ]
-    for line in vcf_in:
-        """skip VCF comment lines"""
-        if line.startswith("#"):
-            print >> vcf_out, line,
-        else:
-            fields=line.split()
-            """skip INFO lines put in by GATK"""
-            if "INFO" not in fields[0]:
-                """must adapt for NASP format"""
-                merged_fields=fields[0]+"::"+fields[1]
-                try:
-                    """checks to see what's in the NASP coord list"""
-                    if merged_fields in ref_coords:
-                        print >> vcf_out, line,
-                        #outdata.append(merged_fields)
-                    else:
-                        pass
-                except:
-                    """if no coords are in your ref list, there is likely a problem"""
-                    print "Are you sure you have the correct reference?"
-                    sys.exit()
-            else:
-                continue
-    vcf_in.close()
-    vcf_out.close()
-    return outdata
     
-def parse_vcf(vcf, coverage, proportion, name):
-    """finds SNPs that pass user-defined thresholds
-    for coverage and proportion"""
-    vcf_in = open(vcf, "U")
-    vcf_out = open("%s.filtered.vcf" % name, "w")
-    outdata = []
-    for line in vcf_in:
-        if line.startswith('#'):
-           pass
-        else:
-            fields=line.split()
-            """for GATK, a period signifies a reference call.
-            First we want to look at the situation where this is
-            not the case"""
-            if "." != fields[4]:
-                snp_fields=fields[9].split(':')
-                if int(len(snp_fields))>2:
-                    prop_fields=snp_fields[1].split(',')
-                    if int(snp_fields[2])>=coverage:
-                        if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
-                            print >> vcf_out, fields[0]+"::"+fields[1],fields[4]+"\n",
-                            outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
-                        else:
-                            print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                            outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                        """if problems are encountered, throw in a gap.  Could be too conservative"""
-                    else:
-                        print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                else:
-                    pass
-            elif "." == fields[4]:
-                nosnp_fields=fields[7].split(';')
-                cov_fields=nosnp_fields[1].replace("DP=","")
-                try:
-                    if int(cov_fields)>=coverage:
-                        print >> vcf_out, fields[0]+"::"+fields[1],fields[3]+"\n",
-                        outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
-                    else:
-                        print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                except:
-                     print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                     outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-            else:
-                print "error in vcf file found!"
-                sys.exit()
-    vcf_in.close()
-    vcf_out.close()
-    return outdata
-
 def process_vcf(vcf, ref_coords, coverage, proportion, name):
     """finds SNPs that pass user-defined thresholds
     for coverage and proportion"""
@@ -321,14 +236,8 @@ def merge_vcfs(matrix):
     for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
         for line in open(infile, "U"):
             fields=line.split()
-            #all_ids.append(fields[0])
             names.append(infile)
-            #combined=matrix_ids+all_ids
-            #nr=[x for i, x in enumerate(combined) if x not in combined[i+1:]]
     nr_sorted=sorted(matrix_ids, key=sort_information)
-    #open("ref.list", "a").write("\n")
-    #for x in nr_sorted:
-    #    open("ref.list", "a").write("%s\n" % x)
     outnames=[]
     for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
         name=get_seq_name(infile)
@@ -396,11 +305,13 @@ def dist_seqs(fasta_in, outnames):
         mydict={}
         outfile = open("%s.distances.txt" % name, "w")
         for line in open("all.dist", "U"):
-            if line.startswith('%s' % name):
-		fields = line.split()
+	    fields = line.split()
+            if name == fields[0]:
 		str1 = "".join(fields[1])
 		str2 = "".join(fields[2])
 		mydict.update({str1:str2})
+            else:
+                pass
         temp=sorted(mydict.items(), key=itemgetter(1))
         for x in temp:
             print >> outfile,"\t".join(x)
@@ -410,7 +321,6 @@ def dist_seqs(fasta_in, outnames):
             print "\t".join(x)
         print ""
         for y in reduced[:2]:
-            #print "true distance of %s to %s = %s" % (name,y[0],y[1])
             y_fixed=y[0].replace('__','::')
             y_fixed_2=y_fixed.replace('.filtered.vcf','')
             true_dists=((name,y_fixed_2,y[1]),)+true_dists
@@ -457,6 +367,7 @@ def run_raxml(fasta_in, tree, processors):
         log_isg.logPrint("sequence(s) were not inserted into tree!!!!!")
     os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.out > tree_including_unknowns_noedges.tree")
     subprocess.check_call("mv RAxML_labelledTree.out tree_including_unknowns_edges.tree" , shell=True)
+    subprocess.check_call("mv RAxML_classificationLikelihoodWeights.out classification_results.txt", shell=True)
     subprocess.check_call("rm RAxML_*", shell=True)
 
 def grab_matrix_coords(matrix):
@@ -536,13 +447,14 @@ def process_temp_matrices():
        for line in open("renamed.dist", "U"):
            if line.startswith("%s" % split_fields[0]):
                fields=line.split()
-               new_fields=[]
-               for x in fields:
-                   new_fields.append(x.replace('__','::'))
-               if new_fields[0]==split_fields[0] and new_fields[1]==split_fields[2]:
-                   print >> outfile, new_fields[2]+"\n",
-               else:
-                   pass
+               if split_fields[0] != split_fields[1]:
+                   new_fields=[]
+                   for x in fields:
+                       new_fields.append(x.replace('__','::'))
+                   if new_fields[0]==split_fields[0] and new_fields[1]==split_fields[2]:
+                       print >> outfile, new_fields[2]+"\n",
+                   else:
+                       pass
 
 def compare_subsample_results(true_dists):
     curr_dir= os.getcwd()
@@ -614,6 +526,8 @@ def transform_tree(tree):
     for x in tree_string:
         print >> outfile, "\t"+"tree tree_1 = [&R] ",str(x)+"\n",
     print >> outfile, "end;"+"\n",
+    infile.close()
+    outfile.close()
 
 def write_reduced_matrix(matrix):
     in_matrix = open(matrix, "U")
@@ -648,11 +562,13 @@ def make_temp_matrix(vcf, matrix, name):
         value_dict.update({fields[0]:fields[1]})
     for k,v in value_dict.iteritems():
         if k in nr_sorted: new_dicts.update({k:v})
-        else: new_dicts.update({k:"-"})
+        else: pass
     for x in nr_sorted:
         if x not in value_dict.keys():new_dicts.update({x:"-"})
     for key in sorted(new_dicts.iterkeys(), key=sort_information):
         open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts[key])
+    in_matrix.close()
+    return new_dicts
 
 def grab_names():
     curr_dir= os.getcwd()
