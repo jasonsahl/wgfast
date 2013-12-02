@@ -139,8 +139,8 @@ def run_gatk(reference, processors, name, gatk):
     """gatk controller"""
     args = ['java', '-jar', '%s' % gatk, '-T', 'UnifiedGenotyper',
             '-R', '%s' % reference, '-nt', '%s' % processors, '-S', 'silent',
-            '-mbq', '25', '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
-            '-stand_call_conf', '60', '-stand_emit_conf', '60', '-I', '%s.bam' % name,
+            '-mbq', '17', '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
+            '-stand_call_conf', '30', '-stand_emit_conf', '30', '-I', '%s.bam' % name,
             '-rf', 'BadCigar']
     try:
         vcf_fh = open('%s.vcf.out' % name, 'w')
@@ -163,6 +163,8 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     vcf_in = open(vcf, "U")
     vcf_out = open("%s.filtered.vcf" % name, "w")
     outdata = []
+    good_snps = [ ]
+    mixed_snps = [ ]
     ref_set = set(ref_coords)
     for line in vcf_in:
         if line.startswith('#'):
@@ -184,9 +186,11 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                             if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
                                 print >> vcf_out, fields[0]+"::"+fields[1],fields[4]+"\n",
                                 outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
+                                good_snps.append("1")
                             else:
                                 print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
                                 outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                mixed_snps.append("1")
                             """if problems are encountered, throw in a gap.  Could be too conservative"""
                         else:
                             print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
@@ -211,10 +215,12 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                     sys.exit()
             else:
                 pass
+    print "number of SNPs in genome %s = " % name, len(good_snps)
+    print "number of discarded SNPs in genome %s = " % name, len(mixed_snps)
     vcf_in.close()
     vcf_out.close()
     return outdata
-
+    
 def sort_information(x):
     try:
         fields = x.split("::")

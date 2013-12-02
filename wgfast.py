@@ -64,24 +64,30 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     else:
         print "RAxML must be in your path as raxmlHPC-PTHREADS"
         sys.exit()
+    print "citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'"
     ab = subprocess.call(['which', 'samtools'])
     if ab == 0:
         pass
     else:
         print "samtools must be in your path"
         sys.exit()
+    print "citation: 'Li H, Handsaker B, Wysoker A, Fennell T, Ruan J, Homer N, Marth G, Abecasis G, Durbin R, Genome Project Data Processing S. The Sequence Alignment/Map format and SAMtools. Bioinformatics. 2009;25(16):2078-9'"
     ac = subprocess.call(['which', 'bwa'])
     if ac == 0:
         pass
     else:
         print "bwa must be in your path"
         sys.exit()
+    print "citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'"
     ad = subprocess.call(['which', 'mothur'])
     if ad == 0:
         pass
     else:
         print "mothur must be in your path"
         sys.exit()
+    print "citation: 'Schloss PD, Westcott SL, Ryabin T, Hall JR, Hartmann M, Hollister EB, Lesniewski RA, Oakley BB, Parks DH, Robinson CJ, Sahl JW, Stres B, Thallinger GG, Van Horn DJ, Weber CF. Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Appl Environ Microbiol. 2009;75(23):7537-41'"
+    print "Also uses GATK"
+    print "citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'"
     """done checking for dependencies"""
     ref_path=os.path.abspath("%s" % reference)
     dir_path=os.path.abspath("%s" % directory)
@@ -112,7 +118,7 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     for name in outnames:
         for k,v in used_snps.iteritems():
             if name==k:
-                log_isg.logPrint("number of usable SNPs in genome %s = %s" % (k,v))
+                log_isg.logPrint("number of callable positions in genome %s = %s" % (k,v))
     subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
     """deletes temporary files that could be confused later on"""
     subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
