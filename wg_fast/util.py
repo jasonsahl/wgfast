@@ -561,8 +561,7 @@ def make_temp_matrix(vcf, matrix, name):
         fields=line.split()
         value_dict.update({fields[0]:fields[1]})
     for k,v in value_dict.iteritems():
-        if k in nr_sorted: new_dicts.update({k:v})
-        else: pass
+        new_dicts.update({k:v})
     for x in nr_sorted:
         if x not in value_dict.keys():new_dicts.update({x:"-"})
     for key in sorted(new_dicts.iterkeys(), key=sort_information):
