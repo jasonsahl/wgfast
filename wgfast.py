@@ -65,6 +65,7 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         print "RAxML must be in your path as raxmlHPC-PTHREADS"
         sys.exit()
     print "citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'"
+    print "citation: 'Berger SA, Krompass D, Stamatakis A. Performance, accuracy, and Web server for evolutionary placement of short sequence reads under maximum likelihood. Syst Biol. 2011;60(3):291-302'"
     ab = subprocess.call(['which', 'samtools'])
     if ab == 0:
         pass
@@ -89,6 +90,7 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     print "Also uses GATK"
     print "citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'"
     """done checking for dependencies"""
+    print ""
     ref_path=os.path.abspath("%s" % reference)
     dir_path=os.path.abspath("%s" % directory)
     try:
@@ -131,6 +133,10 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     try:
         run_raxml("out.fasta", tree, processors)
         transform_tree("tree_including_unknowns_noedges.tree")
+        print ""
+        log_isg.logPrint("Insertion likelihood values:")
+        parse_likelihoods("classification_results.txt")
+        print ""
     except:
         print "raxml encountered an error and unknown couldn't be added"
     if subsample=="T":

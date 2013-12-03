@@ -562,13 +562,14 @@ def make_temp_matrix(vcf, matrix, name):
     open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
     value_dict={}
     new_dicts={}
-    nr_sorted=sorted(matrix_ids, key=sort_information)
+    #nr_sorted=sorted(matrix_ids, key=sort_information)
     for line in open(vcf, "U"):
         fields=line.split()
         value_dict.update({fields[0]:fields[1]})
     for k,v in value_dict.iteritems():
         new_dicts.update({k:v})
-    for x in nr_sorted:
+    for x in matrix_ids:
+        #for x in nr_sorted:
         if x not in value_dict.keys():new_dicts.update({x:"-"})
     for key in sorted(new_dicts.iterkeys(), key=sort_information):
         open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts[key])
@@ -584,3 +585,14 @@ def grab_names():
         outnames.append(reduced)
     return outnames
 
+def parse_likelihoods(infile):
+    my_in = open(infile, "U")
+    like_dict = {}
+    for line in my_in:
+        fields = line.split()
+        try:
+            like_dict[fields[0]].append(fields[2])
+        except KeyError:
+            like_dict[fields[0]] = [fields[2]]
+    for k,v in like_dict.iteritems():
+        print k+"\t"+v[0]
