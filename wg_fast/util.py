@@ -12,6 +12,7 @@ from igs.utils import logging as log_isg
 from operator import itemgetter
 import random
 
+
 def get_seq_name(in_fasta):
     """used for renaming the sequences"""
     return os.path.basename(in_fasta)
@@ -438,29 +439,52 @@ def find_used_snps():
         used_SNPs[str(reduced)] = int(len(good_snps))
     return used_SNPs
 
-def process_temp_matrices():
+def process_temp_matrices(dist_sets, tree, processors):
+   import dendropy
+   from dendropy import treecalc
    curr_dir= os.getcwd()
    for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
+       to_prune = []
        name=get_seq_name(infile)
        split_fields=name.split(".")
        outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
+       infile = open(tree, "U")
+       for line in infile:
+           mytree="%s" % line
+       tmptree = open("tmpx.tree", "w")
+       for x in dist_sets:
+           if x[0] == split_fields[0]: 
+               to_prune.append(x[1])
+               to_prune.append(x[2])
+       to_prune_fixed=[]
+       for x in to_prune:
+           to_prune_fixed.append(re.sub('[:,]', '', x))
+       #for x in to_prune:
+       #    to_prune_fixed.append(x.replace(":",""))
+       #    to_prune_fixed.append(x.replace(",",""))
+       print to_prune_fixed
+       tree_full = dendropy.Tree.get_from_string(mytree,"newick")
+       tree_full.prune_taxa_with_labels(to_prune_fixed)
+       print >> tmptree, tree_full
        try:
            matrix_to_fasta(infile)
+           os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
        except:
            print "problem encountered with file ",infile
-       os.system('mothur "#dist.seqs(fasta=all.fasta, calc=nogaps)" > /dev/null 2>&1')
-       os.system('sed "s/.filtered.vcf//g" all.dist > renamed.dist')
-       for line in open("renamed.dist", "U"):
-           if line.startswith("%s" % split_fields[0]):
-               fields=line.split()
-               if split_fields[0] != split_fields[1]:
-                   new_fields=[]
-                   for x in fields:
-                       new_fields.append(x.replace('__','::'))
-                   if new_fields[0]==split_fields[0] and new_fields[1]==split_fields[2]:
-                       print >> outfile, new_fields[2]+"\n",
-                   else:
-                       pass
+       run_raxml("out.fasta", "tmpx.tree", processors)
+           #os.system('mothur "#dist.seqs(fasta=all.fasta, calc=nogaps)" > /dev/null 2>&1')
+           #os.system('sed "s/.filtered.vcf//g" all.dist > renamed.dist')
+           #for line in open("renamed.dist", "U"):
+           #if line.startswith("%s" % split_fields[0]):
+           #    fields=line.split()
+           #    if split_fields[0] != split_fields[1]:
+           #        new_fields=[]
+           #        for x in fields:
+           #            new_fields.append(x.replace('__','::'))
+           #        if new_fields[0]==split_fields[0] and new_fields[1]==split_fields[2]:
+           #            print >> outfile, new_fields[2]+"\n",
+           #        else:
+           #            pass
 
 def compare_subsample_results(true_dists):
     curr_dir= os.getcwd()
@@ -562,14 +586,12 @@ def make_temp_matrix(vcf, matrix, name):
     open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
     value_dict={}
     new_dicts={}
-    #nr_sorted=sorted(matrix_ids, key=sort_information)
     for line in open(vcf, "U"):
         fields=line.split()
         value_dict.update({fields[0]:fields[1]})
     for k,v in value_dict.iteritems():
         new_dicts.update({k:v})
     for x in matrix_ids:
-        #for x in nr_sorted:
         if x not in value_dict.keys():new_dicts.update({x:"-"})
     for key in sorted(new_dicts.iterkeys(), key=sort_information):
         open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts[key])
@@ -594,5 +616,19 @@ def parse_likelihoods(infile):
             like_dict[fields[0]].append(fields[2])
         except KeyError:
             like_dict[fields[0]] = [fields[2]]
+    print "sample_name","\t","insertion_likelihood","\t","number of potential insertion nodes"
     for k,v in like_dict.iteritems():
-        print k+"\t"+v[0]
+        print k+"\t"+v[0]+"\t"+str(len(v))
+    my_in.close()
+
+def calculate_pairwise_tree_dists(intree):
+    import dendropy
+    from dendropy import treecalc
+    tree = dendropy.Tree.get_from_path(intree, "newick")
+    outfile = open("all_phylogenetic_distances.txt", "w")
+    distances = treecalc.PatristicDistanceMatrix(tree)
+    for i, t1 in enumerate(tree.taxon_set):
+        for t2 in tree.taxon_set[i+1:]:
+            #print("Distance between '%s' and '%s': %s" % (t1.label, t2.label, distances(t1, t2)))
+            print >> outfile, "Distance between '%s' and '%s': %s" % (t1.label, t2.label, distances(t1, t2))
+    outfile.close()

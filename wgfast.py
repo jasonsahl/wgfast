@@ -139,12 +139,15 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         print ""
     except:
         print "raxml encountered an error and unknown couldn't be added"
+    calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree")
     if subsample=="T":
         dist_sets=find_two()
+        #print dist_sets
         log_isg.logPrint("running subsample routine")
         subsample_snps("nasp_matrix.with_unknowns.txt", dist_sets, used_snps,subnums)
-        process_temp_matrices()
-        compare_subsample_results(true_dists)
+        os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
+        process_temp_matrices(dist_sets, "tmp.tree", processors)
+        #compare_subsample_results(true_dists)
     else:
         log_isg.logPrint("all done")
     if keep == "T":
