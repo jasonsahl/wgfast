@@ -25,7 +25,7 @@ import errno
 from igs.utils import logging as log_isg
 
 #WGFAST_PATH="/home/jsahl/tools/wgfast"
-WGFAST_PATH="/Users/jsahl/wg_fast"
+WGFAST_PATH="/Users/jsahl/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
@@ -121,17 +121,22 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         for k,v in used_snps.iteritems():
             if name==k:
                 log_isg.logPrint("number of callable positions in genome %s = %s" % (k,v))
+    for name in outnames:
+        os.system("echo %s.bam > %s.bam.list" % (name,name))
+        os.system("java -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (GATK_PATH,ap,name,name))
+        process_coverage(name)
     subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
     """deletes temporary files that could be confused later on"""
     subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
     subprocess.check_call("paste temp.matrix merged.vcf > combined.matrix", shell=True)
     matrix_to_fasta("combined.matrix")
     os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
+    """change the next function to patristic distances"""
     true_dists=dist_seqs("all.fasta", outnames)
     """this fixes the VIPER output to conform with RAxML"""
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     try:
-        run_raxml("out.fasta", tree, processors)
+        run_raxml("out.fasta", tree, processors, "classification_results.txt")
         transform_tree("tree_including_unknowns_noedges.tree")
         print ""
         log_isg.logPrint("Insertion likelihood values:")
@@ -139,14 +144,16 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         print ""
     except:
         print "raxml encountered an error and unknown couldn't be added"
-    calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree")
+    calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
+    #true_dists=get_closest_dists("all_patristic_distances.txt", outnames)
     if subsample=="T":
         dist_sets=find_two()
-        #print dist_sets
         log_isg.logPrint("running subsample routine")
-        subsample_snps("nasp_matrix.with_unknowns.txt", dist_sets, used_snps,subnums)
+        print dist_sets
+        subsample_snps("nasp_matrix.with_unknowns.txt", dist_sets, used_snps, subnums)
         os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
-        process_temp_matrices(dist_sets, "tmp.tree", processors)
+        process_temp_matrices(dist_sets, "tmp.tree", processors, "all_patristic_distances.txt")
+        #print true_dists
         #compare_subsample_results(true_dists)
     else:
         log_isg.logPrint("all done")
@@ -154,7 +161,7 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         pass
     else:
         try:
-            subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist *subsample.distances.txt temp.matrix", shell=True, stderr=open(os.devnull, 'w'))
+            subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist temp.matrix", shell=True, stderr=open(os.devnull, 'w'))
         except:
             pass
         for outname in outnames:

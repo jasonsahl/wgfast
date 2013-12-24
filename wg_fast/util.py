@@ -11,7 +11,7 @@ from igs.threading import functional as p_func
 from igs.utils import logging as log_isg
 from operator import itemgetter
 import random
-
+import threading
 
 def get_seq_name(in_fasta):
     """used for renaming the sequences"""
@@ -84,9 +84,22 @@ def read_file_sets(dir_path):
 
     return fileSets
 
+def process_coverage(name):
+    curr_dir= os.getcwd()
+    outfile = open("coverage_out.txt", "a")
+    coverage_dict = {}
+    infile = open("%s_coverage.sample_summary" % name, "U")
+    for line in infile:
+        if line.startswith("%s" % name):
+            fields = line.split()
+            coverage_dict.update({fields[0]:fields[2]})
+    for k,v in coverage_dict.iteritems():
+        print >> outfile,k,v+"\n",
+
 def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix):
     files_and_temp_names = [(str(idx), list(f))
                             for idx, f in fileSets.iteritems()]
+    lock = threading.Lock()
     def _perform_workflow(data):
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
@@ -125,7 +138,7 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
 
 def run_bwa(reference, read1, read2, processors, name):
     """launches bwa. Adds in read_group for compatability with GATK"""
-    read_group = '@RG\tID:%s\tSM:vac6wt\tPL:ILLUMINA\tPU:vac6wt' % name
+    read_group = '@RG\tID:%s\tSM:%s\tPL:ILLUMINA\tPU:%s' % (name,name,name)
     bwa(reference,read1, read2,"%s.sam" % name, processors, log_file='%s.sam.log' % name,**{'-R':read_group}) 
 
 def process_sam(in_sam, name):
@@ -338,21 +351,24 @@ def find_two():
     curr_dir= os.getcwd()
     dist_sets = ()
     for infile in glob.glob(os.path.join(curr_dir, "*.distances.txt")):
-        with open(infile) as f:
+        with open(infile, "U") as f:
             newlist=[]
             temp = get_seq_name(infile)
             reduced = temp.replace(".distances.txt","")
             for line in f.readlines()[:2]:
                 fields=line.split()
-                new_fields=[]
-                for x in fields:
-                    new_fields.append(x.replace('__','::'))
-                newlist.append(new_fields[0])
+                myid = re.sub("[:']", "",fields[0])
+                newlist.append(myid)
+                #new_fields=[]
+                #for x in fields:
+                #    new_fields.append(x.replace('__','::'))
+                #newlist.append(new_fields[0])
+            print newlist
             dist_sets=((reduced,newlist[0],newlist[1]),)+dist_sets
     return dist_sets
                 
 
-def run_raxml(fasta_in, tree, processors):
+def run_raxml(fasta_in, tree, processors, out_class_file):
     args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', 'v',
 	     '-s', '%s' % fasta_in, '-m', 'GTRGAMMA', '-n', 'out', '-t',
 	     '%s' % tree, '>', '/dev/null 2>&1']
@@ -374,7 +390,7 @@ def run_raxml(fasta_in, tree, processors):
         log_isg.logPrint("sequence(s) were not inserted into tree!!!!!")
     os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.out > tree_including_unknowns_noedges.tree")
     subprocess.check_call("mv RAxML_labelledTree.out tree_including_unknowns_edges.tree" , shell=True)
-    subprocess.check_call("mv RAxML_classificationLikelihoodWeights.out classification_results.txt", shell=True)
+    subprocess.check_call("cat RAxML_classificationLikelihoodWeights.out >> %s" % out_class_file, shell=True)
     subprocess.check_call("rm RAxML_*", shell=True)
 
 def grab_matrix_coords(matrix):
@@ -439,39 +455,82 @@ def find_used_snps():
         used_SNPs[str(reduced)] = int(len(good_snps))
     return used_SNPs
 
-def process_temp_matrices(dist_sets, tree, processors):
-   import dendropy
-   from dendropy import treecalc
-   curr_dir= os.getcwd()
-   for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
-       to_prune = []
-       name=get_seq_name(infile)
-       split_fields=name.split(".")
-       outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
-       infile = open(tree, "U")
-       for line in infile:
-           mytree="%s" % line
-       tmptree = open("tmpx.tree", "w")
-       for x in dist_sets:
-           if x[0] == split_fields[0]: 
-               to_prune.append(x[1])
-               to_prune.append(x[2])
-       to_prune_fixed=[]
-       for x in to_prune:
-           to_prune_fixed.append(re.sub('[:,]', '', x))
-       #for x in to_prune:
-       #    to_prune_fixed.append(x.replace(":",""))
-       #    to_prune_fixed.append(x.replace(",",""))
-       print to_prune_fixed
-       tree_full = dendropy.Tree.get_from_string(mytree,"newick")
-       tree_full.prune_taxa_with_labels(to_prune_fixed)
-       print >> tmptree, tree_full
-       try:
-           matrix_to_fasta(infile)
-           os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
-       except:
-           print "problem encountered with file ",infile
-       run_raxml("out.fasta", "tmpx.tree", processors)
+def branch_lengths_2_decimals(str_newick_tree):
+    """replaces branch lengths in scientific notation with decimals"""
+    colon_s = 0
+    comma_back_paren_s = 0
+    num = ''
+    new_tree = ''
+    for count, char in enumerate(str_newick_tree):
+        if char == ':':
+            colon_s = count
+            continue
+        if char in (')', ','):
+            comma_back_paren_s = 1
+            num = '%f' % float(num)
+            new_tree += ":" + num
+            colon_s = 0
+            num = ''
+        if colon_s != 0:
+            num = num + char
+        if colon_s == 0:
+            new_tree += char
+    new_tree = new_tree.strip('\'').strip('\"').strip('\'') + ";"
+    return new_tree
+
+def process_temp_matrices(dist_sets, tree, processors, patristics):
+    import dendropy
+    from dendropy import treecalc
+    curr_dir= os.getcwd()
+    true_dists=()
+    for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
+        to_prune = []
+        name=get_seq_name(infile)
+        split_fields=name.split(".")
+        outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
+        tmptree = open("tmpx.tree", "w")
+        for x in dist_sets:
+            if x[0] == split_fields[0]: 
+                to_prune.append(x[1])
+                to_prune.append(x[2])
+        to_prune_fixed=[]
+        for x in to_prune:
+            to_prune_fixed.append(re.sub('[:,]', '', x))
+        tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
+        tree_full.prune_taxa_with_labels(to_prune_fixed)
+        final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+        print >> tmptree, final_tree
+        tmptree.close()
+        tmptree2 = open("tmpxz.tree", "w")
+        for line in open("tmpx.tree", "U"):
+            if line.startswith("[&U]"):
+                fields = line.split()
+                fixed_fields = [ ]
+                for x in fields:
+                    fixed_fields.append(x.replace("'",""))
+                print >> tmptree2, fixed_fields[1]
+            else:
+                pass
+        tmptree2.close()
+        matrix_to_fasta(infile)
+        os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
+        run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt")
+        calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
+        #print to_prune_fixed
+        #for line in open(patristics, "U"):
+        #    fields = line.split()
+        #    id = re.sub("[:']", "",fields[4])
+            #to_prune_fixed.append(re.sub('[:,]', '', x))
+            #    if id in to_prune_fixed and fields[2] == "'Reference'":
+            #    print "true patristic distance between %s and %s = %s" % (fields[2], fields[4], fields[5])
+        for line in open("resampling_distances.txt","U"):
+            resample_fields = line.split()
+            myid = re.sub("[:']", "",resample_fields[4])
+            fixedid = myid.replace("QUERY___","")
+            if resample_fields[2] == "'Reference'" and fixedid in to_prune_fixed:
+                print >> outfile, "resampled distance between %s and %s = %s" % (resample_fields[2], resample_fields[4], resample_fields[5])
+                #true_dists=((resample_fields[2], resample_fields[4], resample_fields[5]),)+true_dists
+                #return true_dists     
            #os.system('mothur "#dist.seqs(fasta=all.fasta, calc=nogaps)" > /dev/null 2>&1')
            #os.system('sed "s/.filtered.vcf//g" all.dist > renamed.dist')
            #for line in open("renamed.dist", "U"):
@@ -621,14 +680,44 @@ def parse_likelihoods(infile):
         print k+"\t"+v[0]+"\t"+str(len(v))
     my_in.close()
 
-def calculate_pairwise_tree_dists(intree):
+def calculate_pairwise_tree_dists(intree, output):
     import dendropy
     from dendropy import treecalc
-    tree = dendropy.Tree.get_from_path(intree, "newick")
-    outfile = open("all_phylogenetic_distances.txt", "w")
+    tree = dendropy.Tree.get_from_path(intree, "newick", preserve_underscores=True)
+    outfile = open("%s" % output, "w")
     distances = treecalc.PatristicDistanceMatrix(tree)
     for i, t1 in enumerate(tree.taxon_set):
         for t2 in tree.taxon_set[i+1:]:
-            #print("Distance between '%s' and '%s': %s" % (t1.label, t2.label, distances(t1, t2)))
             print >> outfile, "Distance between '%s' and '%s': %s" % (t1.label, t2.label, distances(t1, t2))
     outfile.close()
+
+def get_closest_dists(input, outnames):
+    reduced = [ ]
+    true_dists = ()
+    for name in outnames:
+        mydict={}
+        outfile = open("%s.distances.txt" % name, "w")
+        for line in open(input, "U"):
+	    fields = line.split()
+            myid = re.sub("[:']", "",fields[2])
+            fixedid = myid.replace("QUERY___","")
+            if name == fixedid:
+		str1 = "".join(fields[4])
+		str2 = "".join(fields[5])
+		mydict.update({str1:str2})
+            else:
+                pass
+        temp=sorted(mydict.items(), key=itemgetter(1))
+        for x in temp:
+            print >> outfile,"\t".join(x)
+        reduced = temp[:5]
+        print "closest genome from %s" % name,"\t","distance"
+        for x in reduced:
+            print "\t".join(x)
+        print ""
+        for y in reduced[:2]:
+            y_fixed=y[0].replace('__','::')
+            #y_fixed_2=y_fixed.replace('.filtered.vcf','')
+            true_dists=((name,y_fixed,y[1]),)+true_dists
+        outfile.close()
+    return true_dists
