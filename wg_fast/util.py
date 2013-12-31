@@ -3,6 +3,7 @@ import re
 import logging
 import glob
 import subprocess
+import sys
 from subprocess import Popen
 from Bio import SeqIO
 from Bio import Phylo
@@ -96,7 +97,7 @@ def process_coverage(name):
     for k,v in coverage_dict.iteritems():
         print >> outfile,k,v+"\n",
 
-def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix):
+def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap):
     files_and_temp_names = [(str(idx), list(f))
                             for idx, f in fileSets.iteritems()]
     lock = threading.Lock()
@@ -106,6 +107,9 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         run_bwa(reference, f[0], f[1], processors, idx)
         process_sam("%s.sam" % idx, idx)
         run_gatk(reference, processors, idx, gatk)
+        os.system("echo %s.bam > %s.bam.list" % (idx,idx))
+        os.system("java -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (gatk,ap,idx,idx))
+        process_coverage(idx)
         process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
         make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
     results = set(p_func.pmap(_perform_workflow,
@@ -466,6 +470,8 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
                             else:
                                 print >> outfile_2, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
 def find_used_snps():
+    """report how many SNPs were used in a given sample.  This is
+    then used for the sub-sampling routine"""
     curr_dir= os.getcwd()
     used_SNPs = {}
     for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
@@ -559,39 +565,34 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
         run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt")
         """dendropy is used to calculate pairwise patristic distances"""
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
+        """parse the results from raxml and save the results to the subsamples file"""
         for line in open("resampling_distances.txt","U"):
             resample_fields = line.split()
             myid = re.sub("[:']", "",resample_fields[4])
             fixedid = myid.replace("QUERY___","")
+            newid = re.sub("[:']","",resample_fields[2])
+            fixedid2 = newid.replace("QUERY___","")
             if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
                 print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
-            elif resample_fields[4] == "'Reference'":
-                print "reference shouldn't be here!"
-        os.system("rm all.fasta tmpxz.tree out.fasta tmpx.tree resampling_distances.txt tree_including_unknowns_noedges.tree")
-                #true_dists=((resample_fields[2], resample_fields[4], resample_fields[5]),)+true_dists
-                #return true_dists     
-           #os.system('mothur "#dist.seqs(fasta=all.fasta, calc=nogaps)" > /dev/null 2>&1')
-           #os.system('sed "s/.filtered.vcf//g" all.dist > renamed.dist')
-           #for line in open("renamed.dist", "U"):
-           #if line.startswith("%s" % split_fields[0]):
-           #    fields=line.split()
-           #    if split_fields[0] != split_fields[1]:
-           #        new_fields=[]
-           #        for x in fields:
-           #            new_fields.append(x.replace('__','::'))
-           #        if new_fields[0]==split_fields[0] and new_fields[1]==split_fields[2]:
-           #            print >> outfile, new_fields[2]+"\n",
-           #        else:
-           #            pass
-
+            elif resample_fields[4] == "'Reference'" and fixedid2 in name_fixed:
+                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
+            else:
+                pass
+            
+        os.system("rm all.fasta tmpxz.tree out.fasta tmpx.tree tree_including_unknowns_noedges.tree")
+        #os.system("rm resampling_distances.txt")
+        
 def compare_subsample_results(outnames):
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*.subsample.distances.txt")):
+        name=get_seq_name(infile)
+        split_fields=name.split(".")
         genomes_used = [ ]
         all_dists=[ ]
         dists_greater_than_true=[ ]
         dists_equal_to_true=[ ]
         dists_less_than_true=[ ]
+        """Here, I get the list of the genomes that are being analyzed"""
         for line in open(infile, "U"):
             fields = line.split()
             all_dists.append(fields[7])
@@ -602,37 +603,31 @@ def compare_subsample_results(outnames):
             print "maximum subsample distance between %s and %s = %s" % (genomes_used[0],genomes_used[1],max_dist),"\n",
         except:
             print "problem found in input file: ", infile
-        for name in outnames:
-            for line in open("%s.closest.two.txt" % name, "U"):
-                fields = line.split()
-                for all_dist in all_dists:
-                    if fields[0] in genomes_used:
-                        if float(fields[1])>float(all_dist):
-                            dists_greater_than_true.append("1")
-                        elif float(fields[1])>float(all_dist):
-                            dists_less_than_true.append("1")
-                        elif float(fields[1])==float(all_dist):
-                            dists_equal_to_true.append("1")
-            #if x[0] == split_fields[0] and x[1] == split_fields[1]:
-            #    for dists in all_dists:
-            #        if float(x[2])>float(dists):
-            #            dists_greater_than_true.append("1")
-            #        elif float(x[2])==float(dists):
-            #            dists_equal_to_true.append("1")
-            #        else:
-            #            dists_less_than_true.append("1")
-            #else:
-            #    pass
-            greaters = int(len(dists_greater_than_true))
-            equals = int(len(dists_equal_to_true))
-            lessers = int(len(dists_less_than_true))
+        true_dists = [ ]
+        for line in open("%s.closest.two.txt" % split_fields[0], "U"):
+            fields = line.split()
+            if fields[0] == split_fields[1]:
+                true_dists.append(fields[1])
+            for all_dist in all_dists:
+                if fields[0] in genomes_used:
+                    if float(fields[1])>float(all_dist):
+                        dists_greater_than_true.append("1")
+                    elif float(fields[1])>float(all_dist):
+                        dists_less_than_true.append("1")
+                    elif float(fields[1])==float(all_dist):
+                        dists_equal_to_true.append("1")
+        greaters = int(len(dists_greater_than_true))
+        equals = int(len(dists_equal_to_true))
+        lessers = int(len(dists_less_than_true))
             #for x in true_dists:
             #if x[0] == split_fields[0] and x[1] == split_fields[1]:
             #    print "True distance between %s and %s = %s" % (split_fields[0],split_fields[1],x[2])
-            print "Subsample distances between %s and %s greater than true value = %s" % (genomes_used[0],genomes_used[1],greaters)
-            print "Subsample distances between %s and %s equal to true value = %s" % (genomes_used[0],genomes_used[1],equals)
-            print "Subsample distances between %s and %s less than true value = %s" % (genomes_used[0],genomes_used[1],lessers)    
-            print ""
+        print "True distance between %s and %s = %s" % (split_fields[0],split_fields[1],"".join(true_dists))
+        print "Sample: %s" % split_fields[0]
+        print "Subsample distances between %s and %s greater than true value = %s" % (genomes_used[0],genomes_used[1],greaters)
+        print "Subsample distances between %s and %s equal to true value = %s" % (genomes_used[0],genomes_used[1],equals)
+        print "Subsample distances between %s and %s less than true value = %s" % (genomes_used[0],genomes_used[1],lessers)    
+        print ""
 
 def transform_tree(tree):
     infile = open(tree, "U")
@@ -732,8 +727,12 @@ def parse_likelihoods(infile):
     my_in.close()
 
 def calculate_pairwise_tree_dists(intree, output):
-    import dendropy
-    from dendropy import treecalc
+    try:
+        import dendropy
+        from dendropy import treecalc
+    except:
+        print "dendropy is not installed, but needs to be"
+        sys.exit()
     tree = dendropy.Tree.get_from_path(intree, "newick", preserve_underscores=True)
     outfile = open("%s" % output, "w")
     distances = treecalc.PatristicDistanceMatrix(tree)

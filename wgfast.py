@@ -89,7 +89,7 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     print "citation: 'Schloss PD, Westcott SL, Ryabin T, Hall JR, Hartmann M, Hollister EB, Lesniewski RA, Oakley BB, Parks DH, Robinson CJ, Sahl JW, Stres B, Thallinger GG, Van Horn DJ, Weber CF. Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Appl Environ Microbiol. 2009;75(23):7537-41'"
     print "Also uses GATK"
     print "citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'"
-    """done checking for dependencies"""
+    #done checking for dependencies
     print ""
     ref_path=os.path.abspath("%s" % reference)
     dir_path=os.path.abspath("%s" % directory)
@@ -113,7 +113,7 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         print "dict wasn't created"
     fileSets=read_file_sets(dir_path)
     ref_coords = grab_matrix_coords(matrix)
-    run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix)
+    run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
     outnames=grab_names()
@@ -121,19 +121,13 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         for k,v in used_snps.iteritems():
             if name==k:
                 log_isg.logPrint("number of callable positions in genome %s = %s" % (k,v))
-    for name in outnames:
-        os.system("echo %s.bam > %s.bam.list" % (name,name))
-        os.system("java -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (GATK_PATH,ap,name,name))
-        process_coverage(name)
     subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
     """deletes temporary files that could be confused later on"""
     subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
     subprocess.check_call("paste temp.matrix merged.vcf > combined.matrix", shell=True)
     matrix_to_fasta("combined.matrix")
     os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
-    """change the next function to patristic distances"""
-    #true_dists=dist_seqs("all.fasta", outnames)
-    """this fixes the VIPER output to conform with RAxML"""
+    """this fixes the SNP output to conform with RAxML"""
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     try:
         run_raxml("out.fasta", tree, processors, "classification_results.txt")
