@@ -132,7 +132,7 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     matrix_to_fasta("combined.matrix")
     os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
     """change the next function to patristic distances"""
-    true_dists=dist_seqs("all.fasta", outnames)
+    #true_dists=dist_seqs("all.fasta", outnames)
     """this fixes the VIPER output to conform with RAxML"""
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     try:
@@ -145,16 +145,18 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     except:
         print "raxml encountered an error and unknown couldn't be added"
     calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
-    #true_dists=get_closest_dists("all_patristic_distances.txt", outnames)
     if subsample=="T":
-        dist_sets=find_two()
+        """find true distance of each genome to the reference"""
+        os.system("sort -g -k 6 all_patristic_distances.txt > tmp_patristic_distances.txt")
+        final_sets, distances=find_two("tmp_patristic_distances.txt", outnames)
+        print distances
+        print final_sets
+        get_closest_dists(final_sets, distances, outnames)
         log_isg.logPrint("running subsample routine")
-        print dist_sets
-        subsample_snps("nasp_matrix.with_unknowns.txt", dist_sets, used_snps, subnums)
+        subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
         os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
-        process_temp_matrices(dist_sets, "tmp.tree", processors, "all_patristic_distances.txt")
-        #print true_dists
-        #compare_subsample_results(true_dists)
+        process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt")
+        compare_subsample_results(outnames)
     else:
         log_isg.logPrint("all done")
     if keep == "T":

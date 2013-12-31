@@ -347,27 +347,39 @@ def dist_seqs(fasta_in, outnames):
         outfile.close()
     return true_dists
 
-def find_two():
-    curr_dir= os.getcwd()
-    dist_sets = ()
-    for infile in glob.glob(os.path.join(curr_dir, "*.distances.txt")):
-        with open(infile, "U") as f:
-            newlist=[]
-            temp = get_seq_name(infile)
-            reduced = temp.replace(".distances.txt","")
-            for line in f.readlines()[:2]:
-                fields=line.split()
-                myid = re.sub("[:']", "",fields[0])
-                newlist.append(myid)
-                #new_fields=[]
-                #for x in fields:
-                #    new_fields.append(x.replace('__','::'))
-                #newlist.append(new_fields[0])
-            print newlist
-            dist_sets=((reduced,newlist[0],newlist[1]),)+dist_sets
-    return dist_sets
+def find_two(infile,outnames):
+    dist_sets = {}
+    distances = ()
+    myfile = open(infile, "U")
+    for line in myfile:
+        fields=line.split()
+        new_fields=[ ]
+        for x in fields:
+            new_fields.append(re.sub('[:,]', '', x))
+        final_fields=[ ]
+        for y in new_fields:
+            final_fields.append(y.replace("QUERY___",""))
+        if "Reference" in final_fields[2].replace("'",""):
+            distances=((final_fields[2].replace("'",""),final_fields[4].replace("'",""),final_fields[5].replace("'","")),)+distances
+        elif "Reference" in final_fields[4].replace("'",""):
+            distances=((final_fields[4].replace("'",""),final_fields[2].replace("'",""),final_fields[5].replace("'","")),)+distances
+        elif final_fields[4].replace("'","") in outnames:
+            if "Reference" not in final_fields[2].replace("'","") and final_fields[2].replace("'","") not in outnames:
+                try:
+                    dist_sets[final_fields[4].replace("'","")].append(final_fields[2].replace("'",""))
+                except KeyError:
+                    dist_sets[final_fields[4].replace("'","")] = [final_fields[2].replace("'","")]
+        elif final_fields[2].replace("'","") in outnames:
+            if "Reference" not in final_fields[4].replace("'","") and final_fields[4].replace("'","") not in outnames:
+                try:
+                    dist_sets[final_fields[2].replace("'","")].append(final_fields[4].replace("'",""))
+                except KeyError:
+                    dist_sets[final_fields[2].replace("'","")] = [final_fields[4].replace("'","")]
+    final_sets=()
+    for k,v in dist_sets.iteritems():
+        final_sets=((k,v[0],v[1]),)+final_sets
+    return final_sets, distances
                 
-
 def run_raxml(fasta_in, tree, processors, out_class_file):
     args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', 'v',
 	     '-s', '%s' % fasta_in, '-m', 'GTRGAMMA', '-n', 'out', '-t',
@@ -403,7 +415,9 @@ def grab_matrix_coords(matrix):
     return coords
     my_matrix.close()
 
-def subsample_snps(matrix, dist_sets, used_snps,subnums):
+def subsample_snps(matrix, dist_sets, used_snps, subnums):
+    """get a list of all possible positions, depending
+    on those positions in the original matrix"""
     allSNPs = [ ]
     for line in open(matrix, "U"):
         if line.startswith("LocusID"):
@@ -412,35 +426,45 @@ def subsample_snps(matrix, dist_sets, used_snps,subnums):
             fields=line.split()
             allSNPs.append(fields[0])
     for k,v in used_snps.iteritems():
-        kept_snps=random.sample(set(allSNPs), int(v))
         for z in dist_sets:
-            if z[0]==k:
-                for x in range(1,subnums):
-                    outfile = open("%s.%s.%s.tmp.matrix" % (k,x,z[1]), "w")
-                    in_matrix=open(matrix,"U")
-                    firstLine = in_matrix.readline()
-                    print >> outfile, firstLine,
-                    first_fields = firstLine.split()
-                    gindex=first_fields.index(z[1])
-                    for line in in_matrix:
-                        matrix_fields=line.split()
-                        if matrix_fields[0] in kept_snps:
-                            print >> outfile, line,
-                        else:
-                            print >> outfile, "\t".join(matrix_fields[:gindex-1])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex:])+"\n",
-                for x in range(1,subnums):
-                    outfile_2 = open("%s.%s.%s.tmp.matrix" % (k,x,z[2]), "w")
-                    in_matrix=open(matrix,"U")
-                    firstLine = in_matrix.readline()
-                    print >> outfile_2, firstLine,
-                    first_fields = firstLine.split()
-                    gindex=first_fields.index(z[2])
-                    for line in in_matrix:
-                        matrix_fields=line.split()
-                        if matrix_fields[0] in kept_snps:
-                            print >> outfile_2, line,
-                        else:
-                            print >> outfile_2, "\t".join(matrix_fields[:gindex-1])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex:])+"\n",
+            if len(z) == 0:
+                pass
+            else:
+                if z[0]==k:
+                    for x in range(1,int(subnums)+1):
+                        kept_snps=random.sample(set(allSNPs), int(v))
+                        outfile = open("%s.%s.%s.tmp.matrix" % (k,x,z[1]), "w")
+                        in_matrix=open(matrix,"U")
+                        firstLine = in_matrix.readline()
+                        print >> outfile, firstLine,
+                        first_fields = firstLine.split()
+                        fixed_fields = []
+                        for x in first_fields:
+                            fixed_fields.append(re.sub('[:,]', '', x))
+                        gindex=fixed_fields.index(z[1])
+                        for line in in_matrix:
+                            matrix_fields=line.split()
+                            if matrix_fields[0] in kept_snps:
+                                print >> outfile, line,
+                            else:
+                                print >> outfile, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
+                    for x in range(1,int(subnums)+1):
+                        kept_snps=random.sample(set(allSNPs), int(v))
+                        outfile_2 = open("%s.%s.%s.tmp.matrix" % (k,x,z[2]), "w")
+                        in_matrix=open(matrix,"U")
+                        firstLine = in_matrix.readline()
+                        print >> outfile_2, firstLine,
+                        first_fields = firstLine.split()
+                        fixed_fields = []
+                        for x in first_fields:
+                            fixed_fields.append(re.sub('[:,]', '', x))
+                        gindex=fixed_fields.index(z[2])
+                        for line in in_matrix:
+                            matrix_fields=line.split()
+                            if matrix_fields[0] in kept_snps:
+                                print >> outfile_2, line,
+                            else:
+                                print >> outfile_2, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
 def find_used_snps():
     curr_dir= os.getcwd()
     used_SNPs = {}
@@ -483,24 +507,37 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
     from dendropy import treecalc
     curr_dir= os.getcwd()
     true_dists=()
+    os.system("rm tree_including_unknowns_noedges.tree")
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
-        to_prune = []
+        """the genome names are parsed out of the tmp.matrices"""
         name=get_seq_name(infile)
         split_fields=name.split(".")
         outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
+        name_fixed = []
+        name_fixed.append(re.sub('[:,]', '', split_fields[2]))
         tmptree = open("tmpx.tree", "w")
+        """The genomes in the dist_sets will be pruned in
+        the subsample routine"""
+        to_prune = []
         for x in dist_sets:
             if x[0] == split_fields[0]: 
                 to_prune.append(x[1])
                 to_prune.append(x[2])
+        """names will be fixed if they contain characters
+        that are not accepted by downstream applications"""
         to_prune_fixed=[]
         for x in to_prune:
             to_prune_fixed.append(re.sub('[:,]', '', x))
+        """dendropy is used here to import the tree and prune the taxa"""
         tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
         tree_full.prune_taxa_with_labels(to_prune_fixed)
+        """dendropy uses scientific notation, which needs to be converted
+        into decimals"""
         final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
         print >> tmptree, final_tree
         tmptree.close()
+        """A new tree file is created, changing the dendropy
+        format into a more classical Newick format"""
         tmptree2 = open("tmpxz.tree", "w")
         for line in open("tmpx.tree", "U"):
             if line.startswith("[&U]"):
@@ -512,23 +549,25 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
             else:
                 pass
         tmptree2.close()
-        matrix_to_fasta(infile)
+        try:
+            matrix_to_fasta(infile)
+        except:
+            print "problem converting matrix to fasta"
+        """if problems in the tree names are found, they are removed by the system command"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
+        """raxml is now used to insert the pruned genomes back into the tree"""
         run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt")
+        """dendropy is used to calculate pairwise patristic distances"""
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
-        #print to_prune_fixed
-        #for line in open(patristics, "U"):
-        #    fields = line.split()
-        #    id = re.sub("[:']", "",fields[4])
-            #to_prune_fixed.append(re.sub('[:,]', '', x))
-            #    if id in to_prune_fixed and fields[2] == "'Reference'":
-            #    print "true patristic distance between %s and %s = %s" % (fields[2], fields[4], fields[5])
         for line in open("resampling_distances.txt","U"):
             resample_fields = line.split()
             myid = re.sub("[:']", "",resample_fields[4])
             fixedid = myid.replace("QUERY___","")
-            if resample_fields[2] == "'Reference'" and fixedid in to_prune_fixed:
-                print >> outfile, "resampled distance between %s and %s = %s" % (resample_fields[2], resample_fields[4], resample_fields[5])
+            if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
+                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
+            elif resample_fields[4] == "'Reference'":
+                print "reference shouldn't be here!"
+        os.system("rm all.fasta tmpxz.tree out.fasta tmpx.tree resampling_distances.txt tree_including_unknowns_noedges.tree")
                 #true_dists=((resample_fields[2], resample_fields[4], resample_fields[5]),)+true_dists
                 #return true_dists     
            #os.system('mothur "#dist.seqs(fasta=all.fasta, calc=nogaps)" > /dev/null 2>&1')
@@ -545,43 +584,55 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
            #        else:
            #            pass
 
-def compare_subsample_results(true_dists):
+def compare_subsample_results(outnames):
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*.subsample.distances.txt")):
+        genomes_used = [ ]
         all_dists=[ ]
         dists_greater_than_true=[ ]
         dists_equal_to_true=[ ]
         dists_less_than_true=[ ]
         for line in open(infile, "U"):
-            all_dists.append(line)
-        name=get_seq_name(infile)
-        split_fields=name.split(".")
+            fields = line.split()
+            all_dists.append(fields[7])
+            genomes_used.append(fields[3])
+            genomes_used.append(fields[5])
         try:
             max_dist=max(all_dists)
-            print "maximum subsample distance between %s and %s = %s" % (split_fields[0],split_fields[1],max_dist),
+            print "maximum subsample distance between %s and %s = %s" % (genomes_used[0],genomes_used[1],max_dist),"\n",
         except:
             print "problem found in input file: ", infile
-        for x in true_dists:
-            if x[0] == split_fields[0] and x[1] == split_fields[1]:
-                for dists in all_dists:
-                    if float(x[2])>float(dists):
-                        dists_greater_than_true.append("1")
-                    elif float(x[2])==float(dists):
-                        dists_equal_to_true.append("1")
-                    else:
-                        dists_less_than_true.append("1")
-            else:
-                pass
-        greaters = int(len(dists_greater_than_true))
-        equals = int(len(dists_equal_to_true))
-        lessers = int(len(dists_less_than_true))
-        for x in true_dists:
-            if x[0] == split_fields[0] and x[1] == split_fields[1]:
-                print "True distance between %s and %s = %s" % (split_fields[0],split_fields[1],x[2])
-        print "Subsample distances between %s and %s greater than true value = %s" % (split_fields[0],split_fields[1],greaters)
-        print "Subsample distances between %s and %s equal to true value = %s" % (split_fields[0],split_fields[1],equals)
-        print "Subsample distances between %s and %s less than true value = %s" % (split_fields[0],split_fields[1],lessers)    
-        print ""
+        for name in outnames:
+            for line in open("%s.closest.two.txt" % name, "U"):
+                fields = line.split()
+                for all_dist in all_dists:
+                    if fields[0] in genomes_used:
+                        if float(fields[1])>float(all_dist):
+                            dists_greater_than_true.append("1")
+                        elif float(fields[1])>float(all_dist):
+                            dists_less_than_true.append("1")
+                        elif float(fields[1])==float(all_dist):
+                            dists_equal_to_true.append("1")
+            #if x[0] == split_fields[0] and x[1] == split_fields[1]:
+            #    for dists in all_dists:
+            #        if float(x[2])>float(dists):
+            #            dists_greater_than_true.append("1")
+            #        elif float(x[2])==float(dists):
+            #            dists_equal_to_true.append("1")
+            #        else:
+            #            dists_less_than_true.append("1")
+            #else:
+            #    pass
+            greaters = int(len(dists_greater_than_true))
+            equals = int(len(dists_equal_to_true))
+            lessers = int(len(dists_less_than_true))
+            #for x in true_dists:
+            #if x[0] == split_fields[0] and x[1] == split_fields[1]:
+            #    print "True distance between %s and %s = %s" % (split_fields[0],split_fields[1],x[2])
+            print "Subsample distances between %s and %s greater than true value = %s" % (genomes_used[0],genomes_used[1],greaters)
+            print "Subsample distances between %s and %s equal to true value = %s" % (genomes_used[0],genomes_used[1],equals)
+            print "Subsample distances between %s and %s less than true value = %s" % (genomes_used[0],genomes_used[1],lessers)    
+            print ""
 
 def transform_tree(tree):
     infile = open(tree, "U")
@@ -691,33 +742,15 @@ def calculate_pairwise_tree_dists(intree, output):
             print >> outfile, "Distance between '%s' and '%s': %s" % (t1.label, t2.label, distances(t1, t2))
     outfile.close()
 
-def get_closest_dists(input, outnames):
-    reduced = [ ]
-    true_dists = ()
-    for name in outnames:
-        mydict={}
-        outfile = open("%s.distances.txt" % name, "w")
-        for line in open(input, "U"):
-	    fields = line.split()
-            myid = re.sub("[:']", "",fields[2])
-            fixedid = myid.replace("QUERY___","")
-            if name == fixedid:
-		str1 = "".join(fields[4])
-		str2 = "".join(fields[5])
-		mydict.update({str1:str2})
-            else:
-                pass
-        temp=sorted(mydict.items(), key=itemgetter(1))
-        for x in temp:
-            print >> outfile,"\t".join(x)
-        reduced = temp[:5]
-        print "closest genome from %s" % name,"\t","distance"
-        for x in reduced:
-            print "\t".join(x)
-        print ""
-        for y in reduced[:2]:
-            y_fixed=y[0].replace('__','::')
-            #y_fixed_2=y_fixed.replace('.filtered.vcf','')
-            true_dists=((name,y_fixed,y[1]),)+true_dists
-        outfile.close()
-    return true_dists
+def get_closest_dists(final_sets, distances, outnames):
+    for x in final_sets:
+        if len(x) == 0:
+            pass
+        else:
+            outfile = open("%s.closest.two.txt" % x[0], "w")
+            for y in x:
+                for z in distances:
+                    for singles in z:
+                        if y == singles and y not in outnames:
+                            print >> outfile,y+"\t"+z[2]+"\n",
+   
