@@ -86,6 +86,7 @@ def read_file_sets(dir_path):
     return fileSets
 
 def process_coverage(name):
+    """function required in loop"""
     curr_dir= os.getcwd()
     outfile = open("coverage_out.txt", "a")
     coverage_dict = {}
@@ -146,6 +147,7 @@ def run_bwa(reference, read1, read2, processors, name):
     bwa(reference,read1, read2,"%s.sam" % name, processors, log_file='%s.sam.log' % name,**{'-R':read_group}) 
 
 def process_sam(in_sam, name):
+    """samtools runs to remove multiple mapped reads and unmapped reads"""
     subprocess.check_call("samtools view -h -b -S %s > %s.1.bam 2> /dev/null" % (in_sam, name), shell=True)
     subprocess.check_call("samtools view -u -h -F4 -o %s.2.bam %s.1.bam > /dev/null 2>&1" % (name, name), shell=True)
     subprocess.check_call("samtools view -h -b -q1 -F4 -o %s.3.bam %s.2.bam > /dev/null 2>&1" % (name, name), shell=True)
@@ -174,7 +176,6 @@ def run_gatk(reference, processors, name, gatk):
     except:
         log_isg.logPrint("GATK encountered problems and did not run")
 
-    
 def process_vcf(vcf, ref_coords, coverage, proportion, name):
     """finds SNPs that pass user-defined thresholds
     for coverage and proportion"""
@@ -247,6 +248,7 @@ def sort_information(x):
         raise TypeError("problem encountered parsing fields")
 
 def merge_vcfs(matrix):
+    """Creates the temp matrices"""
     curr_dir= os.getcwd()
     all_ids= [ ]
     names=[ ]
@@ -283,30 +285,8 @@ def merge_vcfs(matrix):
     return outnames
     in_matrix.close()
 
-def merge_matrix(matrix, merged_vcf):
-    curr_dir= os.getcwd()
-    in_matrix = open(matrix, "U")
-    out_matrix = open("combined.matrix", "a")
-    in_vcf = open(merged_vcf, "U")
-    firstLine = in_matrix.readline()
-    first_fields=firstLine.split()
-    last=first_fields.index("#SNPcall")
-    query_names=[ ]
-    vcf_first=in_vcf.readline()
-    vcf_first_fields=vcf_first.split()
-    print >> out_matrix, "\t".join(first_fields[:last]),"\t","\t".join(vcf_first_fields),"\t","\t".join(first_fields[last:])
-    for inline in open(matrix,"U"):
-        matrix_fields=inline.split()
-        for myline in open(merged_vcf, "U"):
-            vcf_fields=myline.split()
-            if matrix_fields[0] == vcf_fields[0]:
-                print >> out_matrix,"\t".join(matrix_fields[:last]),"\t","\t".join(vcf_fields[1:]),"\t","\t".join(matrix_fields[last:])
-            else:
-                pass
-    in_matrix.close()
-    out_matrix.close()
-                
 def matrix_to_fasta(matrix_in):
+    """function to convert a SNP matrix to a multi-fasta file"""
     reduced = [ ]
     out_fasta = open("all.fasta", "w")
     redux = [ ]
@@ -321,37 +301,8 @@ def matrix_to_fasta(matrix_in):
     out_fasta.close()
     return redux
 
-def dist_seqs(fasta_in, outnames):
-    os.system('mothur "#dist.seqs(fasta=%s, calc=nogaps)" > /dev/null 2>&1' % fasta_in)
-    reduced = [ ]
-    true_dists = ()
-    for name in outnames:
-        mydict={}
-        outfile = open("%s.distances.txt" % name, "w")
-        for line in open("all.dist", "U"):
-	    fields = line.split()
-            if name == fields[0]:
-		str1 = "".join(fields[1])
-		str2 = "".join(fields[2])
-		mydict.update({str1:str2})
-            else:
-                pass
-        temp=sorted(mydict.items(), key=itemgetter(1))
-        for x in temp:
-            print >> outfile,"\t".join(x)
-        reduced = temp[:5]
-        print "closest genome from %s" % name,"\t","distance"
-        for x in reduced:
-            print "\t".join(x)
-        print ""
-        for y in reduced[:2]:
-            y_fixed=y[0].replace('__','::')
-            y_fixed_2=y_fixed.replace('.filtered.vcf','')
-            true_dists=((name,y_fixed_2,y[1]),)+true_dists
-        outfile.close()
-    return true_dists
-
 def find_two(infile,outnames):
+    """find two closest genomes to each query genome"""
     dist_sets = {}
     distances = ()
     myfile = open(infile, "U")
@@ -410,6 +361,8 @@ def run_raxml(fasta_in, tree, processors, out_class_file):
     subprocess.check_call("rm RAxML_*", shell=True)
 
 def grab_matrix_coords(matrix):
+    """retrieve all of the coordinates from a
+    Sniper formatted SNP matrix"""
     coords = [ ]
     my_matrix = open(matrix, "U")
     firstLine = my_matrix.readline()
@@ -509,8 +462,12 @@ def branch_lengths_2_decimals(str_newick_tree):
     return new_tree
 
 def process_temp_matrices(dist_sets, tree, processors, patristics):
-    import dendropy
-    from dendropy import treecalc
+    try:
+        import dendropy
+        from dendropy import treecalc
+    except:
+        print "dendropy is not installed, but needs to be"
+        sys.exit()
     curr_dir= os.getcwd()
     true_dists=()
     os.system("rm tree_including_unknowns_noedges.tree")
@@ -579,8 +536,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
             else:
                 pass
             
-        os.system("rm all.fasta tmpxz.tree out.fasta tmpx.tree tree_including_unknowns_noedges.tree")
-        #os.system("rm resampling_distances.txt")
+        os.system("rm all.fasta tmpxz.tree out.fasta tmpx.tree tree_including_unknowns_noedges.tree resampling_distances.txt")
         
 def compare_subsample_results(outnames):
     curr_dir= os.getcwd()
@@ -600,6 +556,7 @@ def compare_subsample_results(outnames):
             genomes_used.append(fields[5])
         try:
             max_dist=max(all_dists)
+            print ""
             print "maximum subsample distance between %s and %s = %s" % (genomes_used[0],genomes_used[1],max_dist),"\n",
         except:
             print "problem found in input file: ", infile
@@ -609,27 +566,25 @@ def compare_subsample_results(outnames):
             if fields[0] == split_fields[1]:
                 true_dists.append(fields[1])
             for all_dist in all_dists:
-                if fields[0] in genomes_used:
+                if fields[0] == split_fields[1]:
                     if float(fields[1])>float(all_dist):
-                        dists_greater_than_true.append("1")
-                    elif float(fields[1])>float(all_dist):
                         dists_less_than_true.append("1")
+                    elif float(fields[1])<float(all_dist):
+                        dists_greater_than_true.append("1")
                     elif float(fields[1])==float(all_dist):
                         dists_equal_to_true.append("1")
         greaters = int(len(dists_greater_than_true))
         equals = int(len(dists_equal_to_true))
         lessers = int(len(dists_less_than_true))
-            #for x in true_dists:
-            #if x[0] == split_fields[0] and x[1] == split_fields[1]:
-            #    print "True distance between %s and %s = %s" % (split_fields[0],split_fields[1],x[2])
         print "True distance between %s and %s = %s" % (split_fields[0],split_fields[1],"".join(true_dists))
         print "Sample: %s" % split_fields[0]
         print "Subsample distances between %s and %s greater than true value = %s" % (genomes_used[0],genomes_used[1],greaters)
         print "Subsample distances between %s and %s equal to true value = %s" % (genomes_used[0],genomes_used[1],equals)
         print "Subsample distances between %s and %s less than true value = %s" % (genomes_used[0],genomes_used[1],lessers)    
-        print ""
 
 def transform_tree(tree):
+    """converts a Newick tree into a Nexus-formatted
+    tree that can be visualized with FigTree"""
     infile = open(tree, "U")
     tree_string = []
     for line in infile:
@@ -665,6 +620,9 @@ def transform_tree(tree):
     outfile.close()
 
 def write_reduced_matrix(matrix):
+    """This function takes a Sniper formatted
+    SNP matrix and writes a temporary matrix
+    that can be easily combined with temporary files"""
     in_matrix = open(matrix, "U")
     outfile = open("temp.matrix", "w")
     outdata = [ ]
@@ -704,6 +662,7 @@ def make_temp_matrix(vcf, matrix, name):
     return new_dicts
 
 def grab_names():
+    """These names will be used for future iterations"""
     curr_dir= os.getcwd()
     outnames = [ ]
     for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
@@ -713,6 +672,7 @@ def grab_names():
     return outnames
 
 def parse_likelihoods(infile):
+    """This function parses the likelihoods output from RAxML"""
     my_in = open(infile, "U")
     like_dict = {}
     for line in my_in:

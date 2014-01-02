@@ -1,15 +1,19 @@
 #!/usr/bin/env python
 
-"""Categorizes unknown SNPs.
+"""WG-FAST
+written by Jason Sahl
+correspondence: jasonsahl@gmail.com
+
 Dependencies include:
 
-1.  GATK - tested version is
-2.  samtools - tested version is
-3.  bwa - tested version is [optinal]
-4.  novoalign - tested version is [optional]
-4.  Picard tools - tested version is
-5.  mothur -tested version is
-6.  raxmlHPC - tested version is
+1.  GATK - tested version is 2.7.2.  This version
+    requires Java 1.7.
+2.  samtools - tested version is 0.1.19
+3.  bwa - tested version is 0.7.5a
+4.  Picard tools - tested version is 1.79
+5.  raxmlHPC - tested version is 7.7.8
+6.  DendroPy - only required for sub-sampling
+    routine.  Tested version is 3.12.0
 
 Input is a SNP matrix: currently, this matrix
 can be generated with NASP
@@ -80,17 +84,11 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         print "bwa must be in your path"
         sys.exit()
     print "citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'"
-    ad = subprocess.call(['which', 'mothur'])
-    if ad == 0:
-        pass
-    else:
-        print "mothur must be in your path"
-        sys.exit()
-    print "citation: 'Schloss PD, Westcott SL, Ryabin T, Hall JR, Hartmann M, Hollister EB, Lesniewski RA, Oakley BB, Parks DH, Robinson CJ, Sahl JW, Stres B, Thallinger GG, Van Horn DJ, Weber CF. Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Appl Environ Microbiol. 2009;75(23):7537-41'"
     print "Also uses GATK"
     print "citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'"
     #done checking for dependencies
     print ""
+    log_isg.logPrint('WG-FAST pipeline starting')
     ref_path=os.path.abspath("%s" % reference)
     dir_path=os.path.abspath("%s" % directory)
     try:
@@ -143,8 +141,6 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         """find true distance of each genome to the reference"""
         os.system("sort -g -k 6 all_patristic_distances.txt > tmp_patristic_distances.txt")
         final_sets, distances=find_two("tmp_patristic_distances.txt", outnames)
-        print distances
-        print final_sets
         get_closest_dists(final_sets, distances, outnames)
         log_isg.logPrint("running subsample routine")
         subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
@@ -157,11 +153,11 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         pass
     else:
         try:
-            subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist temp.matrix", shell=True, stderr=open(os.devnull, 'w'))
+            subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist temp.matrix tmp.tree tmp_patristic_distances.txt", shell=True, stderr=open(os.devnull, 'w'))
         except:
             pass
         for outname in outnames:
-            subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log" % (outname,outname,outname,outname), shell=True)
+            subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log %s.closest.two.txt %s_coverage*" % (outname,outname,outname,outname,outname,outname), shell=True)
             os.chdir("%s" % ap)
             subprocess.check_call("rm -rf scratch", shell=True)
     log_isg.logPrint("all done")
