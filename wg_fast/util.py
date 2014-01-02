@@ -10,7 +10,6 @@ try:
     from Bio import Phylo
 except:
     print "BioPython is not in your PYTHOPATH, but needs to be"
-    sys.exit()
 import glob
 from igs.threading import functional as p_func
 from igs.utils import logging as log_isg
@@ -580,7 +579,7 @@ def compare_subsample_results(outnames):
         greaters = int(len(dists_greater_than_true))
         equals = int(len(dists_equal_to_true))
         lessers = int(len(dists_less_than_true))
-        print "True distance between %s and %s = %s" % (split_fields[0],split_fields[1],"".join(true_dists))
+        print "True distance between Reference and %s = %s" % (genomes_used[1],"".join(true_dists))
         print "Sample: %s" % split_fields[0]
         print "Subsample distances between %s and %s greater than true value = %s" % (genomes_used[0],genomes_used[1],greaters)
         print "Subsample distances between %s and %s equal to true value = %s" % (genomes_used[0],genomes_used[1],equals)
