@@ -5,8 +5,12 @@ import glob
 import subprocess
 import sys
 from subprocess import Popen
-from Bio import SeqIO
-from Bio import Phylo
+try:
+    from Bio import SeqIO
+    from Bio import Phylo
+except:
+    print "BioPython is not in your PYTHOPATH, but needs to be"
+    sys.exit()
 import glob
 from igs.threading import functional as p_func
 from igs.utils import logging as log_isg
