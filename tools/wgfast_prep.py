@@ -5,7 +5,6 @@ necessary for wg-fast to run"""
 
 from optparse import OptionParser
 import subprocess
-from wg_fast.util import matrix_to_fasta
 import os
 import sys
 
@@ -16,6 +15,25 @@ def test_file(option, opt_str, value, parser):
         print '%s file cannot be opened' % option
         sys.exit()
 
+def get_field_index(matrix_in):
+    matrix=open(matrix_in, "rU")
+    firstLine = open(matrix_in).readline()
+    first_fields = firstLine.split("\t")
+    last=first_fields.index("#SNPcall")
+    return last
+
+def matrix_to_fasta(matrix_in, last):
+    """converts an ISG matrix to fasta format"""
+    reduced = [ ]
+    out_fasta = open("all.fasta", "w")
+    for line in open(matrix_in):
+        fields = line.split("\t")
+        reduced.append(fields[1:last])
+    test=map(list, zip(*reduced))
+    for x in test:
+        print >> out_fasta, ">"+str(x[0])
+        print >> out_fasta, "".join(x[1:])
+
 def main(matrix):
     """determines whether or not raxml is in your path"""
     ab = subprocess.call(['which', 'raxmlHPC-PTHREADS'])
@@ -24,7 +42,8 @@ def main(matrix):
     else:
         print "RAxML must be in your path as raxmlHPC-PTHREADS"
         sys.exit()
-    matrix_to_fasta(matrix)
+    last=get_field_index(matrix)
+    matrix_to_fasta(matrix, last)
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     subprocess.check_call("raxmlHPC-PTHREADS -f d -p 12345 -m GTRGAMMA -s out.fasta -n nasp -T 4 > /dev/null 2>&1", shell=True)
     subprocess.check_call("mv RAxML_bestTree.nasp nasp_raxml.tree", shell=True)
