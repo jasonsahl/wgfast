@@ -157,7 +157,10 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         except:
             pass
         for outname in outnames:
-            subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log %s.closest.two.txt %s_coverage*" % (outname,outname,outname,outname,outname,outname), shell=True)
+            try:
+                subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log %s.closest.two.txt %s_coverage*" % (outname,outname,outname,outname,outname,outname), shell=True, stderr=open(os.devnull, 'w'))
+            except:
+                pass
             os.chdir("%s" % ap)
             subprocess.check_call("rm -rf scratch", shell=True)
     log_isg.logPrint("all done")
