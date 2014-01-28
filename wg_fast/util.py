@@ -10,6 +10,13 @@ try:
     from Bio import Phylo
 except:
     print "BioPython is not in your PYTHOPATH, but needs to be"
+    sys.exit()
+try:
+    import dendropy
+    from dendropy import treecalc
+except:
+    print "dendropy is not installed, but needs to be"
+    sys.exit()
 import glob
 from igs.threading import functional as p_func
 from igs.utils import logging as log_isg
@@ -367,7 +374,7 @@ def run_raxml(fasta_in, tree, processors, out_class_file):
 
 def grab_matrix_coords(matrix):
     """retrieve all of the coordinates from a
-    Sniper formatted SNP matrix"""
+    NASP formatted SNP matrix"""
     coords = [ ]
     my_matrix = open(matrix, "U")
     firstLine = my_matrix.readline()
@@ -467,12 +474,6 @@ def branch_lengths_2_decimals(str_newick_tree):
     return new_tree
 
 def process_temp_matrices(dist_sets, tree, processors, patristics):
-    try:
-        import dendropy
-        from dendropy import treecalc
-    except:
-        print "dendropy is not installed, but needs to be"
-        sys.exit()
     curr_dir= os.getcwd()
     true_dists=()
     os.system("rm tree_including_unknowns_noedges.tree")
@@ -625,7 +626,7 @@ def transform_tree(tree):
     outfile.close()
 
 def write_reduced_matrix(matrix):
-    """This function takes a Sniper formatted
+    """This function takes a NASP formatted
     SNP matrix and writes a temporary matrix
     that can be easily combined with temporary files"""
     in_matrix = open(matrix, "U")
@@ -692,12 +693,6 @@ def parse_likelihoods(infile):
     my_in.close()
 
 def calculate_pairwise_tree_dists(intree, output):
-    try:
-        import dendropy
-        from dendropy import treecalc
-    except:
-        print "dendropy is not installed, but needs to be"
-        sys.exit()
     tree = dendropy.Tree.get_from_path(intree, "newick", preserve_underscores=True)
     outfile = open("%s" % output, "w")
     distances = treecalc.PatristicDistanceMatrix(tree)
