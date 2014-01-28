@@ -7,13 +7,13 @@ correspondence: jasonsahl@gmail.com
 Dependencies include:
 
 1.  GATK - tested version is 2.7.2.  This version
-    requires Java 1.7.
-2.  samtools - tested version is 0.1.19
-3.  bwa - tested version is 0.7.5a
-4.  Picard tools - tested version is 1.79
-5.  raxmlHPC - tested version is 7.7.8
-6.  DendroPy - only required for sub-sampling
-    routine.  Tested version is 3.12.0
+    requires Java 1.7 (included with WG-FAST)
+2.  samtools - tested version is 0.1.19 (linux x86 version included with WG-FAST)
+3.  bwa - tested version is 0.7.5a (linux x86 version included with WG-FAST)
+4.  Picard tools - tested version is 1.79 (included with WG-FAST)
+5.  raxmlHPC - tested version is 7.7.8 (linux x86 version included with WG-FAST)
+6.  DendroPy - Tested version is 3.12.0
+7.  BioPython
 
 Input is a SNP matrix: currently, this matrix
 can be generated with NASP
@@ -28,7 +28,6 @@ from wg_fast.util import *
 import errno
 from igs.utils import logging as log_isg
 
-#WGFAST_PATH="/home/jsahl/tools/wgfast"
 WGFAST_PATH="/Users/jsahl/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
@@ -84,9 +83,10 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         print "bwa must be in your path"
         sys.exit()
     print "citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'"
+    print "Patristic distances calculated with DendroPy"
+    print "citation: 'Sukumaran J, Holder MT. DendroPy: a Python library for phylogenetic computing. Bioinformatics. 2010;26(12):1569-71. Epub 2010/04/28. doi: 10.1093/bioinformatics/btq228. PubMed PMID: 20421198'"
     print "Also uses GATK"
     print "citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'"
-    #done checking for dependencies
     print ""
     log_isg.logPrint('WG-FAST pipeline starting')
     ref_path=os.path.abspath("%s" % reference)
