@@ -17,10 +17,13 @@ a heavy emphasis on the Illumina platform.
 WG-FAST relies on:
 
 1.  RaxML - tested version is 7.7.8 (PTHREADS), must be in your path as 'raxmlHPC-PTHREADS'
+-WG-FAST includes compiled linux x86 binary
 citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'
 2.  Samtools - tested version is 0.1.19, must be in your path as 'samtools'
+-WG-FAST includes compiled linux x86 binary
 citation: 'Li H, Handsaker B, Wysoker A, Fennell T, Ruan J, Homer N, Marth G, Abecasis G, Durbin R, Genome Project Data Processing S. The Sequence Alignment/Map format and SAMtools. Bioinformatics. 2009;25(16):2078-9'
 3.  BWA - tested version is 0.7.5a, must be in your path as 'bwa'
+-WG-FAST includes compiled linux x86 binary
 citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'
 4.  GATK - tested version is 2.7.2, included with WG-FAST, but also requires Python 1.7+
 citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'
@@ -39,7 +42,7 @@ from the SNP matrix.
 SNP matrix.
 
 ####Installation####
-1.  To install, enter the wgfast directory and type the command below.  If you don't have suo
+1.  To install, enter the wgfast directory and type the command below.  If you don't have sudo
 privileges, install to base directory using --prefix:
 sudo python setup.py install
 2.  Open the script (wgfast.py) with a text editor and change the path to your WG-FAST installation directory.
@@ -48,6 +51,9 @@ WGFAST_PATH="/Users/jsahl/wgfast"
 3.  To verify your installation, enter the wgfast directory and type the command below.  If everything
 is working correctly, all tests should pass:
 python tests/test_all_functions.py
+4.  If you are installing WG-FAST on linux x86, you should export the PATH to the binaries.
+For example, if your base installation directory is /Users/jsahl/wgfast, you should do:
+export PATH=/Users/jsahl/wgfast/bin:$PATH
 
 ####Test data####
 1.  A sample SNP matrix is included with WG-FAST:
