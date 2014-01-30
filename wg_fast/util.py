@@ -9,7 +9,7 @@ try:
     from Bio import SeqIO
     from Bio import Phylo
 except:
-    print "BioPython is not in your PYTHOPATH, but needs to be"
+    print "BioPython is not in your PYTHONPATH, but needs to be"
     sys.exit()
 try:
     import dendropy
@@ -259,43 +259,6 @@ def sort_information(x):
     except:
         raise TypeError("problem encountered parsing fields")
 
-def merge_vcfs(matrix):
-    """Creates the temp matrices"""
-    curr_dir= os.getcwd()
-    all_ids= [ ]
-    names=[ ]
-    in_matrix = open(matrix, "U")
-    """these are all of the screened SNPs"""
-    matrix_ids=[ ]
-    firstLine = in_matrix.readline()
-    for line in in_matrix:
-        mfields=line.split()
-        matrix_ids.append(mfields[0])
-    for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
-        for line in open(infile, "U"):
-            fields=line.split()
-            names.append(infile)
-    nr_sorted=sorted(matrix_ids, key=sort_information)
-    outnames=[]
-    for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
-        name=get_seq_name(infile)
-        reduced=name.replace(".filtered.vcf","")
-        outnames.append(reduced)
-        open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
-        value_dict={}
-        new_dicts={}
-        for line in open(infile, "U"):
-            fields=line.split()
-            value_dict.update({fields[0]:fields[1]})
-        for k,v in value_dict.iteritems():
-            if k in nr_sorted: new_dicts.update({k:v})
-            else: new_dicts.update({k:"-"})
-        for x in nr_sorted:
-            if x not in value_dict.keys():new_dicts.update({x:"-"})
-        for key in sorted(new_dicts.iterkeys(), key=sort_information):
-            open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts[key])
-    return outnames
-    in_matrix.close()
 
 def matrix_to_fasta(matrix_in):
     """function to convert a SNP matrix to a multi-fasta file"""
@@ -662,8 +625,18 @@ def make_temp_matrix(vcf, matrix, name):
         new_dicts.update({k:v})
     for x in matrix_ids:
         if x not in value_dict.keys():new_dicts.update({x:"-"})
-    for key in sorted(new_dicts.iterkeys(), key=sort_information):
-        open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts[key])
+            #for key in sorted(new_dicts.iterkeys(), key=sort_information):
+            #open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts[key])
+    variety = [ ]
+    for x in matrix_ids:
+        if x in new_dicts:
+            variety.append(new_dicts.get('%s' % x))
+    if "A" or "T" or "G" or "C" in variety:
+        for x in matrix_ids:
+            if x in new_dicts:
+                open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts.get('%s' % x))
+    else:
+        print "sampel %s had no usable positions!!!" % name
     in_matrix.close()
     return new_dicts
 
