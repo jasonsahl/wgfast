@@ -108,7 +108,7 @@ def process_coverage(name):
     for k,v in coverage_dict.iteritems():
         print >> outfile,k,v+"\n",
 
-def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap):
+def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc):
     files_and_temp_names = [(str(idx), list(f))
                             for idx, f in fileSets.iteritems()]
     lock = threading.Lock()
@@ -119,10 +119,13 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         process_sam("%s.sam" % idx, idx)
         run_gatk(reference, processors, idx, gatk)
         os.system("echo %s.bam > %s.bam.list" % (idx,idx))
-        lock.acquire()
-        os.system("java -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (gatk,ap,idx,idx))
-        lock.release()
-        process_coverage(idx)
+        if "T" == doc:
+            lock.acquire()
+            os.system("java -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (gatk,ap,idx,idx))
+            lock.release()
+            process_coverage(idx)
+        else:
+            pass
         process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
         make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
     results = set(p_func.pmap(_perform_workflow,

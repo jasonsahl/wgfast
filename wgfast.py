@@ -56,7 +56,7 @@ def test_filter(option, opt_str, value, parser):
         print "option not supported.  Only select from T and F"
         sys.exit()
 
-def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,subsample,subnums):
+def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,subsample,subnums,doc):
     start_dir = os.getcwd()
     log_isg.logPrint('testing the paths of all dependencies')
     ap=os.path.abspath("%s" % start_dir)
@@ -111,7 +111,7 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         print "dict wasn't created"
     fileSets=read_file_sets(dir_path)
     ref_coords = grab_matrix_coords(matrix)
-    run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap)
+    run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
     outnames=grab_names()
@@ -198,6 +198,9 @@ if __name__ == "__main__":
     parser.add_option("-n", "--subnums", dest="subnums",
                       help="number of subsamples to process, defaults to 100",
                       action="store", type="int", default="100")
+    parser.add_option("-g", "--doc", dest="doc",
+                      help="run depth of coverage on all files?  Defaults to T",
+                      action="callback", callback=test_filter, type="string", default="T")
 
     options, args = parser.parse_args()
     
@@ -210,4 +213,4 @@ if __name__ == "__main__":
 
     main(options.matrix,options.tree,options.reference,options.directory,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
-         options.subnums)
+         options.subnums,options.doc)
