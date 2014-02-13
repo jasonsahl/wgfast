@@ -108,7 +108,7 @@ def process_coverage(name):
     for k,v in coverage_dict.iteritems():
         print >> outfile,k,v+"\n",
 
-def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc):
+def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir):
     files_and_temp_names = [(str(idx), list(f))
                             for idx, f in fileSets.iteritems()]
     lock = threading.Lock()
@@ -117,11 +117,11 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         idx, f = data
         run_bwa(reference, f[0], f[1], processors, idx)
         process_sam("%s.sam" % idx, idx)
-        run_gatk(reference, processors, idx, gatk)
+        run_gatk(reference, processors, idx, gatk, tmp_dir)
         os.system("echo %s.bam > %s.bam.list" % (idx,idx))
         if "T" == doc:
             lock.acquire()
-            os.system("java -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (gatk,ap,idx,idx))
+            os.system("java -Djava.io.tmpdir=%s -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (tmp_dir,gatk,ap,idx,idx))
             lock.release()
             process_coverage(idx)
         else:
@@ -170,9 +170,9 @@ def process_sam(in_sam, name):
     subprocess.check_call("samtools index %s.bam > /dev/null 2>&1" % name, shell=True)
     subprocess.check_call("rm %s.1.bam %s.2.bam %s.3.bam %s" % (name, name, name, in_sam), shell=True)
 
-def run_gatk(reference, processors, name, gatk):
+def run_gatk(reference, processors, name, gatk, tmp_dir):
     """gatk controller"""
-    args = ['java', '-jar', '%s' % gatk, '-T', 'UnifiedGenotyper',
+    args = ['java', '-Djava.io.tmpdir=%s' % tmp_dir, '-jar', '%s' % gatk, '-T', 'UnifiedGenotyper',
             '-R', '%s' % reference, '-nt', '%s' % processors, '-S', 'silent',
             '-mbq', '17', '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
             '-stand_call_conf', '30', '-stand_emit_conf', '30', '-I', '%s.bam' % name,
