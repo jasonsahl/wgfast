@@ -144,13 +144,14 @@ def parse_distances(distance_file,fixed_name):
     true_value = []
     infile = open(distance_file, "U")
     for line in infile:
-        fields = line.split()
-        if fields[2] == "'%s'" % ''.join(fixed_name) and fields[4] == "'Reference':":
-            true_value.append(fields[5])
-        elif fields[2] =="'Reference'" and fields[4] =="'%s':" % ''.join(fixed_name):
-            true_value.append(fields[5])
-        else:
-            pass
+        for name in fixed_name:
+            fields = line.split()
+            if fields[2] == "'%s'" % name and fields[4] == "'Reference':":
+                true_value.append(fields[5])
+            elif fields[2] =="'Reference'" and fields[4] =="'%s':" % name:
+                true_value.append(fields[5])
+            else:
+                pass
     infile.close()
     return true_value
 
@@ -165,12 +166,34 @@ def get_name_by_ID(in_fasta, ID, out_fasta):
     infile.close()
     output_handle.close()
 
+def rename_fasta(in_fasta, name, out_fasta):
+    infile = open(in_fasta, "U")
+    output_handle = open(out_fasta, "w")
+    seqrecords=[ ]
+    for record in SeqIO.parse(infile, "fasta"):
+        seqrecords.append(record.seq)
+    print >> output_handle,">"+name+"\n",
+    for seqrecord in seqrecords:
+        print >> output_handle,seqrecord
+    infile.close()
+    output_handle.close()
+
+def get_field_index(matrix_in):
+    matrix=open(matrix_in, "rU")
+    firstLine = open(matrix_in).readline()
+    first_fields = firstLine.split("\t")
+    last=first_fields.index("#SNPcall")
+    return last
+
 def main(matrix,tree,name,start,step,end,processors):
     fixed_name = []
+    os.system("sed 's/://g' %s | sed 's/,//g' > REF.matrix" % matrix)
     fixed_name.append(re.sub('[:,]', '', name))
     calculate_pairwise_tree_dists(tree, "all_snps_patristic_distances.txt")
+    last=get_field_index(matrix)
+    matrix_to_fasta("REF.matrix","REF",last)
     true_value = parse_distances("all_snps_patristic_distances.txt",fixed_name)
-    for i in range(start, end, step):
+    for i in range(start, end+1, step):
         hits = []
         for j in range(1,101):
             last=subsample_snps(matrix, name, i)
@@ -178,18 +201,20 @@ def main(matrix,tree,name,start,step,end,processors):
             matrix_to_fasta("%s.tmp.fixed.matrix" % i, i, last)
             get_name_by_ID("%s.fasta" % i, ''.join(fixed_name), "%s.%s.tmp.fasta" % (i,j))
             tmp_name = ''.join(fixed_name)+str(j)
-            #rename_fasta("%s.%s.tmp.fasta" % (i,j), fixed_
-            print tmp_name
+            rename_fasta("%s.%s.tmp.fasta" % (i,j), tmp_name,"%s.%s.zzyzz.fasta" % (i,j))
         prune_tree(fixed_name,tree)
-        os.system("cat *.tmp.fasta > input.fasta")
-        os.system("rm *.tmp.fasta")
+        os.system("cat *.zzyzz.fasta REF.fasta > input.fasta")
+        os.system("rm *.tmp.fasta *.zzyzz.fasta")
         insert_sequence("input.fasta", "tmpxz.tree", processors)
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
-        query_name="QUERY___"+"".join(fixed_name)
-        subsampled_value = parse_distances("all_patristic_distances.txt",query_name)
-        divided_value = float(''.join(subsampled_value))/float(''.join(true_value))
-        if divided_value<2.02 and divided_value>0.98:
-            hits.append("1")
+        query_names = []
+        for j in range(1,101):
+            query_names.append("QUERY___"+"".join(fixed_name)+str(j))
+        subsampled_values = parse_distances("all_patristic_distances.txt",query_names)
+        for value in subsampled_values:
+            if float(value)/float(''.join(true_value))<2.02 and float(value)/float(''.join(true_value))>0.98:
+                hits.append("1")
+        print i, len(hits)
         if int(len(hits))>=95:
             print "optimial value is %s" % i
             break
