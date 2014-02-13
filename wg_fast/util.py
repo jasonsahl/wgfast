@@ -218,44 +218,47 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
             """for GATK, a period signifies a reference call.
             First we want to look at the situation where this is
             not the case"""
-            merged_fields=fields[0]+"::"+fields[1]
-            if merged_fields in ref_set:
-                if "." != fields[4]:
-                    snp_fields=fields[9].split(':')
-                    if int(len(snp_fields))>2:
-                        prop_fields=snp_fields[1].split(',')
-                        if int(snp_fields[2])>=coverage:
-                            if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
-                                print >> vcf_out, fields[0]+"::"+fields[1],fields[4]+"\n",
-                                outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
-                                good_snps.append("1")
+            try:
+                merged_fields=fields[0]+"::"+fields[1]
+                if merged_fields in ref_set:
+                    if "." != fields[4]:
+                        snp_fields=fields[9].split(':')
+                        if int(len(snp_fields))>2:
+                            prop_fields=snp_fields[1].split(',')
+                            if int(snp_fields[2])>=coverage:
+                                if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
+                                    print >> vcf_out, fields[0]+"::"+fields[1],fields[4]+"\n",
+                                    outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
+                                    good_snps.append("1")
+                                else:
+                                    print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                    mixed_snps.append("1")
+                                """if problems are encountered, throw in a gap.  Could be too conservative"""
                             else:
                                 print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
                                 outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                                mixed_snps.append("1")
-                            """if problems are encountered, throw in a gap.  Could be too conservative"""
                         else:
+                            pass
+                    elif "." == fields[4]:
+                        nosnp_fields=fields[7].split(';')
+                        cov_fields=nosnp_fields[1].replace("DP=","")
+                        try:
+                            if int(cov_fields)>=coverage:
+                                print >> vcf_out, fields[0]+"::"+fields[1],fields[3]+"\n",
+                                outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
+                            else:
+                                print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
+                                outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                        except:
                             print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
                             outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                     else:
-                        pass
-                elif "." == fields[4]:
-                    nosnp_fields=fields[7].split(';')
-                    cov_fields=nosnp_fields[1].replace("DP=","")
-                    try:
-                        if int(cov_fields)>=coverage:
-                            print >> vcf_out, fields[0]+"::"+fields[1],fields[3]+"\n",
-                            outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
-                        else:
-                            print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                            outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                    except:
-                        print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                        print "error in vcf file found!"
+                        sys.exit()
                 else:
-                    print "error in vcf file found!"
-                    sys.exit()
-            else:
+                    pass
+            except:
                 pass
     print "number of SNPs in genome %s = " % name, len(good_snps)
     print "number of discarded SNPs in genome %s = " % name, len(mixed_snps)
