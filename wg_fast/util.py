@@ -203,6 +203,12 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     for line in vcf_in:
         if line.startswith('#'):
            pass
+        elif line.startswith('Java'):
+            pass
+        elif line.startswith('/tmp'):
+            pass
+        elif line.startswith('Try'):
+            pass
         elif line.startswith('INFO'):
             pass
         else:
