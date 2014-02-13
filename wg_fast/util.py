@@ -211,6 +211,8 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
             pass
         elif line.startswith('INFO'):
             pass
+        elif line in ['\n', '\r\n']:
+            pass
         else:
             fields=line.split()
             """for GATK, a period signifies a reference call.
