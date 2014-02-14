@@ -245,7 +245,7 @@ if __name__ == "__main__":
                       action="store", type="int", default="4")
     parser.add_option("-i", "--iterations", dest="iterations",
                       help="number of iterations at each level",
-                      action="store", type="int", default="10")
+                      action="store", type="int", default="4")
     
     options, args = parser.parse_args()
     
@@ -258,4 +258,3 @@ if __name__ == "__main__":
 
     main(options.matrix,options.tree,options.name,options.start,options.step,options.end,options.processors,options.iterations)
 
-    
