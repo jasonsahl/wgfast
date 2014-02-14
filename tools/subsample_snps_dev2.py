@@ -223,7 +223,7 @@ def main(matrix,tree,name,start,step,end,processors,iterations):
             query_names.append("QUERY___"+"".join(fixed_name)+str(j))
         subsampled_values = parse_distances("%s.all_patristic_distances.txt" % "".join(fixed_name),query_names)
         for value in subsampled_values:
-            if float(value)/float(''.join(true_value))<1.02 and float(value)/float(''.join(true_value))>0.98:
+            if float(value)/float(''.join(true_value))<1.10 and float(value)/float(''.join(true_value))>0.90:
                 hits.append("1")
         print >> outfile, i, len(hits)
         if int(len(hits))>=int(0.95*iterations):
