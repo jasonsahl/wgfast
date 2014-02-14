@@ -109,7 +109,7 @@ def insert_sequence(in_fasta, tree, processors, fixed_name):
         raxml_run.wait()
     except:
         print "sequence(s) were not inserted into tree!!!!!"
-    os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.%s > %s_tree_including_unknowns_noedges.tree" % (fixed_name,fixed_name))
+    os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.%s > %s.tree_including_unknowns_noedges.tree" % (fixed_name,fixed_name))
     subprocess.check_call("rm RAxML*.%s" % fixed_name, shell=True)
     
 def prune_tree(fixed_name,tree):
@@ -144,14 +144,24 @@ def parse_distances(distance_file,fixed_name):
     true_value = []
     infile = open(distance_file, "U")
     for line in infile:
-        for name in fixed_name:
+        if len(fixed_name)>1:
+            for name in fixed_name:
+                fields = line.split()
+                if fields[2] == "'%s'" % name and fields[4] == "'Reference':":
+                    true_value.append(fields[5])
+                elif fields[2] =="'Reference'" and fields[4] =="'%s':" % name:
+                    true_value.append(fields[5])
+                else:
+                    pass
+        else:
             fields = line.split()
-            if fields[2] == "'%s'" % name and fields[4] == "'Reference':":
+            if fields[2] == "'%s'" % ''.join(fixed_name) and fields[4] == "'Reference':":
                 true_value.append(fields[5])
-            elif fields[2] =="'Reference'" and fields[4] =="'%s':" % name:
+            elif fields[2] =="'Reference'" and fields[4] =="'%s':" % ''.join(fixed_name):
                 true_value.append(fields[5])
             else:
                 pass
+            
     infile.close()
     return true_value
 
@@ -192,7 +202,8 @@ def main(matrix,tree,name,start,step,end,processors,iterations):
     calculate_pairwise_tree_dists(tree, "%s.all_snps_patristic_distances.txt" % "".join(fixed_name))
     last=get_field_index(matrix)
     matrix_to_fasta("REF.matrix","REF",last)
-    true_value = parse_distances("%s.all_snps_patristic_distances.txt" % "".join(fixed_name),"".join(fixed_name))
+    true_value = parse_distances("%s.all_snps_patristic_distances.txt" % "".join(fixed_name),fixed_name)
+    outfile = open("%s.results.out" % ''.join(fixed_name), "w")
     for i in range(start, end+1, step):
         hits = []
         for j in range(1,iterations):
@@ -202,21 +213,21 @@ def main(matrix,tree,name,start,step,end,processors,iterations):
             get_name_by_ID("%s.%s.fasta" % ("".join(fixed_name),i), ''.join(fixed_name), "%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j))
             tmp_name = ''.join(fixed_name)+str(j)
             rename_fasta("%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j), tmp_name,"%s.%s.%s.zzyzz.fasta" % ("".join(fixed_name),i,j))
-        prune_tree(fixed_name,tree)
+        prune_tree(''.join(fixed_name),tree)
         os.system("cat %s.*.zzyzz.fasta REF.fasta > %s.fasta" % ("".join(fixed_name),"".join(fixed_name)))
         os.system("rm %s.*.tmp.fasta %s.*.zzyzz.fasta" % ("".join(fixed_name),"".join(fixed_name)))
-        insert_sequence("%s.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), processors, fixed_name)
+        insert_sequence("%s.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), processors, ''.join(fixed_name))
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % "".join(fixed_name),"%s.all_patristic_distances.txt" % "".join(fixed_name))
         query_names = []
         for j in range(1,iterations):
             query_names.append("QUERY___"+"".join(fixed_name)+str(j))
         subsampled_values = parse_distances("%s.all_patristic_distances.txt" % "".join(fixed_name),query_names)
         for value in subsampled_values:
-            if float(value)/float(''.join(true_value))<2.02 and float(value)/float(''.join(true_value))>0.98:
+            if float(value)/float(''.join(true_value))<1.02 and float(value)/float(''.join(true_value))>0.98:
                 hits.append("1")
-        print i, len(hits)
+        print >> outfile, i, len(hits)
         if int(len(hits))>=int(0.95*iterations):
-            print "optimial value is for %s is %s" % ("".join(fixed_name),i)
+            print >> outfile, "optimial value is for %s is %s" % ("".join(fixed_name),i)
             break
         
 if __name__ == "__main__":
