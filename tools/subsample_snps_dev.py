@@ -185,7 +185,7 @@ def get_field_index(matrix_in):
     last=first_fields.index("#SNPcall")
     return last
 
-def main(matrix,tree,name,start,step,end,processors):
+def main(matrix,tree,name,start,step,end,processors,iterations):
     fixed_name = []
     os.system("sed 's/://g' %s | sed 's/,//g' > REF.matrix" % matrix)
     fixed_name.append(re.sub('[:,]', '', name))
@@ -195,7 +195,7 @@ def main(matrix,tree,name,start,step,end,processors):
     true_value = parse_distances("all_snps_patristic_distances.txt",fixed_name)
     for i in range(start, end+1, step):
         hits = []
-        for j in range(1,101):
+        for j in range(1,iterations):
             last=subsample_snps(matrix, name, i)
             os.system("sed 's/://g' %s.tmp.matrix | sed 's/,//g' > %s.tmp.fixed.matrix" % (i,i))
             matrix_to_fasta("%s.tmp.fixed.matrix" % i, i, last)
@@ -208,7 +208,7 @@ def main(matrix,tree,name,start,step,end,processors):
         insert_sequence("input.fasta", "tmpxz.tree", processors)
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
         query_names = []
-        for j in range(1,101):
+        for j in range(1,iterations):
             query_names.append("QUERY___"+"".join(fixed_name)+str(j))
         subsampled_values = parse_distances("all_patristic_distances.txt",query_names)
         for value in subsampled_values:
@@ -243,6 +243,9 @@ if __name__ == "__main__":
     parser.add_option("-o", "--processors", dest="processors",
                       help="number of processors to use with RAxML, defaults to 4",
                       action="store", type="int", default="4")
+    parser.add_option("-i", "--iterations", dest="iterations",
+                      help="number of iterations at each level",
+                      action="store", type="int", default="4")
     
     options, args = parser.parse_args()
     
@@ -253,6 +256,5 @@ if __name__ == "__main__":
             parser.print_help()
             exit(-1)
 
-    main(options.matrix,options.tree,options.name,options.start,options.step,options.end,options.processors)
+    main(options.matrix,options.tree,options.name,options.start,options.step,options.end,options.processors,options.iterations)
 
-    
