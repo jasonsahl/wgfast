@@ -196,11 +196,17 @@ def get_field_index(matrix_in):
     return last
 
 def main(matrix,tree,name,start,step,end,processors,iterations):
+    start_dir = os.getcwd()
+    start_path = os.path.abspath("%s" % start_dir)
+    matrix_path = os.path.abspath("%s" % matrix)
+    tree_path = os.path.abspath("%s" % tree)
+    os.system("mkdir %s/%s.tmp" % (start_path,name))
     fixed_name = []
-    os.system("sed 's/://g' %s | sed 's/,//g' > REF.matrix" % matrix)
+    os.chdir("%s/%s.tmp" % (start_path,name))
+    os.system("sed 's/://g' %s | sed 's/,//g' > REF.matrix" % matrix_path)
     fixed_name.append(re.sub('[:,]', '', name))
-    calculate_pairwise_tree_dists(tree, "%s.all_snps_patristic_distances.txt" % "".join(fixed_name))
-    last=get_field_index(matrix)
+    calculate_pairwise_tree_dists(tree_path, "%s.all_snps_patristic_distances.txt" % "".join(fixed_name))
+    last=get_field_index(matrix_path)
     matrix_to_fasta("REF.matrix","REF",last)
     true_value = parse_distances("%s.all_snps_patristic_distances.txt" % "".join(fixed_name),fixed_name)
     outfile = open("%s.results.out" % ''.join(fixed_name), "w")
@@ -213,11 +219,12 @@ def main(matrix,tree,name,start,step,end,processors,iterations):
             get_name_by_ID("%s.%s.fasta" % ("".join(fixed_name),i), ''.join(fixed_name), "%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j))
             tmp_name = ''.join(fixed_name)+str(j)
             rename_fasta("%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j), tmp_name,"%s.%s.%s.zzyzz.fasta" % ("".join(fixed_name),i,j))
-        prune_tree(''.join(fixed_name),tree)
+        prune_tree(''.join(fixed_name),tree_path)
         os.system("cat %s.*.zzyzz.fasta REF.fasta > %s.fasta" % ("".join(fixed_name),"".join(fixed_name)))
         os.system("rm %s.*.tmp.fasta %s.*.zzyzz.fasta" % ("".join(fixed_name),"".join(fixed_name)))
         insert_sequence("%s.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), processors, ''.join(fixed_name))
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % "".join(fixed_name),"%s.all_patristic_distances.txt" % "".join(fixed_name))
+        os.system("cp %s.tree_including_unknowns_noedges.tree %s.%s.%s.tree" % ("".join(fixed_name),"".join(fixed_name),i,j))
         query_names = []
         for j in range(1,iterations):
             query_names.append("QUERY___"+"".join(fixed_name)+str(j))
@@ -229,6 +236,7 @@ def main(matrix,tree,name,start,step,end,processors,iterations):
         if int(len(hits))>=int(0.95*iterations):
             print >> outfile, "optimial value is for %s is %s" % ("".join(fixed_name),i)
             break
+    os.chdir("%s" % start_path)
         
 if __name__ == "__main__":
     usage="usage: %prog [options]"
