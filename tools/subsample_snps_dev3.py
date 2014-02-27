@@ -114,7 +114,7 @@ def insert_sequence(in_fasta, tree, processors, fixed_name):
     
 def prune_tree(fixed_name,tree):
     tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
-    tree_full.prune_taxa_with_labels(fixed_name)
+    tree_full.prune_taxa_with_labels(["%s" % fixed_name])
     final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
     tmptree = open("%s.tmpx.tree" % fixed_name, "w")
     print >> tmptree, final_tree
@@ -195,6 +195,17 @@ def get_field_index(matrix_in):
     last=first_fields.index("#SNPcall")
     return last
 
+def remove_sequence(in_fasta,name,out_fasta):
+    seqrecords = []
+    infile = open(in_fasta, "U")
+    output_handle = open(out_fasta, "w")
+    for record in SeqIO.parse(infile, "fasta"):
+        if record.id != name:
+            seqrecords.append(record)
+    SeqIO.write(seqrecords, output_handle, "fasta") 
+    infile.close()
+    output_handle.close()
+
 def main(matrix,tree,name,start,step,end,processors,iterations):
     start_dir = os.getcwd()
     start_path = os.path.abspath("%s" % start_dir)
@@ -208,8 +219,10 @@ def main(matrix,tree,name,start,step,end,processors,iterations):
     calculate_pairwise_tree_dists(tree_path, "%s.all_snps_patristic_distances.txt" % "".join(fixed_name))
     last=get_field_index(matrix_path)
     matrix_to_fasta("REF.matrix","REF",last)
+    remove_sequence("REF.fasta", "".join(fixed_name), "REF_pruned.fasta")
     true_value = parse_distances("%s.all_snps_patristic_distances.txt" % "".join(fixed_name),fixed_name)
     outfile = open("%s.results.out" % ''.join(fixed_name), "w")
+    prune_tree(''.join(fixed_name),tree_path)
     for i in range(start, end+1, step):
         hits = []
         for j in range(1,iterations):
@@ -219,10 +232,9 @@ def main(matrix,tree,name,start,step,end,processors,iterations):
             get_name_by_ID("%s.%s.fasta" % ("".join(fixed_name),i), ''.join(fixed_name), "%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j))
             tmp_name = ''.join(fixed_name)+str(j)
             rename_fasta("%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j), tmp_name,"%s.%s.%s.zzyzz.fasta" % ("".join(fixed_name),i,j))
-        prune_tree(''.join(fixed_name),tree_path)
-        os.system("cat %s.*.zzyzz.fasta REF.fasta > %s.fasta" % ("".join(fixed_name),"".join(fixed_name)))
+        os.system("cat %s.*.zzyzz.fasta REF_pruned.fasta > %s.joined.fasta" % ("".join(fixed_name),"".join(fixed_name)))
         os.system("rm %s.*.tmp.fasta %s.*.zzyzz.fasta" % ("".join(fixed_name),"".join(fixed_name)))
-        insert_sequence("%s.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), processors, ''.join(fixed_name))
+        insert_sequence("%s.joined.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), processors, ''.join(fixed_name))
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % "".join(fixed_name),"%s.all_patristic_distances.txt" % "".join(fixed_name))
         os.system("cp %s.tree_including_unknowns_noedges.tree %s.%s.%s.tree" % ("".join(fixed_name),"".join(fixed_name),i,j))
         query_names = []

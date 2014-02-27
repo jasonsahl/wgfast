@@ -105,8 +105,12 @@ def process_coverage(name):
         if line.startswith("%s" % name):
             fields = line.split()
             coverage_dict.update({fields[0]:fields[2]})
-    for k,v in coverage_dict.iteritems():
-        print >> outfile,k,v+"\n",
+    if len(coverage_dict)>=1:
+        for k,v in coverage_dict.iteritems():
+            print >> outfile,k,v+"\n",
+    else:
+        raise TypeError("dictionary is empty")
+    return coverage_dict
 
 def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir):
     files_and_temp_names = [(str(idx), list(f))
@@ -273,7 +277,6 @@ def sort_information(x):
     except:
         raise TypeError("problem encountered parsing fields")
 
-
 def matrix_to_fasta(matrix_in):
     """function to convert a SNP matrix to a multi-fasta file"""
     reduced = [ ]
@@ -319,9 +322,11 @@ def find_two(infile,outnames):
                     dist_sets[final_fields[2].replace("'","")].append(final_fields[4].replace("'",""))
                 except KeyError:
                     dist_sets[final_fields[2].replace("'","")] = [final_fields[4].replace("'","")]
-    final_sets=()
-    for k,v in dist_sets.iteritems():
-        final_sets=((k,v[0],v[1]),)+final_sets
+    try:
+        for k,v in dist_sets.iteritems():
+            final_sets=((k,v[0],v[1]),)+final_sets
+    except:
+        raise TypeError("problem with dist_sets dictionary")
     return final_sets, distances
                 
 def run_raxml(fasta_in, tree, processors, out_class_file):

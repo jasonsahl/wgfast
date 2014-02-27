@@ -171,7 +171,7 @@ class Test8(unittest.TestCase):
         vp = open(vpath, "w")
         vp.write("ADK::6\tA\n")
         vp.close()
-        self.assertEqual(make_temp_matrix(vpath,fpath,"test"), {'ADK::1': '-', 'ADK::2': '-', 'ADK::3': '-'})
+        self.assertEqual(make_temp_matrix(vpath,fpath,"test"), {'ADK::1': '-', 'ADK::2': '-', 'ADK::3': '-', 'ADK::6': 'A'})
         shutil.rmtree(tdir)
 
 class Test9(unittest.TestCase):
@@ -185,6 +185,46 @@ class Test9(unittest.TestCase):
         fp.close()
         fp2.close()
         self.assertEqual(grab_names(), ['name_1', 'test'])
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+
+class Test10(unittest.TestCase):
+    def test_process_coverage_basic_function(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"ECOLI_coverage.sample_summary")
+        os.chdir("%s" % tdir)
+        fp = open(fpath,"w")
+        fp.write("sample_id       total   mean    granular_third_quartile granular_median granular_first_quartile %_bases_above_15\n")
+        fp.write("ECOLI    2050    3.82    6       5       4       0.0\n")
+        fp.write("Total    2050    3.82    N/A     N/A     N/A")
+        fp.close()
+        self.assertEqual(process_coverage("ECOLI"), {'ECOLI':'3.82'})
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+    def test_process_coverage_missing_match(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"ECOLI_coverage.sample_summary")
+        os.chdir("%s" % tdir)
+        fp = open(fpath,"w")
+        fp.write("sample_id       total   mean    granular_third_quartile granular_median granular_first_quartile %_bases_above_15\n")
+        fp.write("EOLI    2050    3.82    6       5       4       0.0\n")
+        fp.write("Total    2050    3.82    N/A     N/A     N/A")
+        fp.close()
+        self.assertRaises(TypeError, process_coverage, "ECOLI")
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+
+class Test11(unittest.TestCase):
+    def test_find_two_basic_function(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"all_patristic_distances.txt")
+        os.chdir("%s" % tdir)
+        fp = open(fpath,"w")
+        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'O157_H7_sakai_allexternalnucmer': 4.53192608862")
+        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'H10407_allexternalnucmer': 1.39030683167")
+        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'Reference': 1.29611949657")
+        fp.close()
+        self.assertRaises(TypeError, find_two, ['E2348_69_allexternalnucmer'])
         os.chdir("%s" % curr_dir)
         shutil.rmtree(tdir)
         
