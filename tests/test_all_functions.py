@@ -215,19 +215,44 @@ class Test10(unittest.TestCase):
         shutil.rmtree(tdir)
 
 class Test11(unittest.TestCase):
+    def test_find_two_report_error(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"all_patristic_distances.txt")
+        os.chdir("%s" % tdir)
+        fp = open(fpath,"w")
+        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'H10407_allexternalnucmer': 1.39030683167\n")
+        fp.close()
+        self.assertRaises(TypeError, find_two, ['E2348_69_allexternalnucmer'])
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
     def test_find_two_basic_function(self):
         tdir = tempfile.mkdtemp(prefix="filetest_",)
         fpath = os.path.join(tdir,"all_patristic_distances.txt")
         os.chdir("%s" % tdir)
         fp = open(fpath,"w")
-        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'O157_H7_sakai_allexternalnucmer': 4.53192608862")
-        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'H10407_allexternalnucmer': 1.39030683167")
+        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'H10407_allexternalnucmer': 1.39030683167\n")
+        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'O157_H7_sakai_allexternalnucmer': 4.53192608862\n")
         fp.write("Distance between 'E2348_69_allexternalnucmer' and 'Reference': 1.29611949657")
         fp.close()
-        self.assertRaises(TypeError, find_two, ['E2348_69_allexternalnucmer'])
+        self.assertEqual(find_two(fpath, "E2348_69_allexternalnucmer"),((('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'),),(('Reference', 'E2348_69_allexternalnucmer', '1.29611949657'), ('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167'))))
         os.chdir("%s" % curr_dir)
         shutil.rmtree(tdir)
-        
+    def test_find_two_reversed(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"all_patristic_distances.txt")
+        os.chdir("%s" % tdir)
+        fp = open(fpath,"w")
+        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'H10407_allexternalnucmer': 1.39030683167\n")
+        fp.write("Distance between 'E2348_69_allexternalnucmer' and 'O157_H7_sakai_allexternalnucmer': 4.53192608862\n")
+        fp.write("Distance between 'Reference' and 'E2348_69_allexternalnucmer': 0.0941892612547")
+        fp.close()
+        self.assertEqual(find_two(fpath, "E2348_69_allexternalnucmer"),(('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'),),(('Reference', 'E2348_69_allexternalnucmer', '0.0941892612547'), ('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167')))
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+class Test12(unittest.TestCase):
+    def test_get_closest_dists_basic_function(self):
+        self.assertEqual(get_closest_dists((('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'),),(('Reference', 'E2348_69_allexternalnucmer', '0.0941892612547'), ('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167')),['E2348_69_allexternalnucmer']),(['H10407_allexternalnucmer1.39030683167','O157_H7_sakai_allexternalnucmer4.53192608862']))
+                         
 if __name__ == "__main__":
     unittest.main()
     main()

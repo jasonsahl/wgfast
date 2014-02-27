@@ -100,10 +100,14 @@ def process_coverage(name):
     curr_dir= os.getcwd()
     outfile = open("coverage_out.txt", "a")
     coverage_dict = {}
-    infile = open("%s_coverage.sample_summary" % name, "U")
+    try:
+        infile = open("%s_coverage.sample_summary" % name, "U")
+    except:
+        print "infile cannot be used"
+        sys.exit()
     for line in infile:
-        if line.startswith("%s" % name):
-            fields = line.split()
+        fields = line.split()
+        if fields[0] == name:
             coverage_dict.update({fields[0]:fields[2]})
     if len(coverage_dict)>=1:
         for k,v in coverage_dict.iteritems():
@@ -297,6 +301,7 @@ def find_two(infile,outnames):
     """find two closest genomes to each query genome"""
     dist_sets = {}
     distances = ()
+    final_sets = ()
     myfile = open(infile, "U")
     for line in myfile:
         fields=line.split()
@@ -314,20 +319,25 @@ def find_two(infile,outnames):
             if "Reference" not in final_fields[2].replace("'","") and final_fields[2].replace("'","") not in outnames:
                 try:
                     dist_sets[final_fields[4].replace("'","")].append(final_fields[2].replace("'",""))
+                    distances=((final_fields[4].replace("'",""),final_fields[2].replace("'",""),final_fields[5].replace("'","")),)+distances
                 except KeyError:
                     dist_sets[final_fields[4].replace("'","")] = [final_fields[2].replace("'","")]
+                    distances=((final_fields[4].replace("'",""),final_fields[2].replace("'",""),final_fields[5].replace("'","")),)+distances
         elif final_fields[2].replace("'","") in outnames:
             if "Reference" not in final_fields[4].replace("'","") and final_fields[4].replace("'","") not in outnames:
                 try:
                     dist_sets[final_fields[2].replace("'","")].append(final_fields[4].replace("'",""))
+                    distances=((final_fields[2].replace("'",""),final_fields[4].replace("'",""),final_fields[5].replace("'","")),)+distances
                 except KeyError:
                     dist_sets[final_fields[2].replace("'","")] = [final_fields[4].replace("'","")]
+                    distances=((final_fields[2].replace("'",""),final_fields[4].replace("'",""),final_fields[5].replace("'","")),)+distances
     try:
         for k,v in dist_sets.iteritems():
             final_sets=((k,v[0],v[1]),)+final_sets
     except:
         raise TypeError("problem with dist_sets dictionary")
-    return final_sets, distances
+    """need to sort the distances tuple, then report only the two closest genomes"""
+    return final_sets[:1], distances
                 
 def run_raxml(fasta_in, tree, processors, out_class_file):
     args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', 'v',
@@ -694,14 +704,23 @@ def calculate_pairwise_tree_dists(intree, output):
     outfile.close()
 
 def get_closest_dists(final_sets, distances, outnames):
-    for x in final_sets:
-        if len(x) == 0:
+    results = []
+    for final_set in final_sets:
+        if len(final_set) == 0:
             pass
         else:
-            outfile = open("%s.closest.two.txt" % x[0], "w")
-            for y in x:
-                for z in distances:
-                    for singles in z:
-                        if y == singles and y not in outnames:
-                            print >> outfile,y+"\t"+z[2]+"\n",
+            outfile = open("%s.closest.two.txt" % final_set[0], "w")
+            for distance in distances:
+                if distance[0] == "Reference":
+                    pass
+                else:
+                    if distance[0] == final_set[0]:
+                        print >> outfile,distance[1]+"\t"+distance[2]+"\n",
+                        results.append(distance[1]+distance[2])
+                    elif distance[1] == final_set[0]:
+                        print >> outfile,distance[0]+"\t"+distance[2]+"\n",
+                        results.append(distance[0]+distance[2])
+                    else:
+                        pass
+    return results
    
