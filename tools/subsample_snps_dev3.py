@@ -206,7 +206,7 @@ def remove_sequence(in_fasta,name,out_fasta):
     infile.close()
     output_handle.close()
 
-def main(matrix,tree,name,start,step,end,processors,iterations):
+def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
     start_dir = os.getcwd()
     start_path = os.path.abspath("%s" % start_dir)
     matrix_path = os.path.abspath("%s" % matrix)
@@ -225,7 +225,7 @@ def main(matrix,tree,name,start,step,end,processors,iterations):
     prune_tree(''.join(fixed_name),tree_path)
     for i in range(start, end+1, step):
         hits = []
-        for j in range(1,iterations):
+        for j in range(1,iterations+1):
             last=subsample_snps("REF.matrix", "".join(fixed_name), i)
             os.system("sed 's/://g' %s.%s.tmp.matrix | sed 's/,//g' > %s.%s.tmp.fixed.matrix" % ("".join(fixed_name),i,"".join(fixed_name),i))
             matrix_to_fasta("%s.%s.tmp.fixed.matrix" % ("".join(fixed_name),i), "%s.%s" % ("".join(fixed_name),i), last)
@@ -238,11 +238,11 @@ def main(matrix,tree,name,start,step,end,processors,iterations):
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % "".join(fixed_name),"%s.all_patristic_distances.txt" % "".join(fixed_name))
         os.system("cp %s.tree_including_unknowns_noedges.tree %s.%s.%s.tree" % ("".join(fixed_name),"".join(fixed_name),i,j))
         query_names = []
-        for j in range(1,iterations):
+        for j in range(1,iterations+1):
             query_names.append("QUERY___"+"".join(fixed_name)+str(j))
         subsampled_values = parse_distances("%s.all_patristic_distances.txt" % "".join(fixed_name),query_names)
         for value in subsampled_values:
-            if float(value)/float(''.join(true_value))<1.05 and float(value)/float(''.join(true_value))>0.95:
+            if float(value)/float(''.join(true_value))<(1+float(deviation)) and float(value)/float(''.join(true_value))>(1-float(deviation)):
                 hits.append("1")
         print >> outfile, i, len(hits)
         if int(len(hits))>=int(0.95*iterations):
@@ -277,6 +277,9 @@ if __name__ == "__main__":
     parser.add_option("-i", "--iterations", dest="iterations",
                       help="number of iterations at each level",
                       action="store", type="int", default="10")
+    parser.add_option("-d", "--deviation", dest="deviation",
+                      help="deviation from 1, to determine correct placement, defaults to 0.05",
+                      action="store", type="float", default="0.05")
     
     options, args = parser.parse_args()
     
@@ -287,4 +290,5 @@ if __name__ == "__main__":
             parser.print_help()
             exit(-1)
 
-    main(options.matrix,options.tree,options.name,options.start,options.step,options.end,options.processors,options.iterations)
+    main(options.matrix,options.tree,options.name,options.start,options.step,options.end,options.processors,
+         options.iterations,options.deviation)
