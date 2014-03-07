@@ -749,3 +749,44 @@ def get_closest_dists(final_sets, distances, outnames):
                         pass
     return results
    
+def get_closest_dists_new(final_sets, outnames):
+    results = []
+    for final_set in final_sets:
+        if len(final_set) == 0:
+            pass
+        else:
+            outfile = open("%s.closest.two.txt" % final_set[0], "a")
+        print >> outfile,final_set[1]+"\t"+final_set[2]+"\n",
+        results.append(final_set[1]+final_set[2])
+    return results
+            
+def find_two_new(infile,outnames):
+    """find two closest genomes to each query genome,
+    return the names and distances (sorted), for the
+    two genomes"""
+    distances = ()
+    output_tuples = ()
+    for outname in outnames:
+        outname_tuple = ()
+        for line in open(infile, "U"):
+            fields=line.split()
+            new_fields=[ ]
+            for x in fields:
+                new_fields.append(re.sub('[:,]', '', x))
+            final_fields=[ ]
+            for y in new_fields:
+                final_fields.append(y.replace("QUERY___",""))
+            """We need the distance of all samples, compared to the reference"""
+            if "Reference" in final_fields[2].replace("'",""):
+                distances=((final_fields[2].replace("'",""),final_fields[4].replace("'",""),final_fields[5].replace("'","")),)+distances
+            elif "Reference" in final_fields[4].replace("'",""):
+                distances=((final_fields[4].replace("'",""),final_fields[2].replace("'",""),final_fields[5].replace("'","")),)+distances
+            if final_fields[4].replace("'","") == outname:
+                if "Reference" not in final_fields[2].replace("'","") and final_fields[2].replace("'","") not in outnames:
+                    outname_tuple=((final_fields[4].replace("'",""),final_fields[2].replace("'",""),final_fields[5].replace("'","")),)+outname_tuple
+            elif final_fields[2].replace("'","") == outname:
+                if "Reference" not in final_fields[4].replace("'","") and final_fields[4].replace("'","") not in outnames:
+                    outname_tuple=((final_fields[2].replace("'",""),final_fields[4].replace("'",""),final_fields[5].replace("'","")),)+outname_tuple
+        for result in sorted(outname_tuple,key=lambda x: float(x[2]))[:2]:
+            output_tuples=((result),)+output_tuples
+    return output_tuples,distances
