@@ -298,7 +298,9 @@ def matrix_to_fasta(matrix_in):
     return redux
 
 def find_two(infile,outnames):
-    """find two closest genomes to each query genome"""
+    """find two closest genomes to each query genome,
+    return the names and distances (sorted), for the
+    two genomes"""
     dist_sets = {}
     distances = ()
     final_sets = ()
@@ -337,8 +339,17 @@ def find_two(infile,outnames):
     except:
         raise TypeError("problem with dist_sets dictionary")
     """need to sort the distances tuple, then report only the two closest genomes"""
-    return final_sets[:1], distances
-                
+    two_distances = {}
+    for distance in sorted(distances,key=lambda x: x[2]):
+        try:
+            two_distances[distance[0]].append(distance[2])
+        except KeyError:
+            two_distances[distance[0]] = [distance[2]]
+    final_distances = ()
+    for k,v in two_distances.iteritems():
+        final_distances=((k,v[0],v[1]),)+final_distances
+    return final_sets,final_distances
+        
 def run_raxml(fasta_in, tree, processors, out_class_file):
     args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', 'v',
 	     '-s', '%s' % fasta_in, '-m', 'GTRGAMMA', '-n', 'out', '-t',
@@ -409,6 +420,7 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
                                 print >> outfile, line,
                             else:
                                 print >> outfile, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
+                        outfile.close()
                     for x in range(1,int(subnums)+1):
                         kept_snps=random.sample(set(allSNPs), int(v))
                         outfile_2 = open("%s.%s.%s.tmp.matrix" % (k,x,z[2]), "w")
@@ -426,6 +438,9 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
                                 print >> outfile_2, line,
                             else:
                                 print >> outfile_2, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
+                        outfile_2.close()
+    return allSNPs
+
 def find_used_snps():
     """report how many SNPs were used in a given sample.  This is
     then used for the sub-sampling routine"""
@@ -482,6 +497,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
         to_prune = []
         for x in dist_sets:
             if x[0] == split_fields[0]: 
+                #print x[0],split_fields[0]
                 to_prune.append(x[1])
                 to_prune.append(x[2])
         """names will be fixed if they contain characters
@@ -695,13 +711,22 @@ def parse_likelihoods(infile):
     my_in.close()
 
 def calculate_pairwise_tree_dists(intree, output):
+    """uses dendropy function to calculate all pairwise distances between tree"""
     tree = dendropy.Tree.get_from_path(intree, "newick", preserve_underscores=True)
     outfile = open("%s" % output, "w")
     distances = treecalc.PatristicDistanceMatrix(tree)
+    distances_sets = [ ]
     for i, t1 in enumerate(tree.taxon_set):
         for t2 in tree.taxon_set[i+1:]:
-            print >> outfile, "Distance between '%s' and '%s': %s" % (t1.label, t2.label, distances(t1, t2))
+            distances_sets.append(distances(t1, t2))
+    try:
+        for i, t1 in enumerate(tree.taxon_set):
+            for t2 in tree.taxon_set[i+1:]:
+                print >> outfile, "Distance between '%s' and '%s': %s" % (t1.label, t2.label, distances(t1, t2))
+    except:
+        print "problem iterating through tree.  Tree is empty or not Newick format"
     outfile.close()
+    return distances_sets
 
 def get_closest_dists(final_sets, distances, outnames):
     results = []

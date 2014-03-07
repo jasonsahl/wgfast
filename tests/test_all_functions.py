@@ -238,8 +238,8 @@ class Test11(unittest.TestCase):
         os.chdir("%s" % curr_dir)
         shutil.rmtree(tdir)
     def test_find_two_reversed(self):
-        tdir = tempfile.mkdtemp(prefix="filetest_",)
-        fpath = os.path.join(tdir,"all_patristic_distances.txt")
+        tdir = tempfile.mkdtemp(prefix="reversed_",)
+        fpath = os.path.join(tdir,"all_patristic_distances_reversed.txt")
         os.chdir("%s" % tdir)
         fp = open(fpath,"w")
         fp.write("Distance between 'E2348_69_allexternalnucmer' and 'H10407_allexternalnucmer': 1.39030683167\n")
@@ -251,7 +251,79 @@ class Test11(unittest.TestCase):
         shutil.rmtree(tdir)
 class Test12(unittest.TestCase):
     def test_get_closest_dists_basic_function(self):
-        self.assertEqual(get_closest_dists((('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'),),(('Reference', 'E2348_69_allexternalnucmer', '0.0941892612547'), ('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167')),['E2348_69_allexternalnucmer']),(['H10407_allexternalnucmer1.39030683167','O157_H7_sakai_allexternalnucmer4.53192608862']))
+        self.assertEqual(get_closest_dists((('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'),),(('Reference', 'E2348_69_allexternalnucmer', '0.0941892612547'), ('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167')),['E2348_69_allexternalnucmer']),(['O157_H7_sakai_allexternalnucmer4.53192608862','H10407_allexternalnucmer1.39030683167']))
+
+class Test13(unittest.TestCase):
+    def test_calculate_pairwise_tree_dists_basic_function(self):
+        """distances were taken directly from Dendropy, run outside of the pipeline"""
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"test.tree")
+        os.chdir("%s" % tdir)
+        fp = open(fpath,"w")
+        fp.write("((H10407_all:0.00000095154411648831,SSON_046_all:0.08004748973386473232):0.09609983129754622044,(E2348_69_all:1.63492542157114217893,O157_H7_sakai_all:4.52711175943011490119):0.00000095154411648831,Reference:0.00000095154411648831):0.0;")
+        fp.close()
+        self.assertEqual(calculate_pairwise_tree_dists(fpath, "tmp.out"),[0.08004844127798122, 1.7310271559569212, 4.623213493815894, 0.0961017343857792, 1.8110736941466694, 4.703260032005642, 0.17614827257552745, 6.162037181001257, 1.634927324659375, 4.527113662518348])
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+
+class Test14(unittest.TestCase):
+    def test_subsample_snps(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"test.matrix")
+        os.chdir("%s" % tdir)
+        fp = open(fpath,"w")
+        fp.write("LocusID\tReference\tgenome1\tgenome2\n")
+        fp.write("ADK::1\tA\tT\tT\n")
+        fp.write("ADK::2\tT\tT\tT\n")
+        fp.write("ADK::3\tG\tG\tT\n")
+        fp.close()
+        self.assertEqual(subsample_snps(fpath,{'ECOLI': ['SSON_046_allexternalnucmer', 'H10407_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'], 'ECOLI_ISO2': ['H10407_allexternalnucmer', 'SSON_046_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'], 'ECOLI_IS03_L007': ['SSON_046_allexternalnucmer', 'H10407_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer']}, {'ECOLI': 11, 'ECOLI_ISO2': 14, 'ECOLI_IS03_L007': 11},4),['ADK::1','ADK::2','ADK::3'])
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+
+class Test15(unittest.TestCase):
+    def test_process_temp_matrices(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir, "tmp.tree")
+        fpath2 = os.path.join(tdir, "all.distances")
+        os.chdir("%s" % tdir)
+        fp = open(fpath,"w")
+        fp2 = open(fpath2, "w")
+        fp.write("(E2348_69_allexternalnucmer:1.29611826169204280568,O157_H7_sakai_allexternalnucmer:3.23580782692392832089,(Reference:0.00000061743893499046,((QUERY___ECOLI_ISO2:0.000001,H10407_allexternalnucmer:0.00000030871946749523):0.00000030871946749523,((QUERY___ECOLI:0.000001,QUERY___ECOLI_IS03_L007:0.000001):0.0,SSON_046_allexternalnucmer:0.04099394588025907088):0.04099394588025907088):0.09418733509629113876):0.00000061743893499046);")
+        fp.close()
+        fp2.write("Distance between 'E2348_69_allexternalnucmer' and 'O157_H7_sakai_allexternalnucmer': 4.53192608862\n")
+        fp2.write("Distance between 'E2348_69_allexternalnucmer' and 'Reference': 1.29611949657\n")
+        fp2.write("Distance between 'E2348_69_allexternalnucmer' and 'QUERY___ECOLI_ISO2': 1.39030752295\n")
+        fp2.write("Distance between 'E2348_69_allexternalnucmer' and 'H10407_allexternalnucmer': 1.39030683167\n")
+        fp2.write("Distance between 'E2348_69_allexternalnucmer' and 'QUERY___ECOLI': 1.43130116011\n")
+        fp2.write("Distance between 'E2348_69_allexternalnucmer' and 'QUERY___ECOLI_IS03_L007': 1.43130116011\n")
+        fp2.write("Distance between 'E2348_69_allexternalnucmer' and 'SSON_046_allexternalnucmer': 1.47229410599\n")
+        fp2.write("Distance between 'O157_H7_sakai_allexternalnucmer' and 'Reference': 3.2358090618\n")
+        fp2.write("Distance between 'O157_H7_sakai_allexternalnucmer' and 'QUERY___ECOLI_ISO2': 3.32999708818\n")
+        fp2.write("Distance between 'O157_H7_sakai_allexternalnucmer' and 'H10407_allexternalnucmer': 3.3299963969\n")
+        fp2.write("Distance between 'O157_H7_sakai_allexternalnucmer' and 'QUERY___ECOLI': 3.37099072534\n")
+        fp2.write("Distance between 'O157_H7_sakai_allexternalnucmer' and 'QUERY___ECOLI_IS03_L007': 3.37099072534\n")
+        fp2.write("Distance between 'O157_H7_sakai_allexternalnucmer' and 'SSON_046_allexternalnucmer': 3.41198367122\n")
+        fp2.write("Distance between 'Reference' and 'QUERY___ECOLI_ISO2': 0.0941892612547\n")
+        fp2.write("Distance between 'Reference' and 'H10407_allexternalnucmer': 0.0941885699742\n")
+        fp2.write("Distance between 'Reference' and 'QUERY___ECOLI': 0.135182898415\n")
+        fp2.write("Distance between 'Reference' and 'QUERY___ECOLI_IS03_L007': 0.135182898415\n")
+        fp2.write("Distance between 'Reference' and 'SSON_046_allexternalnucmer': 0.176175844296\n")
+        fp2.write("Distance between 'QUERY___ECOLI_ISO2' and 'H10407_allexternalnucmer': 1.3087194675e-06\n")
+        fp2.write("Distance between 'QUERY___ECOLI_ISO2' and 'QUERY___ECOLI': 0.0409962545997\n")
+        fp2.write("Distance between 'QUERY___ECOLI_ISO2' and 'QUERY___ECOLI_IS03_L007': 0.0409962545997\n")
+        fp2.write("Distance between 'QUERY___ECOLI_ISO2' and 'SSON_046_allexternalnucmer': 0.08198920048\n")
+        fp2.write("Distance between 'H10407_allexternalnucmer' and 'QUERY___ECOLI': 0.0409955633192\n")
+        fp2.write("Distance between 'H10407_allexternalnucmer' and 'QUERY___ECOLI_IS03_L007': 0.0409955633192\n")
+        fp2.write("Distance between 'H10407_allexternalnucmer' and 'SSON_046_allexternalnucmer': 0.0819885091995\n")
+        fp2.write("Distance between 'QUERY___ECOLI' and 'QUERY___ECOLI_IS03_L007': 2e-06\n")
+        fp2.write("Distance between 'QUERY___ECOLI' and 'SSON_046_allexternalnucmer': 0.0409949458803\n")
+        fp2.write("Distance between 'QUERY___ECOLI_IS03_L007' and 'SSON_046_allexternalnucmer': 0.0409949458803")
+        fp2.close()
+        self.assertEqual(process_temp_matrices({'ECOLI': ['SSON_046_allexternalnucmer', 'H10407_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'], 'ECOLI_ISO2': ['H10407_allexternalnucmer', 'SSON_046_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'], 'ECOLI_IS03_L007': ['SSON_046_allexternalnucmer', 'H10407_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer']},fpath,2,fpath2),
+
+
+        dist_sets, tree, processors, patristics):
                          
 if __name__ == "__main__":
     unittest.main()

@@ -67,26 +67,26 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     else:
         print "RAxML must be in your path as raxmlHPC-PTHREADS"
         sys.exit()
-    print "citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'"
-    print "citation: 'Berger SA, Krompass D, Stamatakis A. Performance, accuracy, and Web server for evolutionary placement of short sequence reads under maximum likelihood. Syst Biol. 2011;60(3):291-302'"
+    print "*citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'"
+    print "*citation: 'Berger SA, Krompass D, Stamatakis A. Performance, accuracy, and Web server for evolutionary placement of short sequence reads under maximum likelihood. Syst Biol. 2011;60(3):291-302'"
     ab = subprocess.call(['which', 'samtools'])
     if ab == 0:
         pass
     else:
         print "samtools must be in your path"
         sys.exit()
-    print "citation: 'Li H, Handsaker B, Wysoker A, Fennell T, Ruan J, Homer N, Marth G, Abecasis G, Durbin R, Genome Project Data Processing S. The Sequence Alignment/Map format and SAMtools. Bioinformatics. 2009;25(16):2078-9'"
+    print "*citation: 'Li H, Handsaker B, Wysoker A, Fennell T, Ruan J, Homer N, Marth G, Abecasis G, Durbin R, Genome Project Data Processing S. The Sequence Alignment/Map format and SAMtools. Bioinformatics. 2009;25(16):2078-9'"
     ac = subprocess.call(['which', 'bwa'])
     if ac == 0:
         pass
     else:
         print "bwa must be in your path"
         sys.exit()
-    print "citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'"
+    print "*citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'"
     print "Patristic distances calculated with DendroPy"
-    print "citation: 'Sukumaran J, Holder MT. DendroPy: a Python library for phylogenetic computing. Bioinformatics. 2010;26(12):1569-71. Epub 2010/04/28. doi: 10.1093/bioinformatics/btq228. PubMed PMID: 20421198'"
+    print "*citation: 'Sukumaran J, Holder MT. DendroPy: a Python library for phylogenetic computing. Bioinformatics. 2010;26(12):1569-71. Epub 2010/04/28. doi: 10.1093/bioinformatics/btq228. PubMed PMID: 20421198'"
     print "Also uses GATK"
-    print "citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'"
+    print "*citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'"
     print ""
     log_isg.logPrint('WG-FAST pipeline starting')
     ref_path=os.path.abspath("%s" % reference)
@@ -141,6 +141,7 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         """find true distance of each genome to the reference"""
         os.system("sort -g -k 6 all_patristic_distances.txt > tmp_patristic_distances.txt")
         final_sets, distances=find_two("tmp_patristic_distances.txt", outnames)
+        print distances
         get_closest_dists(final_sets, distances, outnames)
         log_isg.logPrint("running subsample routine")
         subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
