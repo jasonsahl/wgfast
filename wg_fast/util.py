@@ -123,7 +123,10 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
     def _perform_workflow(data):
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
-        run_bwa(reference, f[0], f[1], processors, idx)
+        if len(f)>1:
+            run_bwa(reference, f[0], f[1], processors, idx)
+        else:
+            run_bwa(reference, f[0], "NULL", processors, idx)
         process_sam("%s.sam" % idx, idx)
         run_gatk(reference, processors, idx, gatk, tmp_dir)
         os.system("echo %s.bam > %s.bam.list" % (idx,idx))
@@ -145,7 +148,7 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
     mem_arguments = ['bwa', 'mem', '-v', '2', '-M', '-t', '%s' % processors]
     for opt in my_opts.items():
         mem_arguments.extend(opt)
-    if "null" in read2:
+    if "NULL" in read2:
         mem_arguments.extend([reference,read1])
     else:
         mem_arguments.extend([reference,read1,read2]) 
