@@ -141,16 +141,16 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
         #final_sets, distances=find_two("tmp_patristic_distances.txt", outnames)
         final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
-        print final_sets
+        #print distances
         #get_closest_dists(final_sets, distances, outnames)
         results = get_closest_dists_new(final_sets,outnames)
         """need to find true dists"""
         #find_true_dists(distances,outnames)
-        #log_isg.logPrint("running subsample routine")
-        #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
-        #os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
-        #process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt")
-        #compare_subsample_results(outnames)
+        log_isg.logPrint("running subsample routine")
+        subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
+        os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
+        process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt")
+        compare_subsample_results(outnames,distances)
     else:
         log_isg.logPrint("all done")
     if keep == "T":

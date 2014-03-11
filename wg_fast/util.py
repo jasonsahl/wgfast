@@ -424,24 +424,24 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
                             else:
                                 print >> outfile, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
                         outfile.close()
-                    for x in range(1,int(subnums)+1):
-                        kept_snps=random.sample(set(allSNPs), int(v))
-                        outfile_2 = open("%s.%s.%s.tmp.matrix" % (k,x,z[2]), "w")
-                        in_matrix=open(matrix,"U")
-                        firstLine = in_matrix.readline()
-                        print >> outfile_2, firstLine,
-                        first_fields = firstLine.split()
-                        fixed_fields = []
-                        for x in first_fields:
-                            fixed_fields.append(re.sub('[:,]', '', x))
-                        gindex=fixed_fields.index(z[2])
-                        for line in in_matrix:
-                            matrix_fields=line.split()
-                            if matrix_fields[0] in kept_snps:
-                                print >> outfile_2, line,
-                            else:
-                                print >> outfile_2, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
-                        outfile_2.close()
+                        #for x in range(1,int(subnums)+1):
+                        #kept_snps=random.sample(set(allSNPs), int(v))
+                        #outfile_2 = open("%s.%s.%s.tmp.matrix" % (k,x,z[2]), "w")
+                        #in_matrix=open(matrix,"U")
+                        #firstLine = in_matrix.readline()
+                        #print >> outfile_2, firstLine,
+                        #first_fields = firstLine.split()
+                        #fixed_fields = []
+                        #for x in first_fields:
+                        #    fixed_fields.append(re.sub('[:,]', '', x))
+                        #gindex=fixed_fields.index(z[2])
+                        #for line in in_matrix:
+                        #    matrix_fields=line.split()
+                        #    if matrix_fields[0] in kept_snps:
+                        #        print >> outfile_2, line,
+                        #    else:
+                        #        print >> outfile_2, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
+                        #outfile_2.close()
     return allSNPs
 
 def find_used_snps():
@@ -485,7 +485,7 @@ def branch_lengths_2_decimals(str_newick_tree):
 
 def process_temp_matrices(dist_sets, tree, processors, patristics):
     curr_dir= os.getcwd()
-    true_dists=()
+    #true_dists=()
     os.system("rm tree_including_unknowns_noedges.tree")
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
         """the genome names are parsed out of the tmp.matrices"""
@@ -500,9 +500,8 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
         to_prune = []
         for x in dist_sets:
             if x[0] == split_fields[0]: 
-                #print x[0],split_fields[0]
                 to_prune.append(x[1])
-                to_prune.append(x[2])
+                #to_prune.append(x[2])
         """names will be fixed if they contain characters
         that are not accepted by downstream applications"""
         to_prune_fixed=[]
@@ -548,14 +547,14 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
             fixedid2 = newid.replace("QUERY___","")
             if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
                 print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
-            elif resample_fields[4] == "'Reference'" and fixedid2 in name_fixed:
+            elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
                 print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
             else:
                 pass
             
         os.system("rm all.fasta tmpxz.tree out.fasta tmpx.tree tree_including_unknowns_noedges.tree resampling_distances.txt")
         
-def compare_subsample_results(outnames):
+def compare_subsample_results(outnames,distances):
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*.subsample.distances.txt")):
         name=get_seq_name(infile)
@@ -569,35 +568,38 @@ def compare_subsample_results(outnames):
         for line in open(infile, "U"):
             fields = line.split()
             all_dists.append(fields[7])
-            genomes_used.append(fields[3])
-            genomes_used.append(fields[5])
+            #this is the reference
+            #genomes_used.append(fields[3])
+            #this is the query, but they should all be the same
+            #genomes_used.append(fields[5])
         try:
             max_dist=max(all_dists)
             print ""
-            print "maximum subsample distance between %s and %s = %s" % (genomes_used[0],genomes_used[1],max_dist),"\n",
+            #print "maximum subsample distance between %s and %s = %s" % (genomes_used[0],genomes_used[1],max_dist),"\n",
+            print "maximum subsample distance between %s and %s = %.2f" % (fields[3],fields[5],float(max_dist)),"\n",
         except:
             print "problem found in input file: ", infile
         true_dists = [ ]
-        for line in open("%s.closest.two.txt" % split_fields[0], "U"):
-            fields = line.split()
-            if fields[0] == split_fields[1]:
-                true_dists.append(fields[1])
-            for all_dist in all_dists:
-                if fields[0] == split_fields[1]:
-                    if float(fields[1])>float(all_dist):
-                        dists_less_than_true.append("1")
-                    elif float(fields[1])<float(all_dist):
-                        dists_greater_than_true.append("1")
-                    elif float(fields[1])==float(all_dist):
-                        dists_equal_to_true.append("1")
+        for all_dist in all_dists:
+            for distance in distances:
+                if distance[1] == split_fields[0]:
+                    true_dists.append(distance[2])
+            if "%.2f" % float(all_dist)> "%.2f" % float(true_dists[0]):
+                dists_greater_than_true.append("1")
+            elif "%.2f" % float(all_dist)<"%.2f" % float(true_dists[0]):
+                dists_less_than_true.append("1")
+            elif "%.2f" % float(all_dist)==float(true_dists[0]):
+                dists_equal_to_true.append("1")
+            else:
+                pass
         greaters = int(len(dists_greater_than_true))
         equals = int(len(dists_equal_to_true))
         lessers = int(len(dists_less_than_true))
-        print "True distance between Reference and %s = %s" % (genomes_used[1],"".join(true_dists))
+        print "True distance between Reference and %s = %.2f" % (split_fields[2],float(true_dists[0]))
         print "Sample: %s" % split_fields[0]
-        print "Subsample distances between %s and %s greater than true value = %s" % (genomes_used[0],genomes_used[1],greaters)
-        print "Subsample distances between %s and %s equal to true value = %s" % (genomes_used[0],genomes_used[1],equals)
-        print "Subsample distances between %s and %s less than true value = %s" % (genomes_used[0],genomes_used[1],lessers)    
+        print "Subsample distances between Reference and %s greater than true value = %s" % (split_fields[2],greaters)
+        print "Subsample distances between Reference and %s equal to true value = %s" % (split_fields[2],equals)
+        print "Subsample distances between Reference and %s less than true value = %s" % (split_fields[2],lessers)    
 
 def transform_tree(tree):
     """converts a Newick tree into a Nexus-formatted
