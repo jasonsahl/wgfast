@@ -301,59 +301,6 @@ def matrix_to_fasta(matrix_in):
     out_fasta.close()
     return redux
 
-def find_two(infile,outnames):
-    """find two closest genomes to each query genome,
-    return the names and distances (sorted), for the
-    two genomes"""
-    dist_sets = {}
-    distances = ()
-    final_sets = ()
-    myfile = open(infile, "U")
-    for line in myfile:
-        fields=line.split()
-        new_fields=[ ]
-        for x in fields:
-            new_fields.append(re.sub('[:,]', '', x))
-        final_fields=[ ]
-        for y in new_fields:
-            final_fields.append(y.replace("QUERY___",""))
-        if "Reference" in final_fields[2].replace("'",""):
-            distances=((final_fields[2].replace("'",""),final_fields[4].replace("'",""),final_fields[5].replace("'","")),)+distances
-        elif "Reference" in final_fields[4].replace("'",""):
-            distances=((final_fields[4].replace("'",""),final_fields[2].replace("'",""),final_fields[5].replace("'","")),)+distances
-        elif final_fields[4].replace("'","") in outnames:
-            if "Reference" not in final_fields[2].replace("'","") and final_fields[2].replace("'","") not in outnames:
-                try:
-                    dist_sets[final_fields[4].replace("'","")].append(final_fields[2].replace("'",""))
-                    distances=((final_fields[4].replace("'",""),final_fields[2].replace("'",""),final_fields[5].replace("'","")),)+distances
-                except KeyError:
-                    dist_sets[final_fields[4].replace("'","")] = [final_fields[2].replace("'","")]
-                    distances=((final_fields[4].replace("'",""),final_fields[2].replace("'",""),final_fields[5].replace("'","")),)+distances
-        elif final_fields[2].replace("'","") in outnames:
-            if "Reference" not in final_fields[4].replace("'","") and final_fields[4].replace("'","") not in outnames:
-                try:
-                    dist_sets[final_fields[2].replace("'","")].append(final_fields[4].replace("'",""))
-                    distances=((final_fields[2].replace("'",""),final_fields[4].replace("'",""),final_fields[5].replace("'","")),)+distances
-                except KeyError:
-                    dist_sets[final_fields[2].replace("'","")] = [final_fields[4].replace("'","")]
-                    distances=((final_fields[2].replace("'",""),final_fields[4].replace("'",""),final_fields[5].replace("'","")),)+distances
-    try:
-        for k,v in dist_sets.iteritems():
-            final_sets=((k,v[0],v[1]),)+final_sets
-    except:
-        raise TypeError("problem with dist_sets dictionary")
-    """need to sort the distances tuple, then report only the two closest genomes"""
-    two_distances = {}
-    for distance in sorted(distances,key=lambda x: x[2]):
-        try:
-            two_distances[distance[0]].append(distance[2])
-        except KeyError:
-            two_distances[distance[0]] = [distance[2]]
-    final_distances = ()
-    for k,v in two_distances.iteritems():
-        final_distances=((k,v[0],v[1]),)+final_distances
-    return final_sets,final_distances
-        
 def run_raxml(fasta_in, tree, processors, out_class_file):
     args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', 'v',
 	     '-s', '%s' % fasta_in, '-m', 'GTRGAMMA', '-n', 'out', '-t',
@@ -568,18 +515,20 @@ def compare_subsample_results(outnames,distances):
         """Here, I get the list of the genomes that are being analyzed"""
         for line in open(infile, "U"):
             fields = line.split()
-            all_dists.append(fields[7])
+            all_dists.append(float(fields[7]))
         try:
             max_dist=max(all_dists)
+            print fields[5],max_dist
             print ""
             print "maximum subsample distance between %s and %s = %.2f" % (fields[3],fields[5],float(max_dist)),"\n",
         except:
             print "problem found in input file: ", infile
         true_dists = [ ]
+        print all_dists
+        for distance in distances:
+            if distance[1] == split_fields[1]:
+                true_dists.append(distance[2])
         for all_dist in all_dists:
-            for distance in distances:
-                if distance[1] == split_fields[0]:
-                    true_dists.append(distance[2])
             if "%.2f" % float(all_dist)> "%.2f" % (float(true_dists[0])+float(0.1)):
                 dists_greater_than_true.append("1")
             elif "%.2f" % float(all_dist)<"%.2f" % (float(true_dists[0])-float(0.1)):
@@ -589,7 +538,7 @@ def compare_subsample_results(outnames,distances):
         greaters = int(len(dists_greater_than_true))
         equals = int(len(dists_equal_to_true))
         lessers = int(len(dists_less_than_true))
-        print "True distance between Reference and %s = %.2f" % (split_fields[2],float(true_dists[0]))
+        print "True distance between Reference and %s = %.2f" % (split_fields[1],float(true_dists[0]))
         print "Sample: %s" % split_fields[0]
         print "Subsample distances between Reference and %s greater than true value = %s" % (split_fields[2],greaters)
         print "Subsample distances between Reference and %s equal to true value = %s" % (split_fields[2],equals)
@@ -671,8 +620,6 @@ def make_temp_matrix(vcf, matrix, name):
         new_dicts.update({k:v})
     for x in matrix_ids:
         if x not in value_dict.keys():new_dicts.update({x:"-"})
-            #for key in sorted(new_dicts.iterkeys(), key=sort_information):
-            #open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts[key])
     variety = [ ]
     for x in matrix_ids:
         if x in new_dicts:
@@ -729,35 +676,14 @@ def calculate_pairwise_tree_dists(intree, output):
     outfile.close()
     return distances_sets
 
-def get_closest_dists(final_sets, distances, outnames):
-    results = []
-    for final_set in final_sets:
-        if len(final_set) == 0:
-            pass
-        else:
-            outfile = open("%s.closest.two.txt" % final_set[0], "w")
-            for distance in distances:
-                if distance[0] == "Reference":
-                    pass
-                else:
-                    if distance[0] == final_set[0]:
-                        print >> outfile,distance[1]+"\t"+distance[2]+"\n",
-                        results.append(distance[1]+distance[2])
-                    elif distance[1] == final_set[0]:
-                        print >> outfile,distance[0]+"\t"+distance[2]+"\n",
-                        results.append(distance[0]+distance[2])
-                    else:
-                        pass
-    return results
-   
 def get_closest_dists_new(final_sets, outnames):
     results = []
     for final_set in final_sets:
         if len(final_set) == 0:
             pass
-        else:
-            outfile = open("%s.closest.two.txt" % final_set[0], "a")
-        print >> outfile,final_set[1]+"\t"+final_set[2]+"\n",
+        #else:
+            #outfile = open("%s.closest.two.txt" % final_set[0], "a")
+            #print >> outfile,final_set[1]+"\t"+final_set[2]+"\n",
         results.append(final_set[1]+final_set[2])
     return results
             

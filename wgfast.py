@@ -56,7 +56,7 @@ def test_filter(option, opt_str, value, parser):
         print "option not supported.  Only select from T and F"
         sys.exit()
 
-def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir):
+def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,fudge):
     start_dir = os.getcwd()
     log_isg.logPrint('testing the paths of all dependencies')
     ap=os.path.abspath("%s" % start_dir)
@@ -139,13 +139,10 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
     if subsample=="T":
         os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
-        #final_sets, distances=find_two("tmp_patristic_distances.txt", outnames)
         final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
-        #print distances
-        #get_closest_dists(final_sets, distances, outnames)
+        print distances
         results = get_closest_dists_new(final_sets,outnames)
         """need to find true dists"""
-        #find_true_dists(distances,outnames)
         log_isg.logPrint("running subsample routine")
         subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
         os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
@@ -208,6 +205,9 @@ if __name__ == "__main__":
     parser.add_option("-e", "--temp", dest="tmp_dir",
                       help="temporary directory for GATK analysis, defaults to /tmp",
                       action="store", type="string", default="/tmp")
+    parser.add_option("-f", "--fudge_factor", dest="fudge",
+                      help="How close does a subsample have to be from true placement?  Defaults to 0.1",
+                      action="store", type="float", default="0.1")
 
     options, args = parser.parse_args()
     
@@ -220,4 +220,4 @@ if __name__ == "__main__":
 
     main(options.matrix,options.tree,options.reference,options.directory,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
-         options.subnums,options.doc,options.tmp_dir)
+         options.subnums,options.doc,options.tmp_dir,options.fudge)
