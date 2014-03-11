@@ -1,3 +1,4 @@
+from __future__ import division
 import os
 import re
 import logging
@@ -568,10 +569,6 @@ def compare_subsample_results(outnames,distances):
         for line in open(infile, "U"):
             fields = line.split()
             all_dists.append(fields[7])
-            #this is the reference
-            #genomes_used.append(fields[3])
-            #this is the query, but they should all be the same
-            #genomes_used.append(fields[5])
         try:
             max_dist=max(all_dists)
             print ""
@@ -583,14 +580,12 @@ def compare_subsample_results(outnames,distances):
             for distance in distances:
                 if distance[1] == split_fields[0]:
                     true_dists.append(distance[2])
-            if "%.2f" % float(all_dist)> "%.2f" % float(true_dists[0]):
+            if "%.2f" % float(all_dist)> "%.2f" % (float(true_dists[0])+float(0.1)):
                 dists_greater_than_true.append("1")
-            elif "%.2f" % float(all_dist)<"%.2f" % float(true_dists[0]):
+            elif "%.2f" % float(all_dist)<"%.2f" % (float(true_dists[0])-float(0.1)):
                 dists_less_than_true.append("1")
-            elif "%.2f" % float(all_dist)=="%.2f" % float(true_dists[0]):
-                dists_equal_to_true.append("1")
             else:
-                pass
+                dists_equal_to_true.append("1")
         greaters = int(len(dists_greater_than_true))
         equals = int(len(dists_equal_to_true))
         lessers = int(len(dists_less_than_true))
