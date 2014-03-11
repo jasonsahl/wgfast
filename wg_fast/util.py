@@ -587,7 +587,7 @@ def compare_subsample_results(outnames,distances):
                 dists_greater_than_true.append("1")
             elif "%.2f" % float(all_dist)<"%.2f" % float(true_dists[0]):
                 dists_less_than_true.append("1")
-            elif "%.2f" % float(all_dist)==float(true_dists[0]):
+            elif "%.2f" % float(all_dist)=="%.2f" % float(true_dists[0]):
                 dists_equal_to_true.append("1")
             else:
                 pass
