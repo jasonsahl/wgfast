@@ -575,7 +575,6 @@ def compare_subsample_results(outnames,distances):
         try:
             max_dist=max(all_dists)
             print ""
-            #print "maximum subsample distance between %s and %s = %s" % (genomes_used[0],genomes_used[1],max_dist),"\n",
             print "maximum subsample distance between %s and %s = %.2f" % (fields[3],fields[5],float(max_dist)),"\n",
         except:
             print "problem found in input file: ", infile
@@ -600,7 +599,9 @@ def compare_subsample_results(outnames,distances):
         print "Subsample distances between Reference and %s greater than true value = %s" % (split_fields[2],greaters)
         print "Subsample distances between Reference and %s equal to true value = %s" % (split_fields[2],equals)
         print "Subsample distances between Reference and %s less than true value = %s" % (split_fields[2],lessers)    
-
+        p = (greaters+lessers)/(greaters+lessers+equals)
+        print "Placement p value = %s" % float(p)
+        
 def transform_tree(tree):
     """converts a Newick tree into a Nexus-formatted
     tree that can be visualized with FigTree"""
