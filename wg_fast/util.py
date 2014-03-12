@@ -518,13 +518,11 @@ def compare_subsample_results(outnames,distances):
             all_dists.append(float(fields[7]))
         try:
             max_dist=max(all_dists)
-            print fields[5],max_dist
             print ""
             print "maximum subsample distance between %s and %s = %.2f" % (fields[3],fields[5],float(max_dist)),"\n",
         except:
             print "problem found in input file: ", infile
         true_dists = [ ]
-        print all_dists
         for distance in distances:
             if distance[1] == split_fields[1]:
                 true_dists.append(distance[2])
@@ -544,7 +542,7 @@ def compare_subsample_results(outnames,distances):
         print "Subsample distances between Reference and %s equal to true value = %s" % (split_fields[2],equals)
         print "Subsample distances between Reference and %s less than true value = %s" % (split_fields[2],lessers)    
         p = (greaters+lessers)/(greaters+lessers+equals)
-        print "Placement p value = %s" % float(p)
+        print "Placement p value = %.3f" % float(p)
         
 def transform_tree(tree):
     """converts a Newick tree into a Nexus-formatted
@@ -629,7 +627,7 @@ def make_temp_matrix(vcf, matrix, name):
             if x in new_dicts:
                 open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts.get('%s' % x))
     else:
-        print "sampel %s had no usable positions!!!" % name
+        print "sample %s had no usable positions!!!" % name
     in_matrix.close()
     return new_dicts
 
@@ -681,9 +679,6 @@ def get_closest_dists_new(final_sets, outnames):
     for final_set in final_sets:
         if len(final_set) == 0:
             pass
-        #else:
-            #outfile = open("%s.closest.two.txt" % final_set[0], "a")
-            #print >> outfile,final_set[1]+"\t"+final_set[2]+"\n",
         results.append(final_set[1]+final_set[2])
     return results
             

@@ -140,7 +140,6 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     if subsample=="T":
         os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
         final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
-        print distances
         results = get_closest_dists_new(final_sets,outnames)
         """need to find true dists"""
         log_isg.logPrint("running subsample routine")
