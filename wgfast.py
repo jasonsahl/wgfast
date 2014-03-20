@@ -27,6 +27,7 @@ import sys
 from wg_fast.util import *
 import errno
 from igs.utils import logging as log_isg
+from multiprocessing import Process
 
 WGFAST_PATH="/Users/jsahl/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
@@ -143,10 +144,15 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         results = get_closest_dists_new(final_sets,outnames)
         """need to find true dists"""
         log_isg.logPrint("running subsample routine")
-        subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
+        """testing this multiprocess function"""
+        p = Process(target=subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums))
+        p.start()
+        p.join()
+        #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
+        """testing is done here"""
         os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
         process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt")
-        compare_subsample_results(outnames,distances)
+        compare_subsample_results(outnames,distances,fudge)
     else:
         log_isg.logPrint("all done")
     if keep == "T":

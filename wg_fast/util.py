@@ -372,24 +372,6 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
                             else:
                                 print >> outfile, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
                         outfile.close()
-                        #for x in range(1,int(subnums)+1):
-                        #kept_snps=random.sample(set(allSNPs), int(v))
-                        #outfile_2 = open("%s.%s.%s.tmp.matrix" % (k,x,z[2]), "w")
-                        #in_matrix=open(matrix,"U")
-                        #firstLine = in_matrix.readline()
-                        #print >> outfile_2, firstLine,
-                        #first_fields = firstLine.split()
-                        #fixed_fields = []
-                        #for x in first_fields:
-                        #    fixed_fields.append(re.sub('[:,]', '', x))
-                        #gindex=fixed_fields.index(z[2])
-                        #for line in in_matrix:
-                        #    matrix_fields=line.split()
-                        #    if matrix_fields[0] in kept_snps:
-                        #        print >> outfile_2, line,
-                        #    else:
-                        #        print >> outfile_2, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
-                        #outfile_2.close()
     return allSNPs
 
 def find_used_snps():
@@ -502,7 +484,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
             
         os.system("rm all.fasta tmpxz.tree out.fasta tmpx.tree tree_including_unknowns_noedges.tree resampling_distances.txt")
         
-def compare_subsample_results(outnames,distances):
+def compare_subsample_results(outnames,distances,fudge):
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*.subsample.distances.txt")):
         name=get_seq_name(infile)
@@ -527,9 +509,9 @@ def compare_subsample_results(outnames,distances):
             if distance[1] == split_fields[1]:
                 true_dists.append(distance[2])
         for all_dist in all_dists:
-            if "%.2f" % float(all_dist)> "%.2f" % (float(true_dists[0])+float(0.1)):
+            if "%.2f" % float(all_dist)> "%.2f" % (float(true_dists[0])+float(fudge)):
                 dists_greater_than_true.append("1")
-            elif "%.2f" % float(all_dist)<"%.2f" % (float(true_dists[0])-float(0.1)):
+            elif "%.2f" % float(all_dist)<"%.2f" % (float(true_dists[0])-float(fudge)):
                 dists_less_than_true.append("1")
             else:
                 dists_equal_to_true.append("1")
