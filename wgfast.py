@@ -57,7 +57,16 @@ def test_filter(option, opt_str, value, parser):
         print "option not supported.  Only select from T and F"
         sys.exit()
 
-def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,fudge):
+def test_methods(option, opt_str, value, parser):
+    if "ML" in value:
+        setattr(parser.values, option.dest, value)
+    elif "MP" in value:
+        setattr(parser.values, option.dest, value)
+    else:
+        print "option not supported.  Only select from MP or ML"
+        sys.exit()
+
+def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge):
     start_dir = os.getcwd()
     log_isg.logPrint('testing the paths of all dependencies')
     ap=os.path.abspath("%s" % start_dir)
@@ -129,12 +138,24 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
     """this fixes the SNP output to conform with RAxML"""
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     try:
-        run_raxml("out.fasta", tree, processors, "classification_results.txt")
+        if insertion_method == "ML":
+            run_raxml("out.fasta", tree, processors, "classification_results.txt", "v", parameters)
+        elif insertion_method == "MP":
+            try:
+                run_raxml("out.fasta", tree, processors, "classification_results.txt", "y", parameters)
+            except:
+                print "problem with MP, moving to ML"
+                run_raxml("out.fasta", tree, processors, "classification_results.txt", "v", parameters)
+        else:
+            pass
         transform_tree("tree_including_unknowns_noedges.tree")
         print ""
-        log_isg.logPrint("Insertion likelihood values:")
-        parse_likelihoods("classification_results.txt")
-        print ""
+        if insertion_method == "ML":
+            log_isg.logPrint("Insertion likelihood values:")
+            parse_likelihoods("classification_results.txt")
+            print ""
+        else:
+            pass
     except:
         print "raxml encountered an error and unknown couldn't be added"
     calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
@@ -151,7 +172,16 @@ def main(matrix,tree,reference,directory,processors,coverage,proportion,keep,sub
         #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
         """testing is done here"""
         os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
-        process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt")
+        if insertion_method == "ML":
+            process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt", "v",parameters)
+        elif insertion_method == "MP":
+            try:
+                process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt", "y",parameters)
+            except:
+                print "problems with MP, moving to ML"
+                process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt", "v",parameters)
+        else:
+            pass
         compare_subsample_results(outnames,distances,fudge)
     else:
         log_isg.logPrint("all done")
@@ -186,6 +216,9 @@ if __name__ == "__main__":
     parser.add_option("-d", "--directory", dest="directory",
                       help="path to directory of fastq files [REQUIRED]",
                       action="callback", callback=test_dir, type="string")
+    parser.add_option("-x", "--parameters_file", dest="parameters",
+                      help="parameters for RAxML insertion, defaults to NULL",
+                      action="store", type="string", default="NULL")
     parser.add_option("-p", "--processors", dest="processors",
                       help="# of processors to use - defaults to 2",
                       default="2", type="int")
@@ -210,6 +243,9 @@ if __name__ == "__main__":
     parser.add_option("-e", "--temp", dest="tmp_dir",
                       help="temporary directory for GATK analysis, defaults to /tmp",
                       action="store", type="string", default="/tmp")
+    parser.add_option("-z", "--method", dest="insertion_method",
+                      help="method to insert unknown genomes (MP or ML), defaults to ML",
+                      action="callback", type="string", callback=test_methods, default="ML")
     parser.add_option("-f", "--fudge_factor", dest="fudge",
                       help="How close does a subsample have to be from true placement?  Defaults to 0.1",
                       action="store", type="float", default="0.1")
@@ -223,6 +259,6 @@ if __name__ == "__main__":
             parser.print_help()
             exit(-1)
 
-    main(options.matrix,options.tree,options.reference,options.directory,
+    main(options.matrix,options.tree,options.reference,options.directory,options.parameters,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
-         options.subnums,options.doc,options.tmp_dir,options.fudge)
+         options.subnums,options.doc,options.tmp_dir,options.insertion_method,options.fudge)

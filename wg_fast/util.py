@@ -301,9 +301,14 @@ def matrix_to_fasta(matrix_in):
     out_fasta.close()
     return redux
 
-def run_raxml(fasta_in, tree, processors, out_class_file):
-    args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', 'v',
+def run_raxml(fasta_in, tree, processors, out_class_file, insertion_method, parameters):
+    if "NULL" == parameters:
+        args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', '%s' % insertion_method,
 	     '-s', '%s' % fasta_in, '-m', 'GTRGAMMA', '-n', 'out', '-t',
+	     '%s' % tree, '>', '/dev/null 2>&1']
+    else:
+        args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', '%s' % insertion_method,
+	     '-s', '%s' % fasta_in, '-m', 'GTRGAMMA', '-n', 'out', '-R', parameters, '-t',
 	     '%s' % tree, '>', '/dev/null 2>&1']
     try:
         vcf_fh = open('raxml.out', 'w')
@@ -323,7 +328,10 @@ def run_raxml(fasta_in, tree, processors, out_class_file):
         log_isg.logPrint("sequence(s) were not inserted into tree!!!!!")
     os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.out > tree_including_unknowns_noedges.tree")
     subprocess.check_call("mv RAxML_labelledTree.out tree_including_unknowns_edges.tree" , shell=True)
-    subprocess.check_call("cat RAxML_classificationLikelihoodWeights.out >> %s" % out_class_file, shell=True)
+    try:
+        subprocess.check_call("cat RAxML_classificationLikelihoodWeights.out >> %s" % out_class_file, shell=True)
+    except:
+        pass
     subprocess.check_call("rm RAxML_*", shell=True)
 
 def grab_matrix_coords(matrix):
@@ -413,9 +421,8 @@ def branch_lengths_2_decimals(str_newick_tree):
     new_tree = new_tree.strip('\'').strip('\"').strip('\'') + ";"
     return new_tree
 
-def process_temp_matrices(dist_sets, tree, processors, patristics):
+def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_method, parameters):
     curr_dir= os.getcwd()
-    #true_dists=()
     os.system("rm tree_including_unknowns_noedges.tree")
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
         """the genome names are parsed out of the tmp.matrices"""
@@ -431,7 +438,6 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
         for x in dist_sets:
             if x[0] == split_fields[0]: 
                 to_prune.append(x[1])
-                #to_prune.append(x[2])
         """names will be fixed if they contain characters
         that are not accepted by downstream applications"""
         to_prune_fixed=[]
@@ -465,7 +471,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics):
         """if problems in the tree names are found, they are removed by the system command"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
         """raxml is now used to insert the pruned genomes back into the tree"""
-        run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt")
+        run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt", insertion_method, parameters)
         """dendropy is used to calculate pairwise patristic distances"""
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
         """parse the results from raxml and save the results to the subsamples file"""
