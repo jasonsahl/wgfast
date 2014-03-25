@@ -139,13 +139,14 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     try:
         if insertion_method == "ML":
-            run_raxml("out.fasta", tree, processors, "classification_results.txt", "v", parameters)
+            #does capital V work and does it speed up anything?
+            run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters)
         elif insertion_method == "MP":
             try:
                 run_raxml("out.fasta", tree, processors, "classification_results.txt", "y", parameters)
             except:
                 print "problem with MP, moving to ML"
-                run_raxml("out.fasta", tree, processors, "classification_results.txt", "v", parameters)
+                run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters)
         else:
             pass
         transform_tree("tree_including_unknowns_noedges.tree")
@@ -158,33 +159,32 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             pass
     except:
         print "raxml encountered an error and unknown couldn't be added"
-    calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
-    if subsample=="T":
-        os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
-        final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
-        results = get_closest_dists_new(final_sets,outnames)
-        """need to find true dists"""
-        log_isg.logPrint("running subsample routine")
-        """testing this multiprocess function"""
-        p = Process(target=subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums))
-        p.start()
-        p.join()
-        #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
-        """testing is done here"""
-        os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
-        if insertion_method == "ML":
-            process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt", "v",parameters)
-        elif insertion_method == "MP":
-            try:
-                process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt", "y",parameters)
-            except:
-                print "problems with MP, moving to ML"
-                process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt", "v",parameters)
-        else:
-            pass
-        compare_subsample_results(outnames,distances,fudge)
+    if insertion_method == "ML":
+        calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
     else:
-        log_isg.logPrint("all done")
+        print "patrisitic distances can't always be calculated with parsimony"
+        pass
+    if subsample=="T":
+        if insertion_method == "MP":
+            pass
+        else:
+            os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
+            final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
+            results = get_closest_dists_new(final_sets,outnames)
+            log_isg.logPrint("running subsample routine")
+            """testing this multiprocess function"""
+            #p = Process(target=subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums))
+            p = Process(target=subsample_snps("temp.matrix", final_sets, used_snps, subnums))
+            p.start()
+            p.join()
+            #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
+            """testing is done here"""
+            os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
+            #process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt", "v",parameters)
+            process_temp_matrices(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters)
+            compare_subsample_results(outnames,distances,fudge)
+    else:
+        pass
     if keep == "T":
         pass
     else:

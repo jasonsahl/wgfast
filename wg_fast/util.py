@@ -488,7 +488,8 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
             else:
                 pass
             
-        os.system("rm all.fasta tmpxz.tree out.fasta tmpx.tree tree_including_unknowns_noedges.tree resampling_distances.txt")
+        os.system("rm all.fasta tmpx.tree tree_including_unknowns_noedges.tree")
+        os.system("rm resampling_distances.txt tmpxz.tree out.fasta")
         
 def compare_subsample_results(outnames,distances,fudge):
     curr_dir= os.getcwd()
