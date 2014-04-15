@@ -28,6 +28,8 @@ from wg_fast.util import *
 import errno
 from igs.utils import logging as log_isg
 from multiprocessing import Process
+from threading import Thread
+import threading
 
 WGFAST_PATH="/Users/jsahl/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
@@ -174,9 +176,12 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             log_isg.logPrint("running subsample routine")
             """testing this multiprocess function"""
             #p = Process(target=subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums))
-            p = Process(target=subsample_snps("temp.matrix", final_sets, used_snps, subnums))
-            p.start()
-            p.join()
+            #p = Process(target=subsample_snps("temp.matrix", final_sets, used_snps, subnums))
+            process_stop = threading.Event()
+            try:
+                Thread(target=subsample_snps, name="subsample snps", args=("temp.matrix", final_sets, used_snps, subnums)).start()
+            except:
+                process_stop.set()
             #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
             """testing is done here"""
             os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
