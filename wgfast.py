@@ -141,7 +141,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     try:
         if insertion_method == "ML":
-            #does capital V work and does it speed up anything?
             run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters)
         elif insertion_method == "MP":
             try:
