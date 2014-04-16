@@ -31,10 +31,11 @@ from multiprocessing import Process
 from threading import Thread
 import threading
 
-WGFAST_PATH="/Users/jsahl/wgfast"
+WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
+ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
 
 def test_file(option, opt_str, value, parser):
     try:
@@ -123,7 +124,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         print "dict wasn't created"
     fileSets=read_file_sets(dir_path)
     ref_coords = grab_matrix_coords(matrix)
-    run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir)
+    run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
     outnames=grab_names()
@@ -176,11 +177,14 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             """testing this multiprocess function"""
             #p = Process(target=subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums))
             #p = Process(target=subsample_snps("temp.matrix", final_sets, used_snps, subnums))
-            process_stop = threading.Event()
-            try:
-                Thread(target=subsample_snps, name="subsample snps", args=("temp.matrix", final_sets, used_snps, subnums)).start()
-            except:
-                process_stop.set()
+            thread_list = []
+            for i in range(1,processors):
+                threading.Thread(target=subsample_snps, args=("temp.matrix", final_sets, used_snps, subnums)).start()
+                #thread_list.append(t)
+            #for thread in thread_list:
+                #thread.start()
+            #for thread in thread_list:
+                #thread.join()
             #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
             """testing is done here"""
             os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")

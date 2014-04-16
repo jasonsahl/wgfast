@@ -117,7 +117,7 @@ def process_coverage(name):
         raise TypeError("dictionary is empty")
     return coverage_dict
 
-def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir):
+def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir,picard):
     files_and_temp_names = [(str(idx), list(f))
                             for idx, f in fileSets.iteritems()]
     lock = threading.Lock()
@@ -129,10 +129,12 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         else:
             run_bwa(reference, f[0], "NULL", processors, idx)
         process_sam("%s.sam" % idx, idx)
+        os.system("java -jar %s INPUT=%s.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
+        os.system("samtools index %s_renamed_header.bam" % idx)
         run_gatk(reference, processors, idx, gatk, tmp_dir)
-        os.system("echo %s.bam > %s.bam.list" % (idx,idx))
         if "T" == doc:
             lock.acquire()
+            os.system("echo %s_renamed_header.bam > %s.bam.list" % (idx,idx))
             os.system("java -Djava.io.tmpdir=%s -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (tmp_dir,gatk,ap,idx,idx))
             lock.release()
             process_coverage(idx)
@@ -171,6 +173,7 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
 def run_bwa(reference, read1, read2, processors, name):
     """launches bwa. Adds in read_group for compatability with GATK"""
     read_group = '@RG\tID:%s\tSM:%s\tPL:ILLUMINA\tPU:%s' % (name,name,name)
+    #read_group = '@RG\tSM:%s\tPL:ILLUMINA\tPU:%s' % (name,name)
     bwa(reference,read1, read2,"%s.sam" % name, processors, log_file='%s.sam.log' % name,**{'-R':read_group}) 
 
 def process_sam(in_sam, name):
@@ -187,7 +190,7 @@ def run_gatk(reference, processors, name, gatk, tmp_dir):
     args = ['java', '-Djava.io.tmpdir=%s' % tmp_dir, '-jar', '%s' % gatk, '-T', 'UnifiedGenotyper',
             '-R', '%s' % reference, '-nt', '%s' % processors, '-S', 'silent',
             '-mbq', '17', '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
-            '-stand_call_conf', '30', '-stand_emit_conf', '30', '-I', '%s.bam' % name,
+            '-stand_call_conf', '30', '-stand_emit_conf', '30', '-I', '%s_renamed_header.bam' % name,
             '-rf', 'BadCigar']
     try:
         vcf_fh = open('%s.vcf.out' % name, 'w')
