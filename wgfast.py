@@ -31,7 +31,7 @@ from multiprocessing import Process
 from threading import Thread
 import threading
 
-WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
+WGFAST_PATH="/Users/jsahl/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
@@ -179,12 +179,13 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             #p = Process(target=subsample_snps("temp.matrix", final_sets, used_snps, subnums))
             thread_list = []
             for i in range(1,processors):
-                threading.Thread(target=subsample_snps, args=("temp.matrix", final_sets, used_snps, subnums)).start()
-                #thread_list.append(t)
+                thread = threading.Thread(target=subsample_snps, args=("temp.matrix", final_sets, used_snps, subnums))
+                thread.start()
+                thread_list.append(thread)
             #for thread in thread_list:
                 #thread.start()
-            #for thread in thread_list:
-                #thread.join()
+            for thread in thread_list:
+                thread.join()
             #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
             """testing is done here"""
             os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
