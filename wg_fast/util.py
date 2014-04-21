@@ -118,8 +118,7 @@ def process_coverage(name):
     return coverage_dict
 
 def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir,picard):
-    files_and_temp_names = [(str(idx), list(f))
-                            for idx, f in fileSets.iteritems()]
+    files_and_temp_names = [(str(idx), list(f)) for idx, f in fileSets.iteritems()]
     lock = threading.Lock()
     def _perform_workflow(data):
         """idx is the sample name, f is the file dictionary"""

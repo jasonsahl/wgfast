@@ -175,17 +175,17 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             results = get_closest_dists_new(final_sets,outnames)
             log_isg.logPrint("running subsample routine")
             """testing this multiprocess function"""
-            #p = Process(target=subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums))
-            #p = Process(target=subsample_snps("temp.matrix", final_sets, used_snps, subnums))
             thread_list = []
-            for i in range(1,processors):
-                thread = threading.Thread(target=subsample_snps, args=("temp.matrix", final_sets, used_snps, subnums))
-                thread.start()
-                thread_list.append(thread)
-            #for thread in thread_list:
-                #thread.start()
-            for thread in thread_list:
-                thread.join()
+            print final_sets
+            files_and_temp_names = [(str(f)) for f in final_sets]
+            def _perform_workflow(data):
+                subsample_snps("temp.matrix", final_sets, used_snps, subnums)
+            results = set(p_func.pmap(_perform_workflow,
+                              files_and_temp_names,
+                              num_workers=processors))
+            #for i in range(1,processors):
+            #    thread = threading.Thread(target=subsample_snps, args=("temp.matrix", final_sets, used_snps, subnums))
+            #    thread.start()
             #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
             """testing is done here"""
             os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
