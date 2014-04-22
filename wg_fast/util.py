@@ -703,3 +703,39 @@ def find_two_new(infile,outnames):
         for result in sorted(outname_tuple,key=lambda x: float(x[2]))[:2]:
             output_tuples=((result),)+output_tuples
     return output_tuples,distances
+
+def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
+    for k,v in used_snps.iteritems():
+        if final_set[0]==k:
+            for x in range(1,int(subnums)+1):
+                kept_snps=random.sample(set(allsnps), int(v))
+                outfile = open("%s.%s.%s.tmp.matrix" % (k,x,final_set[1]), "w")
+                in_matrix=open(matrix,"U")
+                firstLine = in_matrix.readline()
+                print >> outfile, firstLine,
+                first_fields = firstLine.split()
+                fixed_fields = []
+                for x in first_fields:
+                    fixed_fields.append(re.sub('[:,]', '', x))
+                gindex=fixed_fields.index(final_set[1])
+                for line in in_matrix:
+                    matrix_fields=line.split()
+                    if matrix_fields[0] in kept_snps:
+                        print >> outfile, line,
+                    else:
+                        print >> outfile, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
+                in_matrix.close()
+                outfile.close()
+
+
+
+
+def get_all_snps(matrix):
+    allSNPs = [ ]
+    for line in open(matrix, "U"):
+        if line.startswith("LocusID"):
+            pass
+        else:
+            fields=line.split()
+            allSNPs.append(fields[0])
+    return allSNPs

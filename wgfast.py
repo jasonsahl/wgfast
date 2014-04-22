@@ -27,8 +27,6 @@ import sys
 from wg_fast.util import *
 import errno
 from igs.utils import logging as log_isg
-from multiprocessing import Process
-from threading import Thread
 import threading
 
 WGFAST_PATH="/Users/jsahl/wgfast"
@@ -176,10 +174,12 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             log_isg.logPrint("running subsample routine")
             """testing this multiprocess function"""
             thread_list = []
-            print final_sets
-            files_and_temp_names = [(str(f)) for f in final_sets]
+            files_and_temp_names = [(list(f)) for f in final_sets]
+            allsnps = get_all_snps(matrix)
             def _perform_workflow(data):
-                subsample_snps("temp.matrix", final_sets, used_snps, subnums)
+                #subsample_snps("temp.matrix", final_sets, used_snps, subnums)
+                f = data
+                subsample_snps_dev("temp.matrix", f, used_snps, subnums, allsnps)
             results = set(p_func.pmap(_perform_workflow,
                               files_and_temp_names,
                               num_workers=processors))
