@@ -425,7 +425,7 @@ def branch_lengths_2_decimals(str_newick_tree):
 
 def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_method, parameters):
     curr_dir= os.getcwd()
-    os.system("rm tree_including_unknowns_noedges.tree")
+    #os.system("rm tree_including_unknowns_noedges.tree")
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
         """the genome names are parsed out of the tmp.matrices"""
         name=get_seq_name(infile)
@@ -709,6 +709,7 @@ def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
         if final_set[0]==k:
             for x in range(1,int(subnums)+1):
                 kept_snps=random.sample(set(allsnps), int(v))
+                solids = set(kept_snps)
                 outfile = open("%s.%s.%s.tmp.matrix" % (k,x,final_set[1]), "w")
                 in_matrix=open(matrix,"U")
                 firstLine = in_matrix.readline()
@@ -720,15 +721,13 @@ def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
                 gindex=fixed_fields.index(final_set[1])
                 for line in in_matrix:
                     matrix_fields=line.split()
-                    if matrix_fields[0] in kept_snps:
+                    #if matrix_fields[0] in kept_snps:
+                    if matrix_fields[0] in solids:
                         print >> outfile, line,
                     else:
                         print >> outfile, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
                 in_matrix.close()
                 outfile.close()
-
-
-
 
 def get_all_snps(matrix):
     allSNPs = [ ]

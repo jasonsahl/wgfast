@@ -67,7 +67,7 @@ def test_methods(option, opt_str, value, parser):
         print "option not supported.  Only select from MP or ML"
         sys.exit()
 
-def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge):
+def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs):
     start_dir = os.getcwd()
     log_isg.logPrint('testing the paths of all dependencies')
     ap=os.path.abspath("%s" % start_dir)
@@ -120,55 +120,68 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
     except:
         print "dict wasn't created"
-    fileSets=read_file_sets(dir_path)
-    ref_coords = grab_matrix_coords(matrix)
-    run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS)
+    if only_subs == "T":
+        pass
+    else:
+        fileSets=read_file_sets(dir_path)
+        ref_coords = grab_matrix_coords(matrix)
+        run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS)
     """will subsample based on the number of SNPs reported by the following function"""
+    """need the filtered.vcf files for this next function to work"""
     used_snps=find_used_snps()
     outnames=grab_names()
     for name in outnames:
         for k,v in used_snps.iteritems():
             if name==k:
                 log_isg.logPrint("number of callable positions in genome %s = %s" % (k,v))
-    subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
-    """deletes temporary files that could be confused later on"""
-    subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
-    subprocess.check_call("paste temp.matrix merged.vcf > combined.matrix", shell=True)
-    matrix_to_fasta("combined.matrix")
-    os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
-    """this fixes the SNP output to conform with RAxML"""
-    os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
-    try:
-        if insertion_method == "ML":
-            run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters)
-        elif insertion_method == "MP":
-            try:
-                run_raxml("out.fasta", tree, processors, "classification_results.txt", "y", parameters)
-            except:
-                print "problem with MP, moving to ML"
-                run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters)
-        else:
-            pass
-        transform_tree("tree_including_unknowns_noedges.tree")
-        print ""
-        if insertion_method == "ML":
-            log_isg.logPrint("Insertion likelihood values:")
-            parse_likelihoods("classification_results.txt")
-            print ""
-        else:
-            pass
-    except:
-        print "raxml encountered an error and unknown couldn't be added"
-    if insertion_method == "ML":
-        calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
-    else:
-        print "patrisitic distances can't always be calculated with parsimony"
+    if only_subs == "T":
         pass
+    else:
+        subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
+        """deletes temporary files that could be confused later on"""
+        subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
+        subprocess.check_call("paste temp.matrix merged.vcf > combined.matrix", shell=True)
+        matrix_to_fasta("combined.matrix")
+        os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
+        """this fixes the SNP output to conform with RAxML"""
+        os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
+        try:
+            if insertion_method == "ML":
+                run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters)
+            elif insertion_method == "MP":
+                try:
+                    run_raxml("out.fasta", tree, processors, "classification_results.txt", "y", parameters)
+                except:
+                    print "problem with MP, moving to ML"
+                    run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters)
+            else:
+                pass
+            transform_tree("tree_including_unknowns_noedges.tree")
+            print ""
+            if insertion_method == "ML":
+                log_isg.logPrint("Insertion likelihood values:")
+                parse_likelihoods("classification_results.txt")
+                print ""
+            else:
+                pass
+        except:
+            print "raxml encountered an error and unknown couldn't be added"
+        if insertion_method == "ML":
+            calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
+        else:
+            print "patrisitic distances can't always be calculated with parsimony"
+            pass
     if subsample=="T":
         if insertion_method == "MP":
             pass
         else:
-            os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
+            #used_snps=find_used_snps()
+            #outnames=grab_names()
+            try:
+                os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
+            except:
+                print "all_patrisitic_distances.txt must be in your analysis directory!"
+                sys.exit()
             final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
             results = get_closest_dists_new(final_sets,outnames)
             log_isg.logPrint("running subsample routine")
@@ -188,7 +201,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             #    thread.start()
             #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
             """testing is done here"""
-            os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
+            #os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
             #process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt", "v",parameters)
             process_temp_matrices(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters)
             compare_subsample_results(outnames,distances,fudge)
@@ -258,6 +271,9 @@ if __name__ == "__main__":
     parser.add_option("-f", "--fudge_factor", dest="fudge",
                       help="How close does a subsample have to be from true placement?  Defaults to 0.1",
                       action="store", type="float", default="0.1")
+    parser.add_option("-y", "--only_subs", dest="only_subs",
+                      help="Only run sub-sample routine and exit? Defaults to F",
+                      action="callback", callback=test_filter, type="string", default="F")
 
     options, args = parser.parse_args()
     
@@ -270,4 +286,5 @@ if __name__ == "__main__":
 
     main(options.matrix,options.tree,options.reference,options.directory,options.parameters,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
-         options.subnums,options.doc,options.tmp_dir,options.insertion_method,options.fudge)
+         options.subnums,options.doc,options.tmp_dir,options.insertion_method,options.fudge,
+         options.only_subs)
