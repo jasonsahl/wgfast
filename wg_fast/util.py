@@ -599,7 +599,7 @@ def make_temp_matrix(vcf, matrix, name):
     for line in in_matrix:
         mfields=line.split()
         matrix_ids.append(mfields[0])
-    open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
+        #open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
     value_dict={}
     new_dicts={}
     for line in open(vcf, "U"):
@@ -614,6 +614,7 @@ def make_temp_matrix(vcf, matrix, name):
         if x in new_dicts:
             variety.append(new_dicts.get('%s' % x))
     if "A" or "T" or "G" or "C" in variety:
+        open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
         for x in matrix_ids:
             if x in new_dicts:
                 open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts.get('%s' % x))
