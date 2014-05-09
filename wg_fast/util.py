@@ -116,6 +116,8 @@ def process_coverage(name):
     else:
         raise TypeError("dictionary is empty")
     return coverage_dict
+    infile.close()
+    outfile.close()
 
 def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir,picard):
     files_and_temp_names = [(str(idx), list(f)) for idx, f in fileSets.iteritems()]
@@ -172,7 +174,6 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
 def run_bwa(reference, read1, read2, processors, name):
     """launches bwa. Adds in read_group for compatability with GATK"""
     read_group = '@RG\tID:%s\tSM:%s\tPL:ILLUMINA\tPU:%s' % (name,name,name)
-    #read_group = '@RG\tSM:%s\tPL:ILLUMINA\tPU:%s' % (name,name)
     bwa(reference,read1, read2,"%s.sam" % name, processors, log_file='%s.sam.log' % name,**{'-R':read_group}) 
 
 def process_sam(in_sam, name):
@@ -336,18 +337,6 @@ def run_raxml(fasta_in, tree, processors, out_class_file, insertion_method, para
         pass
     subprocess.check_call("rm RAxML_*", shell=True)
 
-def grab_matrix_coords(matrix):
-    """retrieve all of the coordinates from a
-    NASP formatted SNP matrix"""
-    coords = [ ]
-    my_matrix = open(matrix, "U")
-    firstLine = my_matrix.readline()
-    for line in my_matrix:
-	fields = line.split()
-	coords.append(fields[0])
-    return coords
-    my_matrix.close()
-
 def subsample_snps(matrix, dist_sets, used_snps, subnums):
     """get a list of all possible positions, depending
     on those positions in the original matrix"""
@@ -395,8 +384,13 @@ def find_used_snps():
         good_snps=[]
         for line in open(infile, "U"):
             fields=line.split()
-            if fields[1] != "-":
-                good_snps.append("1")
+            try:
+                if fields[1] != "-":
+                    good_snps.append("1")
+                else:
+                    pass
+            except:
+                raise TypeError("abnormal number of fields observed")
         used_SNPs[str(reduced)] = int(len(good_snps))
     return used_SNPs
 
@@ -425,7 +419,6 @@ def branch_lengths_2_decimals(str_newick_tree):
 
 def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_method, parameters):
     curr_dir= os.getcwd()
-    #os.system("rm tree_including_unknowns_noedges.tree")
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
         """the genome names are parsed out of the tmp.matrices"""
         name=get_seq_name(infile)
@@ -490,6 +483,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
             else:
                 pass
             
+        outfile.close()
         os.system("rm all.fasta tmpx.tree tree_including_unknowns_noedges.tree")
         os.system("rm resampling_distances.txt tmpxz.tree out.fasta")
         
@@ -654,6 +648,7 @@ def parse_likelihoods(infile):
     for k,v in like_dict.iteritems():
         print k+"\t"+v[0]+"\t"+str(len(v))
     my_in.close()
+    return like_dict
 
 def calculate_pairwise_tree_dists(intree, output):
     """uses dendropy function to calculate all pairwise distances between tree"""
@@ -729,7 +724,6 @@ def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
                 gindex=fixed_fields.index(final_set[1])
                 for line in in_matrix:
                     matrix_fields=line.split()
-                    #if matrix_fields[0] in kept_snps:
                     if matrix_fields[0] in solids:
                         print >> outfile, line,
                     else:

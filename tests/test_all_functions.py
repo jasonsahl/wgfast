@@ -222,7 +222,7 @@ class Test11(unittest.TestCase):
         fp = open(fpath,"w")
         fp.write("Distance between 'E2348_69_allexternalnucmer' and 'H10407_allexternalnucmer': 1.39030683167\n")
         fp.close()
-        self.assertRaises(TypeError, find_two, ['E2348_69_allexternalnucmer'])
+        self.assertRaises(TypeError, find_two_new, ['E2348_69_allexternalnucmer'], ['H10407_allexternalnucmer','E2348_69_allexternalnucmer'])
         os.chdir("%s" % curr_dir)
         shutil.rmtree(tdir)
     def test_find_two_basic_function(self):
@@ -234,7 +234,7 @@ class Test11(unittest.TestCase):
         fp.write("Distance between 'E2348_69_allexternalnucmer' and 'O157_H7_sakai_allexternalnucmer': 4.53192608862\n")
         fp.write("Distance between 'E2348_69_allexternalnucmer' and 'Reference': 1.29611949657")
         fp.close()
-        self.assertEqual(find_two(fpath, "E2348_69_allexternalnucmer"),((('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'),),(('Reference', 'E2348_69_allexternalnucmer', '1.29611949657'), ('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167'))))
+        self.assertEqual(find_two_new(fpath, ["E2348_69_allexternalnucmer"]),((('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167')),(('Reference', 'E2348_69_allexternalnucmer', '1.29611949657'),)))
         os.chdir("%s" % curr_dir)
         shutil.rmtree(tdir)
     def test_find_two_reversed(self):
@@ -246,13 +246,13 @@ class Test11(unittest.TestCase):
         fp.write("Distance between 'E2348_69_allexternalnucmer' and 'O157_H7_sakai_allexternalnucmer': 4.53192608862\n")
         fp.write("Distance between 'Reference' and 'E2348_69_allexternalnucmer': 0.0941892612547")
         fp.close()
-        self.assertEqual(find_two(fpath, "E2348_69_allexternalnucmer"),(('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'),),(('Reference', 'E2348_69_allexternalnucmer', '0.0941892612547'), ('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167')))
+        self.assertEqual(find_two_new(fpath, ["E2348_69_allexternalnucmer"]),((('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167')),(('Reference', 'E2348_69_allexternalnucmer', '0.0941892612547'),)))
         os.chdir("%s" % curr_dir)
         shutil.rmtree(tdir)
 class Test12(unittest.TestCase):
     def test_get_closest_dists_basic_function(self):
-        self.assertEqual(get_closest_dists((('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'),),(('Reference', 'E2348_69_allexternalnucmer', '0.0941892612547'), ('E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer', '4.53192608862'), ('E2348_69_allexternalnucmer', 'H10407_allexternalnucmer', '1.39030683167')),['E2348_69_allexternalnucmer']),(['O157_H7_sakai_allexternalnucmer4.53192608862','H10407_allexternalnucmer1.39030683167']))
-
+        self.assertEqual(get_closest_dists_new((('ECOLI_ISO2', 'SSON_046_allexternalnucmer', '0.08198920048'), ('ECOLI_ISO2', 'H10407_allexternalnucmer', '1.3087194675e-06')),['ECOLI', 'ECOLI_IS03_L007', 'ECOLI_ISO2']),(['SSON_046_allexternalnucmer0.08198920048', 'H10407_allexternalnucmer1.3087194675e-06']))
+        
 class Test13(unittest.TestCase):
     def test_calculate_pairwise_tree_dists_basic_function(self):
         """distances were taken directly from Dendropy, run outside of the pipeline"""
@@ -320,11 +320,76 @@ class Test15(unittest.TestCase):
         fp2.write("Distance between 'QUERY___ECOLI' and 'SSON_046_allexternalnucmer': 0.0409949458803\n")
         fp2.write("Distance between 'QUERY___ECOLI_IS03_L007' and 'SSON_046_allexternalnucmer': 0.0409949458803")
         fp2.close()
-        self.assertEqual(process_temp_matrices({'ECOLI': ['SSON_046_allexternalnucmer', 'H10407_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'], 'ECOLI_ISO2': ['H10407_allexternalnucmer', 'SSON_046_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'], 'ECOLI_IS03_L007': ['SSON_046_allexternalnucmer', 'H10407_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer']},fpath,2,fpath2),
+        #self.assertEqual(process_temp_matrices(({'ECOLI': ['SSON_046_allexternalnucmer', 'H10407_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'], 'ECOLI_ISO2': ['H10407_allexternalnucmer', 'SSON_046_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer'], 'ECOLI_IS03_L007': ['SSON_046_allexternalnucmer', 'H10407_allexternalnucmer', 'E2348_69_allexternalnucmer', 'O157_H7_sakai_allexternalnucmer']},fpath,2,fpath2),(
 
+class Test16(unittest.TestCase):
+    def test_get_all_snps(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.filtered.vcf")
+        fp = open(fpath, "w")
+        fp.write("LocusID\tReference\tgenome1\tgenome2\n")
+        fp.write("ADK::1\tA\tT\tT\n")
+        fp.write("ADK::2\tT\tT\n")
+        fp.close()
+        self.assertEqual(get_all_snps(fpath), ['ADK::1','ADK::2'])
+        shutil.rmtree(tdir)
 
-        dist_sets, tree, processors, patristics):
-                         
+class Test17(unittest.TestCase):
+    def test_find_used_snps_basic(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.filtered.vcf")
+        fp = open(fpath, "w")
+        fp.write("gi|16120353|ref|NC_003143.1|::35501\tG\n")
+        fp.write("gi|16120353|ref|NC_003143.1|::52924\tC\n")
+        fp.write("gi|16120353|ref|NC_003143.1|::55551\t-\n")
+        fp.close()
+        os.chdir("%s" % tdir)
+        self.assertEqual(find_used_snps(),{'testfile':2})
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+    def test_find_used_snps_all_missing(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.filtered.vcf")
+        fp = open(fpath, "w")
+        fp.write("gi|16120353|ref|NC_003143.1|::35501\t-\n")
+        fp.write("gi|16120353|ref|NC_003143.1|::52924\t-\n")
+        fp.write("gi|16120353|ref|NC_003143.1|::55551\t-\n")
+        fp.close()
+        os.chdir("%s" % tdir)
+        self.assertEqual(find_used_snps(),{'testfile':0})
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+    def test_find_used_snps_blank_line(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.filtered.vcf")
+        fp = open(fpath, "w")
+        fp.write("gi|16120353|ref|NC_003143.1|::35501\tG\n")
+        fp.write("gi|16120353|ref|NC_003143.1|::52924\tC\n")
+        fp.write("gi|16120353|ref|NC_003143.1|::55551\t-\n")
+        fp.write(" n")
+        fp.close()
+        os.chdir("%s" % tdir)
+        self.assertRaises(TypeError, find_used_snps, ())
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+
+class Test18(unittest.TestCase):
+    def test_branch_lengths_to_decimals(self):
+        self.assertEqual(branch_lengths_2_decimals("('E2348_69_allexternalnucmer':1.63492542157,'O157_H7_sakai_allexternalnucmer':4.52711175943):9.51544116488e-07,Reference:9.51544116488e-07)"),("('E2348_69_allexternalnucmer':1.634925,'O157_H7_sakai_allexternalnucmer':4.527112):0.000001,Reference:0.000001);"))
+
+class Test19(unittest.TestCase):
+    def test_parse_likelihoods(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.filtered.vcf")
+        fp = open(fpath, "w")
+        fp.write("ECOLI\tI6\t0.298716\t0.298716\n")
+        fp.write("ECOLI\tI5\t0.298714\t0.597430\n")
+        fp.write("ECOLI\tI4\t0.298714\t0.896143\n")
+        fp.close()
+        self.assertEqual(parse_likelihoods(fpath), {'ECOLI':['0.298716','0.298714','0.298714']})
+        shutil.rmtree(tdir)
+
+      
 if __name__ == "__main__":
     unittest.main()
     main()

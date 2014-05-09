@@ -4,20 +4,6 @@
 written by Jason Sahl
 correspondence: jasonsahl@gmail.com
 
-Dependencies include:
-
-1.  GATK - tested version is 2.7.2.  This version
-    requires Java 1.7 (included with WG-FAST)
-2.  samtools - tested version is 0.1.19 (linux x86 version included with WG-FAST)
-3.  bwa - tested version is 0.7.5a (linux x86 version included with WG-FAST)
-4.  Picard tools - tested version is 1.79 (included with WG-FAST)
-5.  raxmlHPC - tested version is 7.7.8 (linux x86 version included with WG-FAST)
-6.  DendroPy - Tested version is 3.12.0
-7.  BioPython
-
-Input is a SNP matrix: currently, this matrix
-can be generated with NASP
-
 """
 
 from optparse import OptionParser
@@ -29,6 +15,7 @@ import errno
 from igs.utils import logging as log_isg
 import threading
 
+"""modify line below to reflect your installation directory"""
 WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
@@ -124,7 +111,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         pass
     else:
         fileSets=read_file_sets(dir_path)
-        ref_coords = grab_matrix_coords(matrix)
+        ref_coords = get_all_snps(matrix)
         run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
@@ -174,8 +161,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         if insertion_method == "MP":
             pass
         else:
-            #used_snps=find_used_snps()
-            #outnames=grab_names()
             try:
                 os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
             except:
@@ -184,24 +169,15 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
             results = get_closest_dists_new(final_sets,outnames)
             log_isg.logPrint("running subsample routine")
-            """testing this multiprocess function"""
             thread_list = []
             files_and_temp_names = [(list(f)) for f in final_sets]
             allsnps = get_all_snps(matrix)
             def _perform_workflow(data):
-                #subsample_snps("temp.matrix", final_sets, used_snps, subnums)
                 f = data
                 subsample_snps_dev("temp.matrix", f, used_snps, subnums, allsnps)
             results = set(p_func.pmap(_perform_workflow,
                               files_and_temp_names,
                               num_workers=processors))
-            #for i in range(1,processors):
-            #    thread = threading.Thread(target=subsample_snps, args=("temp.matrix", final_sets, used_snps, subnums))
-            #    thread.start()
-            #subsample_snps("nasp_matrix.with_unknowns.txt", final_sets, used_snps, subnums)
-            """testing is done here"""
-            #os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > tmp.tree")
-            #process_temp_matrices(final_sets, "tmp.tree", processors, "all_patristic_distances.txt", "v",parameters)
             process_temp_matrices(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters)
             compare_subsample_results(outnames,distances,fudge)
     else:
