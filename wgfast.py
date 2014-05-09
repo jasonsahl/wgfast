@@ -127,7 +127,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         ref_coords = grab_matrix_coords(matrix)
         run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS)
     """will subsample based on the number of SNPs reported by the following function"""
-    """need the filtered.vcf files for this next function to work"""
     used_snps=find_used_snps()
     outnames=grab_names()
     for name in outnames:

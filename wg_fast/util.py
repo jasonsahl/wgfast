@@ -617,7 +617,9 @@ def make_temp_matrix(vcf, matrix, name):
     for x in matrix_ids:
         if x in new_dicts:
             variety.append(new_dicts.get('%s' % x))
-    if "A" or "T" or "G" or "C" in variety:
+    #print variety
+    if len(variety)>=1:
+    #if "A" or "T" or "G" or "C" in variety:
         open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
         for x in matrix_ids:
             if x in new_dicts:
