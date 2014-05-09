@@ -617,15 +617,16 @@ def make_temp_matrix(vcf, matrix, name):
     for x in matrix_ids:
         if x in new_dicts:
             variety.append(new_dicts.get('%s' % x))
-    #print variety
     if len(variety)>=1:
-    #if "A" or "T" or "G" or "C" in variety:
-        open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
-        for x in matrix_ids:
-            if x in new_dicts:
-                open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts.get('%s' % x))
+        if "A" or "T" or "G" or "C" in variety:
+            open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
+            for x in matrix_ids:
+                if x in new_dicts:
+                    open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts.get('%s' % x))
+        else:
+            print "sample %s had no usable positions!!!" % name
     else:
-        print "sample %s had no usable positions!!!" % name
+        pass
     in_matrix.close()
     return new_dicts
 
