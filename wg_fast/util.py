@@ -599,16 +599,20 @@ def make_temp_matrix(vcf, matrix, name):
     for line in in_matrix:
         mfields=line.split()
         matrix_ids.append(mfields[0])
-        #open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
     value_dict={}
     new_dicts={}
-    for line in open(vcf, "U"):
-        fields=line.split()
-        value_dict.update({fields[0]:fields[1]})
-    for k,v in value_dict.iteritems():
-        new_dicts.update({k:v})
-    for x in matrix_ids:
-        if x not in value_dict.keys():new_dicts.update({x:"-"})
+    with open(vcf, "U") as my_file:
+        first_char = my_file.read(1)
+        if first_char:
+            my_file.seek(0)
+            for line in my_file:
+                fields=line.split()
+                value_dict.update({fields[0]:fields[1]})
+    if len(value_dict)>=1:
+        for k,v in value_dict.iteritems():
+            new_dicts.update({k:v})
+        for x in matrix_ids:
+            if x not in value_dict.keys():new_dicts.update({x:"-"})
     variety = [ ]
     for x in matrix_ids:
         if x in new_dicts:

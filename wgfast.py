@@ -29,7 +29,7 @@ import errno
 from igs.utils import logging as log_isg
 import threading
 
-WGFAST_PATH="/Users/jsahl/wgfast"
+WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
