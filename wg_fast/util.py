@@ -304,14 +304,14 @@ def matrix_to_fasta(matrix_in):
     out_fasta.close()
     return redux
 
-def run_raxml(fasta_in, tree, processors, out_class_file, insertion_method, parameters):
+def run_raxml(fasta_in, tree, processors, out_class_file, insertion_method, parameters, model):
     if "NULL" == parameters:
         args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', '%s' % insertion_method,
-	     '-s', '%s' % fasta_in, '-m', 'GTRGAMMA', '-n', 'out', '-t',
+	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', 'out', '-t',
 	     '%s' % tree, '>', '/dev/null 2>&1']
     else:
         args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', '%s' % insertion_method,
-	     '-s', '%s' % fasta_in, '-m', 'GTRGAMMA', '-n', 'out', '-R', parameters, '-t',
+	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', 'out', '-R', parameters, '-t',
 	     '%s' % tree, '>', '/dev/null 2>&1']
     try:
         vcf_fh = open('raxml.out', 'w')
@@ -466,7 +466,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
         """if problems in the tree names are found, they are removed by the system command"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
         """raxml is now used to insert the pruned genomes back into the tree"""
-        run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt", insertion_method, parameters)
+        run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt", insertion_method, parameters, model)
         """dendropy is used to calculate pairwise patristic distances"""
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
         """parse the results from raxml and save the results to the subsamples file"""

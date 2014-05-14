@@ -16,7 +16,7 @@ from igs.utils import logging as log_isg
 import threading
 
 """modify line below to reflect your installation directory"""
-WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
+WGFAST_PATH="/Users/jsahl/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
@@ -54,7 +54,17 @@ def test_methods(option, opt_str, value, parser):
         print "option not supported.  Only select from MP or ML"
         sys.exit()
 
-def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs):
+def test_models(option, opt_str, value, parser):
+    if "GTRGAMMA" in value:
+        setattr(parser.values, option.dest, value)
+    elif "ASC_GTRGAMMA" in value:
+        setattr(parser.values, option.dest, value)
+    elif "GTRCAT" in value:
+        setattr(parser.values, option.dest, value)
+    elif "ASC_GTRCAT" in value:
+        setattr(parser.values, option.dest, value)
+    
+def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model):
     start_dir = os.getcwd()
     log_isg.logPrint('testing the paths of all dependencies')
     ap=os.path.abspath("%s" % start_dir)
@@ -133,13 +143,13 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
         try:
             if insertion_method == "ML":
-                run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters)
+                run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters, model)
             elif insertion_method == "MP":
                 try:
-                    run_raxml("out.fasta", tree, processors, "classification_results.txt", "y", parameters)
+                    run_raxml("out.fasta", tree, processors, "classification_results.txt", "y", parameters, model)
                 except:
                     print "problem with MP, moving to ML"
-                    run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters)
+                    run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters, model)
             else:
                 pass
             transform_tree("tree_including_unknowns_noedges.tree")
@@ -249,6 +259,9 @@ if __name__ == "__main__":
     parser.add_option("-y", "--only_subs", dest="only_subs",
                       help="Only run sub-sample routine and exit? Defaults to F",
                       action="callback", callback=test_filter, type="string", default="F")
+    parser.add_option("-j", "--model", dest="model",
+                      help="which model to run with raxml, GTRGAMMA, ASC_GTRGAMMA, GTRCAT, ASC_GTRCAT",
+                      action="callback", callback=test_models, type="string", default="ASC_GTRGAMMA")
 
     options, args = parser.parse_args()
     
@@ -262,4 +275,4 @@ if __name__ == "__main__":
     main(options.matrix,options.tree,options.reference,options.directory,options.parameters,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
          options.subnums,options.doc,options.tmp_dir,options.insertion_method,options.fudge,
-         options.only_subs)
+         options.only_subs,options.model)
