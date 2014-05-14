@@ -36,7 +36,7 @@ def matrix_to_fasta(matrix_in, last):
 
 def main(matrix):
     """determines whether or not raxml is in your path"""
-    ab = subprocess.call(['which', 'raxmlHPC-PTHREADS'])
+    ab = subprocess.call(['which', 'raxmlHPC-SSE3'])
     if ab == 0:
         pass
     else:
@@ -45,8 +45,8 @@ def main(matrix):
     last=get_field_index(matrix)
     matrix_to_fasta(matrix, last)
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
-    subprocess.check_call("raxmlHPC-PTHREADS -f d -p 12345 -m ASC_GTRGAMMA -s out.fasta -n nasp -T 4 > /dev/null 2>&1", shell=True)
-    subprocess.check_call("raxmlHPC-PTHREADS -f e -m ASC_GTRGAMMA -s out.fasta -t RAxML_bestTree.nasp -n PARAMS -T 4 > /dev/null 2>&1", shell=True)
+    subprocess.check_call("raxmlHPC-SSE3 -f d -p 12345 -m ASC_GTRGAMMA -s out.fasta -n nasp > /dev/null 2>&1", shell=True)
+    subprocess.check_call("raxmlHPC-SSE3 -f e -m ASC_GTRGAMMA -s out.fasta -t RAxML_bestTree.nasp -n PARAMS > /dev/null 2>&1", shell=True)
     subprocess.check_call("mv RAxML_bestTree.nasp nasp_raxml.tree", shell=True)
     subprocess.check_call("mv RAxML_binaryModelParameters.PARAMS nasp.PARAMS", shell=True)
     subprocess.check_call("rm RAxML_* out.fasta all.fasta", shell=True)
