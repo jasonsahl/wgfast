@@ -119,16 +119,49 @@ def process_coverage(name):
     infile.close()
     outfile.close()
 
-def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir,picard):
+def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path):
     files_and_temp_names = [(str(idx), list(f)) for idx, f in fileSets.iteritems()]
     lock = threading.Lock()
     def _perform_workflow(data):
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
         if len(f)>1:
-            run_bwa(reference, f[0], f[1], processors, idx)
+            args=['java','-jar','%s' % trim_path,'PE', '-threads', '%s' % processors,
+                  '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
+	          '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
+	          'MINLEN:50']
+            try:
+                vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
+            except:
+                log_isg.logPrint('could not open trimmomatic file')
+            try:
+                log_fh = open('%s.trimmomatic.log' % idx, 'w')
+            except:
+                log_isg.logPrint('could not open log file')
+	    try:
+	        trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                trim.wait()
+	    except:
+		log_isg.logPrint("problem encountered with trimmomatic")
+            run_bwa(reference, '%s.F.paired.fastq.gz' % idx, '%s.R.paired.fastq.gz' % idx, processors, idx)
         else:
-            run_bwa(reference, f[0], "NULL", processors, idx)
+            args=['java','-jar','%s' % trim_path,'SE', '-threads', '%s' % processors,
+                  '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
+	          'MINLEN:50']
+            try:
+                vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
+            except:
+                log_isg.logPrint('could not open trimmomatic file')
+            try:
+                log_fh = open('%s.trimmomatic.log' % idx, 'w')
+            except:
+                log_isg.logPrint('could not open log file')
+	    try:
+	        trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                trim.wait()
+	    except:
+		log_isg.logPrint("problem encountered with trimmomatic")
+            run_bwa(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
         process_sam("%s.sam" % idx, idx)
         os.system("java -jar %s INPUT=%s.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
         os.system("samtools index %s_renamed_header.bam" % idx)
@@ -304,13 +337,13 @@ def matrix_to_fasta(matrix_in):
     out_fasta.close()
     return redux
 
-def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, model):
+def run_raxml(fasta_in, tree, processors, out_class_file, insertion_method, parameters, model):
     if "NULL" == parameters:
-        args = ['raxmlHPC-SSE3', '-T', '4', '-f', '%s' % insertion_method,
+        args = ['raxmlHPC-SSE3', '-T', '%s' % processors, '-f', '%s' % insertion_method,
 	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', 'out', '-t',
 	     '%s' % tree, '>', '/dev/null 2>&1']
     else:
-        args = ['raxmlHPC-SSE3', '-T', '4', '-f', '%s' % insertion_method,
+        args = ['raxmlHPC-SSE3', '-T', '%s' % processors, '-f', '%s' % insertion_method,
 	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', 'out', '-R', parameters, '-t',
 	     '%s' % tree, '>', '/dev/null 2>&1']
     try:
@@ -417,7 +450,7 @@ def branch_lengths_2_decimals(str_newick_tree):
     new_tree = new_tree.strip('\'').strip('\"').strip('\'') + ";"
     return new_tree
 
-def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_method, parameters):
+def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_method, parameters, model):
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
         """the genome names are parsed out of the tmp.matrices"""
@@ -466,7 +499,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
         """if problems in the tree names are found, they are removed by the system command"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
         """raxml is now used to insert the pruned genomes back into the tree"""
-        run_raxml("out.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, parameters, model)
+        run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt", insertion_method, parameters, model)
         """dendropy is used to calculate pairwise patristic distances"""
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
         """parse the results from raxml and save the results to the subsamples file"""
