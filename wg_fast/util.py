@@ -24,6 +24,7 @@ from igs.utils import logging as log_isg
 from operator import itemgetter
 import random
 import threading
+import collections
 
 def get_seq_name(in_fasta):
     """used for renaming the sequences"""
@@ -450,6 +451,78 @@ def branch_lengths_2_decimals(str_newick_tree):
     new_tree = new_tree.strip('\'').strip('\"').strip('\'') + ";"
     return new_tree
 
+def fasta_to_tab(fasta):
+    infile = open(fasta, "rU")
+    outfile = open("out.tab", "w")
+    for record in SeqIO.parse(infile, "fasta"):
+        print >> outfile, record.id, record.seq
+    infile.close()
+    outfile.close()
+
+def tab_to_fasta(new_tab):
+    infile = open(new_tab, "rU")
+    outfile = open("out.fasta", "w")
+    for line in infile:
+        fields = line.split()
+        print >> outfile, ">"+fields[0];
+        print >> outfile, fields[1].upper()
+    infile.close()
+    outfile.close()
+    
+def tab_to_matrix(tab):
+    reduced = [ ]
+    out_matrix = open("tab_matrix", "w")
+    for line in open(tab):
+        tmp_list = []
+        fields = line.split()
+        tmp_list.append(fields[0])
+        for nucs in fields[1]:
+            tmp_list.append(nucs.upper())
+        reduced.append(tmp_list)
+    test=map(list, zip(*reduced))
+    for x in test:
+        print >> out_matrix, "\t".join(x)
+    out_matrix.close()
+        
+def filter_alignment(tab):
+    outfile = open("tab.filtered", "w")
+    infile = open(tab, "U")
+    firstLine = infile.readline()
+    print >> outfile, firstLine,
+    for line in infile:
+        valid_fields = []
+        fields = line.split()
+        for field in fields:
+            if field != "-":
+                valid_fields.append(field)
+        counter=collections.Counter(valid_fields)
+        values=counter.values()
+        values.sort(key=int)
+        if len(values)>int(1):
+            print >> outfile, line,
+        else:
+            pass
+    outfile.close()
+    infile.close()
+
+def file_to_fasta(matrix):
+    reduced = [ ]
+    out_matrix = open("out.fasta", "w")
+    for line in open(matrix, "U"):
+        fields = line.strip().split()
+        reduced.append(fields)
+    test=map(list, zip(*reduced))
+    for x in test:
+        print >> out_matrix, ">"+str(x[0])
+        print >> out_matrix, "".join(x[1:])
+    out_matrix.close()
+    
+def remove_invariant_sites(in_fasta):
+    fasta_to_tab(in_fasta)
+    tab_to_matrix("out.tab")
+    filter_alignment("tab_matrix")
+    file_to_fasta("tab.filtered")
+
 def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_method, parameters, model):
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
@@ -498,6 +571,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
             print "problem converting matrix to fasta"
         """if problems in the tree names are found, they are removed by the system command"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
+        remove_invariant_sites("out.fasta")
         """raxml is now used to insert the pruned genomes back into the tree"""
         run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt", insertion_method, parameters, model)
         """dendropy is used to calculate pairwise patristic distances"""
