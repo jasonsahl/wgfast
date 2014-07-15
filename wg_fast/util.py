@@ -574,6 +574,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
             print "problem converting matrix to fasta"
         """if problems in the tree names are found, they are removed by the system command"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
+        """with the ASC models in RAxML, you must have only polymorphic sites in your alignment"""
         remove_invariant_sites("out.fasta")
         """raxml is now used to insert the pruned genomes back into the tree"""
         run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt", insertion_method, parameters, model)
@@ -840,6 +841,8 @@ def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
                         print >> outfile, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
                 in_matrix.close()
                 outfile.close()
+        else:
+            pass
 
 def get_all_snps(matrix):
     allSNPs = [ ]
