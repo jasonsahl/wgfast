@@ -223,10 +223,10 @@ def process_sam(in_sam, name):
     subprocess.check_call("rm %s.1.bam %s.2.bam %s.3.bam %s" % (name, name, name, in_sam), shell=True)
 
 def run_gatk(reference, processors, name, gatk, tmp_dir):
-    """gatk controller"""
+    """gatk controller, mbq used to be set to 17, but was recently changed"""
     args = ['java', '-Djava.io.tmpdir=%s' % tmp_dir, '-jar', '%s' % gatk, '-T', 'UnifiedGenotyper',
             '-R', '%s' % reference, '-nt', '%s' % processors, '-S', 'silent',
-            '-mbq', '17', '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
+            '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
             '-stand_call_conf', '30', '-stand_emit_conf', '30', '-I', '%s_renamed_header.bam' % name,
             '-rf', 'BadCigar']
     try:
@@ -496,8 +496,10 @@ def filter_alignment(tab):
         valid_fields = []
         fields = line.split()
         for field in fields:
-            if field != "-":
+            if field != "-" and field != "N" and field != "X":
                 valid_fields.append(field)
+            else:
+                pass
         counter=collections.Counter(valid_fields)
         values=counter.values()
         values.sort(key=int)

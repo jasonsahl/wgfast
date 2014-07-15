@@ -64,6 +64,9 @@ def test_models(option, opt_str, value, parser):
         setattr(parser.values, option.dest, value)
     elif "ASC_GTRCAT" in value:
         setattr(parser.values, option.dest, value)
+    else:
+        print "substitution model is not supported"
+        sys.exit()
     
 def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model):
     start_dir = os.getcwd()
