@@ -127,6 +127,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
         if len(f)>1:
+            """paired end sequences"""
             args=['java','-jar','%s' % trim_path,'PE', '-threads', '%s' % processors,
                   '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
 	          '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
@@ -146,6 +147,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
 		log_isg.logPrint("problem encountered with trimmomatic")
             run_bwa(reference, '%s.F.paired.fastq.gz' % idx, '%s.R.paired.fastq.gz' % idx, processors, idx)
         else:
+            """single end support"""
             args=['java','-jar','%s' % trim_path,'SE', '-threads', '%s' % processors,
                   '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
 	          'MINLEN:50']
@@ -164,6 +166,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
 		log_isg.logPrint("problem encountered with trimmomatic")
             run_bwa(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
         process_sam("%s.sam" % idx, idx)
+        """inserts read group information, required by new versions of GATK"""
         os.system("java -jar %s INPUT=%s.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
         os.system("samtools index %s_renamed_header.bam" % idx)
         run_gatk(reference, processors, idx, gatk, tmp_dir)

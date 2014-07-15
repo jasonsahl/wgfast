@@ -94,9 +94,12 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     print "*citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'"
     print "Patristic distances calculated with DendroPy"
     print "*citation: 'Sukumaran J, Holder MT. DendroPy: a Python library for phylogenetic computing. Bioinformatics. 2010;26(12):1569-71. Epub 2010/04/28. doi: 10.1093/bioinformatics/btq228. PubMed PMID: 20421198'"
-    print "Also uses GATK"
+    print "Also uses GATK for variant calling"
     print "*citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'"
+    print "Uses trimmomatic for read trimming"
+    print "*citation: Bolger A.M., Lohse M., Usadel B. Trimmomatic: A flexible trimmer for Illumina Sequence Data.  Bioinformatics. 2014.  Doi:10.1093/bioinformatics/btu170"
     print ""
+    """done checking for dependencies"""
     log_isg.logPrint('WG-FAST pipeline starting')
     ref_path=os.path.abspath("%s" % reference)
     dir_path=os.path.abspath("%s" % directory)
@@ -118,6 +121,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
     except:
         print "dict wasn't created"
+        sys.exit()
     if only_subs == "T":
         pass
     else:
