@@ -139,6 +139,10 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             if name==k:
                 log_isg.logPrint("number of callable positions in genome %s = %s" % (k,v))
     if only_subs == "T":
+        try:
+            os.system("rm RAxML*")
+        except:
+            pass
         pass
     else:
         subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)

@@ -27,12 +27,12 @@ import threading
 import collections
 
 def get_seq_name(in_fasta):
-    """used for renaming the sequences"""
+    """used for renaming the sequences - tested"""
     return os.path.basename(in_fasta)
 
 def get_readFile_components(full_file_path):
     """function adapted from:
-    https://github.com/katholt/srst2"""
+    https://github.com/katholt/srst2 - tested"""
     (file_path,file_name) = os.path.split(full_file_path)
     m1 = re.match("(.*).gz",file_name)
     ext = ""
@@ -45,7 +45,7 @@ def get_readFile_components(full_file_path):
 
 def read_file_sets(dir_path):        
     """match up pairs of sequence data, adapted from
-    https://github.com/katholt/srst2"""
+    https://github.com/katholt/srst2 - untested"""
     fileSets = {} 
     forward_reads = {}
     reverse_reads = {} 
@@ -98,7 +98,7 @@ def read_file_sets(dir_path):
     return fileSets
 
 def process_coverage(name):
-    """function required in loop"""
+    """function required in loop - tested"""
     curr_dir= os.getcwd()
     outfile = open("coverage_out.txt", "a")
     coverage_dict = {}
@@ -127,7 +127,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
         if len(f)>1:
-            """paired end sequences"""
+            """paired end sequences - won't work for old, short sequences"""
             args=['java','-jar','%s' % trim_path,'PE', '-threads', '%s' % processors,
                   '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
 	          '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
@@ -185,7 +185,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                               num_workers=processors))
 
 def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
-    """controller for bwa, currently only works with bwa mem"""
+    """controller for bwa, currently only works with bwa mem - untested because they are mostly system calls"""
     mem_arguments = ['bwa', 'mem', '-v', '2', '-M', '-t', '%s' % processors]
     for opt in my_opts.items():
         mem_arguments.extend(opt)
@@ -209,12 +209,12 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
     bwa.wait()
 
 def run_bwa(reference, read1, read2, processors, name):
-    """launches bwa. Adds in read_group for compatability with GATK"""
+    """launches bwa. Adds in read_group for compatability with GATK - untested"""
     read_group = '@RG\tID:%s\tSM:%s\tPL:ILLUMINA\tPU:%s' % (name,name,name)
     bwa(reference,read1, read2,"%s.sam" % name, processors, log_file='%s.sam.log' % name,**{'-R':read_group}) 
 
 def process_sam(in_sam, name):
-    """samtools runs to remove multiple mapped reads and unmapped reads"""
+    """samtools runs to remove multiple mapped reads and unmapped reads - untested, system calls"""
     subprocess.check_call("samtools view -h -b -S %s > %s.1.bam 2> /dev/null" % (in_sam, name), shell=True)
     subprocess.check_call("samtools view -u -h -F4 -o %s.2.bam %s.1.bam > /dev/null 2>&1" % (name, name), shell=True)
     subprocess.check_call("samtools view -h -b -q1 -F4 -o %s.3.bam %s.2.bam > /dev/null 2>&1" % (name, name), shell=True)
@@ -223,7 +223,7 @@ def process_sam(in_sam, name):
     subprocess.check_call("rm %s.1.bam %s.2.bam %s.3.bam %s" % (name, name, name, in_sam), shell=True)
 
 def run_gatk(reference, processors, name, gatk, tmp_dir):
-    """gatk controller, mbq used to be set to 17, but was recently changed"""
+    """gatk controller, mbq used to be set to 17, but was recently changed - untested, system call"""
     args = ['java', '-Djava.io.tmpdir=%s' % tmp_dir, '-jar', '%s' % gatk, '-T', 'UnifiedGenotyper',
             '-R', '%s' % reference, '-nt', '%s' % processors, '-S', 'silent',
             '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
@@ -245,7 +245,7 @@ def run_gatk(reference, processors, name, gatk, tmp_dir):
 
 def process_vcf(vcf, ref_coords, coverage, proportion, name):
     """finds SNPs that pass user-defined thresholds
-    for coverage and proportion"""
+    for coverage and proportion - tested"""
     vcf_in = open(vcf, "U")
     vcf_out = open("%s.filtered.vcf" % name, "w")
     outdata = []
@@ -319,6 +319,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     return outdata
     
 def sort_information(x):
+    """simple sort - tested"""
     try:
         fields = x.split("::")
         return int(fields[1])
@@ -326,7 +327,7 @@ def sort_information(x):
         raise TypeError("problem encountered parsing fields")
 
 def matrix_to_fasta(matrix_in):
-    """function to convert a SNP matrix to a multi-fasta file"""
+    """function to convert a SNP matrix to a multi-fasta file - tested"""
     reduced = [ ]
     out_fasta = open("all.fasta", "w")
     redux = [ ]
@@ -342,6 +343,7 @@ def matrix_to_fasta(matrix_in):
     return redux
 
 def run_raxml(fasta_in, tree, processors, out_class_file, insertion_method, parameters, model):
+    """untested function, system calls"""
     if "NULL" == parameters:
         args = ['raxmlHPC-SSE3', '-T', '%s' % processors, '-f', '%s' % insertion_method,
 	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', 'out', '-t',
@@ -376,7 +378,7 @@ def run_raxml(fasta_in, tree, processors, out_class_file, insertion_method, para
 
 def subsample_snps(matrix, dist_sets, used_snps, subnums):
     """get a list of all possible positions, depending
-    on those positions in the original matrix"""
+    on those positions in the original matrix - tested"""
     allSNPs = [ ]
     for line in open(matrix, "U"):
         if line.startswith("LocusID"):
@@ -412,7 +414,7 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
 
 def find_used_snps():
     """report how many SNPs were used in a given sample.  This is
-    then used for the sub-sampling routine"""
+    then used for the sub-sampling routine - tested"""
     curr_dir= os.getcwd()
     used_SNPs = {}
     for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
@@ -432,7 +434,7 @@ def find_used_snps():
     return used_SNPs
 
 def branch_lengths_2_decimals(str_newick_tree):
-    """replaces branch lengths in scientific notation with decimals"""
+    """replaces branch lengths in scientific notation with decimals = tested"""
     colon_s = 0
     comma_back_paren_s = 0
     num = ''
@@ -455,6 +457,7 @@ def branch_lengths_2_decimals(str_newick_tree):
     return new_tree
 
 def fasta_to_tab(fasta):
+    """currently untested, most of the work done by BioPython"""
     infile = open(fasta, "rU")
     outfile = open("out.tab", "w")
     for record in SeqIO.parse(infile, "fasta"):
@@ -463,6 +466,7 @@ def fasta_to_tab(fasta):
     outfile.close()
 
 def tab_to_fasta(new_tab):
+    """currently untested, but needs to be"""
     infile = open(new_tab, "rU")
     outfile = open("out.fasta", "w")
     for line in infile:
@@ -473,6 +477,7 @@ def tab_to_fasta(new_tab):
     outfile.close()
     
 def tab_to_matrix(tab):
+    """currently untested, but needs to be"""
     reduced = [ ]
     out_matrix = open("tab_matrix", "w")
     for line in open(tab):
@@ -488,6 +493,7 @@ def tab_to_matrix(tab):
     out_matrix.close()
         
 def filter_alignment(tab):
+    """currently untested, but needs to be"""
     outfile = open("tab.filtered", "w")
     infile = open(tab, "U")
     firstLine = infile.readline()
@@ -496,6 +502,7 @@ def filter_alignment(tab):
         valid_fields = []
         fields = line.split()
         for field in fields:
+            """skip fields that might be present when missing data are included"""
             if field != "-" and field != "N" and field != "X":
                 valid_fields.append(field)
             else:
@@ -511,6 +518,7 @@ def filter_alignment(tab):
     infile.close()
 
 def file_to_fasta(matrix):
+    """currently untested, but needs to be"""
     reduced = [ ]
     out_matrix = open("out.fasta", "w")
     for line in open(matrix, "U"):
@@ -523,12 +531,14 @@ def file_to_fasta(matrix):
     out_matrix.close()
     
 def remove_invariant_sites(in_fasta):
+    """only keep invarint sites, doesn't need testing"""
     fasta_to_tab(in_fasta)
     tab_to_matrix("out.tab")
     filter_alignment("tab_matrix")
     file_to_fasta("tab.filtered")
 
 def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_method, parameters, model):
+    """needs testing"""
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
         """the genome names are parsed out of the tmp.matrices"""
@@ -595,12 +605,12 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
                 print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
             else:
                 pass
-            
         outfile.close()
         os.system("rm all.fasta tmpx.tree tree_including_unknowns_noedges.tree")
         os.system("rm resampling_distances.txt tmpxz.tree out.fasta")
         
 def compare_subsample_results(outnames,distances,fudge):
+    """needs testing"""
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*.subsample.distances.txt")):
         name=get_seq_name(infile)
@@ -644,7 +654,7 @@ def compare_subsample_results(outnames,distances,fudge):
         
 def transform_tree(tree):
     """converts a Newick tree into a Nexus-formatted
-    tree that can be visualized with FigTree"""
+    tree that can be visualized with FigTree - needs testing"""
     infile = open(tree, "U")
     tree_string = []
     for line in infile:
@@ -682,7 +692,7 @@ def transform_tree(tree):
 def write_reduced_matrix(matrix):
     """This function takes a NASP formatted
     SNP matrix and writes a temporary matrix
-    that can be easily combined with temporary files"""
+    that can be easily combined with temporary files - tested"""
     in_matrix = open(matrix, "U")
     outfile = open("temp.matrix", "w")
     outdata = [ ]
@@ -700,7 +710,7 @@ def write_reduced_matrix(matrix):
         
 def make_temp_matrix(vcf, matrix, name):
     in_matrix = open(matrix, "U")
-    """these are all of the screened SNPs"""
+    """these are all of the screened SNPs - tested"""
     matrix_ids=[ ]
     firstLine = in_matrix.readline()
     for line in in_matrix:
@@ -738,7 +748,7 @@ def make_temp_matrix(vcf, matrix, name):
     return new_dicts
 
 def grab_names():
-    """These names will be used for future iterations"""
+    """These names will be used for future iterations - tested"""
     curr_dir= os.getcwd()
     outnames = [ ]
     for infile in glob.glob(os.path.join(curr_dir, "*.filtered.vcf")):
@@ -748,7 +758,7 @@ def grab_names():
     return outnames
 
 def parse_likelihoods(infile):
-    """This function parses the likelihoods output from RAxML"""
+    """This function parses the likelihoods output from RAxML - tested"""
     my_in = open(infile, "U")
     like_dict = {}
     for line in my_in:
@@ -764,7 +774,7 @@ def parse_likelihoods(infile):
     return like_dict
 
 def calculate_pairwise_tree_dists(intree, output):
-    """uses dendropy function to calculate all pairwise distances between tree"""
+    """uses dendropy function to calculate all pairwise distances between tree - tested"""
     tree = dendropy.Tree.get_from_path(intree, "newick", preserve_underscores=True)
     outfile = open("%s" % output, "w")
     distances = treecalc.PatristicDistanceMatrix(tree)
@@ -782,6 +792,7 @@ def calculate_pairwise_tree_dists(intree, output):
     return distances_sets
 
 def get_closest_dists_new(final_sets, outnames):
+    """tested"""
     results = []
     for final_set in final_sets:
         if len(final_set) == 0:
@@ -792,7 +803,7 @@ def get_closest_dists_new(final_sets, outnames):
 def find_two_new(infile,outnames):
     """find two closest genomes to each query genome,
     return the names and distances (sorted), for the
-    two genomes"""
+    two genomes - tested"""
     distances = ()
     output_tuples = ()
     for outname in outnames:
@@ -821,6 +832,7 @@ def find_two_new(infile,outnames):
     return output_tuples,distances
 
 def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
+    """needs testing"""
     for k,v in used_snps.iteritems():
         if final_set[0]==k:
             for x in range(1,int(subnums)+1):
@@ -847,6 +859,7 @@ def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
             pass
 
 def get_all_snps(matrix):
+    """tested"""
     allSNPs = [ ]
     for line in open(matrix, "U"):
         if line.startswith("LocusID"):
