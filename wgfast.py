@@ -155,13 +155,13 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
         try:
             if insertion_method == "ML":
-                run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters, model)
+                run_raxml("out.fasta", tree,"classification_results.txt", "V", parameters, model)
             elif insertion_method == "MP":
                 try:
-                    run_raxml("out.fasta", tree, processors, "classification_results.txt", "y", parameters, model)
+                    run_raxml("out.fasta", tree,"classification_results.txt", "y", parameters, model)
                 except:
                     print "problem with MP, moving to ML"
-                    run_raxml("out.fasta", tree, processors, "classification_results.txt", "V", parameters, model)
+                    run_raxml("out.fasta", tree, "classification_results.txt", "V", parameters, model)
             else:
                 pass
             transform_tree("tree_including_unknowns_noedges.tree")
@@ -194,6 +194,9 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             thread_list = []
             files_and_temp_names = [(list(f)) for f in final_sets]
             allsnps = get_all_snps(matrix)
+            print files_and_temp_names
+            print "used_snps", used_snps
+            print "allsnps", allsnps
             def _perform_workflow(data):
                 f = data
                 subsample_snps_dev("temp.matrix", f, used_snps, subnums, allsnps)

@@ -342,14 +342,14 @@ def matrix_to_fasta(matrix_in):
     out_fasta.close()
     return redux
 
-def run_raxml(fasta_in, tree, processors, out_class_file, insertion_method, parameters, model):
+def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, model):
     """untested function, system calls"""
     if "NULL" == parameters:
-        args = ['raxmlHPC-SSE3', '-T', '%s' % processors, '-f', '%s' % insertion_method,
+        args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
 	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', 'out', '-t',
 	     '%s' % tree, '>', '/dev/null 2>&1']
     else:
-        args = ['raxmlHPC-SSE3', '-T', '%s' % processors, '-f', '%s' % insertion_method,
+        args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
 	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', 'out', '-R', parameters, '-t',
 	     '%s' % tree, '>', '/dev/null 2>&1']
     try:
@@ -589,7 +589,7 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
         """with the ASC models in RAxML, you must have only polymorphic sites in your alignment"""
         remove_invariant_sites("out.fasta")
         """raxml is now used to insert the pruned genomes back into the tree"""
-        run_raxml("out.fasta", "tmpxz.tree", processors, "subsampling_classifications.txt", insertion_method, parameters, model)
+        run_raxml("out.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "NULL", model)
         """dendropy is used to calculate pairwise patristic distances"""
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
         """parse the results from raxml and save the results to the subsamples file"""
