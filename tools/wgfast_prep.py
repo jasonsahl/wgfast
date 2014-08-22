@@ -18,7 +18,8 @@ def test_file(option, opt_str, value, parser):
 def get_field_index(matrix_in):
     matrix=open(matrix_in, "rU")
     firstLine = open(matrix_in).readline()
-    first_fields = firstLine.split("\t")
+    fixed_line = firstLine.strip()
+    first_fields = fixed_line.split("\t")
     last=first_fields.index("#SNPcall")
     return last
 
