@@ -589,7 +589,8 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
         """with the ASC models in RAxML, you must have only polymorphic sites in your alignment"""
         remove_invariant_sites("out.fasta")
         """raxml is now used to insert the pruned genomes back into the tree"""
-        run_raxml("out.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "NULL", model)
+        #run_raxml("out.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "NULL", model)
+        run_raxml("out.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, parameters, model)
         """dendropy is used to calculate pairwise patristic distances"""
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
         """parse the results from raxml and save the results to the subsamples file"""
@@ -868,3 +869,72 @@ def get_all_snps(matrix):
             fields=line.split()
             allSNPs.append(fields[0])
     return allSNPs
+
+def process_temp_matrices_dev(dist_sets, tree, processors, patristics, insertion_method, parameters, model):
+    curr_dir= os.getcwd()
+    for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
+        """the genome names are parsed out of the tmp.matrices"""
+        name=get_seq_name(infile)
+        split_fields=name.split(".")
+        outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
+        name_fixed = []
+        name_fixed.append(re.sub('[:,]', '', split_fields[2]))
+        #tmptree = open("tmpx.tree", "w")
+        to_add = []
+        for x in dist_sets:
+            if x[0] == split_fields[0]: 
+                to_add.append(x[1])
+        """names will be fixed if they contain characters
+        that are not accepted by downstream applications"""
+        to_add_fixed=[]
+        for x in to_add:
+            to_add_fixed.append(re.sub('[:,]', '', x))
+        """dendropy is used here to import the tree and prune the taxa"""
+        #tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
+        #tree_full.prune_taxa_with_labels(to_prune_fixed)
+        """dendropy uses scientific notation, which needs to be converted
+        into decimals"""
+        #final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+        #print >> tmptree, final_tree
+        #tmptree.close()
+        """A new tree file is created, changing the dendropy
+        format into a more classical Newick format"""
+        #tmptree2 = open("tmpxz.tree", "w")
+        #for line in open("tmpx.tree", "U"):
+        #    if line.startswith("[&U]"):
+        #        fields = line.split()
+        #        fixed_fields = [ ]
+        #        for x in fields:
+        #            fixed_fields.append(x.replace("'",""))
+        #        print >> tmptree2, fixed_fields[1]
+        #    else:
+        #        pass
+        #tmptree2.close()
+        try:
+            matrix_to_fasta(infile)
+        except:
+            print "problem converting matrix to fasta"
+        """if problems in the tree names are found, they are removed by the system command"""
+        os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
+        """with the ASC models in RAxML, you must have only polymorphic sites in your alignment"""
+        remove_invariant_sites("out.fasta")
+        """raxml is now used to insert the pruned genomes back into the tree"""
+        run_raxml("out.fasta", tree, "subsampling_classifications.txt", insertion_method, parameters, model)
+        """dendropy is used to calculate pairwise patristic distances"""
+        calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
+        """parse the results from raxml and save the results to the subsamples file"""
+        for line in open("resampling_distances.txt","U"):
+            resample_fields = line.split()
+            myid = re.sub("[:']", "",resample_fields[4])
+            fixedid = myid.replace("QUERY___","")
+            newid = re.sub("[:']","",resample_fields[2])
+            fixedid2 = newid.replace("QUERY___","")
+            if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
+                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
+            elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
+                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
+            else:
+                pass
+        outfile.close()
+        os.system("rm all.fasta tmpx.tree tree_including_unknowns_noedges.tree")
+        os.system("rm resampling_distances.txt tmpxz.tree out.fasta")

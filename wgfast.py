@@ -145,6 +145,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             pass
         pass
     else:
+        """need to change this to a python function"""
         subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
         """deletes temporary files that could be confused later on"""
         subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
@@ -181,6 +182,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             pass
     if subsample=="T":
         if insertion_method == "MP":
+            print "subsample method is not compatible with MP"
             pass
         else:
             try:
@@ -194,9 +196,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             thread_list = []
             files_and_temp_names = [(list(f)) for f in final_sets]
             allsnps = get_all_snps(matrix)
-            print files_and_temp_names
-            print "used_snps", used_snps
-            print "allsnps", allsnps
             def _perform_workflow(data):
                 f = data
                 subsample_snps_dev("temp.matrix", f, used_snps, subnums, allsnps)
@@ -204,6 +203,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                               files_and_temp_names,
                               num_workers=processors))
             process_temp_matrices(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
+            #process_temp_matrices_dev(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
             compare_subsample_results(outnames,distances,fudge)
     else:
         pass
