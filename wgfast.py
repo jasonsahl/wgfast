@@ -10,13 +10,17 @@ from optparse import OptionParser
 import subprocess
 import os
 import sys
-from wg_fast.util import *
 import errno
-from igs.utils import logging as log_isg
 import threading
+try:
+    from wg_fast.util import *
+    from igs.utils import logging as log_isg
+except:
+    print "wgfast path needs to be modified in the wgfast.py file"
+    sys.exit()
 
 """modify line below to reflect your installation directory"""
-WGFAST_PATH="/Users/jsahl/wgfast"
+WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
 sys.path.append("%s" % WGFAST_PATH)
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
@@ -203,7 +207,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                               files_and_temp_names,
                               num_workers=processors))
             process_temp_matrices(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
-            #process_temp_matrices_dev(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
             compare_subsample_results(outnames,distances,fudge)
     else:
         pass
