@@ -20,8 +20,12 @@ except:
     sys.exit()
 
 """modify line below to reflect your installation directory"""
-WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
-sys.path.append("%s" % WGFAST_PATH)
+WGFAST_PATH="/Users/jsahl/wgfast"
+if os.path.exists(WGFAST_PATH):
+    sys.path.append("%s" % WGFAST_PATH)
+else:
+    print "your WGFAST path is not correct.  Edit the path in wgfast.py and try again"
+    sys.exit()
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"

@@ -584,7 +584,8 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
         to_prune = []
         for x in dist_sets:
             if x[0] == split_fields[0]: 
-                to_prune.append(x[1])
+                if x[1] == split_fields[2] or x[2] == split_fields[2]:
+                    to_prune.append(x[1])
         """names will be fixed if they contain characters
         that are not accepted by downstream applications"""
         to_prune_fixed=[]
@@ -611,27 +612,27 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
             else:
                 pass
         tmptree2.close()
+        #Tree with single taxa pruned is now tmpxz.tree
         try:
             matrix_to_fasta(infile)
         except:
             print "problem converting matrix to fasta"
         """if problems in the tree names are found, they are removed by the system command"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
-        """with the ASC models in RAxML, you must have only polymorphic sites in your alignment"""
         #file with fasta file that has sequences pruned will ultimately be called pruned_unique.fasta
         prune_fasta(to_prune, "out.fasta", "pruned.fasta")
         os.system("cp out.fasta all_taxa.fasta")
         #fasta file with all of the taxa, including those to be added back into the tree is called all_taxa.fasta
+        """with the ASC models in RAxML, you must have only polymorphic sites in your alignment"""
         remove_invariant_sites("pruned.fasta", "pruned_unique.fasta")
         remove_invariant_sites("out.fasta", "all_taxa.fasta")
         """first, I need to add in the unknown genomes into my tree.  If I've done it before, don't do it again"""
-        if os.path.isfile("%s-PARAMS" % (split_fields[0]+split_fields[2])):
+        if os.path.isfile("RAxML_binaryModelParameters.%s-PARAMS" % (split_fields[0]+split_fields[2])):
             run_raxml("all_taxa.fasta", "%s.tree" % (split_fields[0]+split_fields[2]), "subsampling_classifications.txt", insertion_method, "RAxML_binaryModelParameters.%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
-            pass
         else:
-            run_raxml("all_taxa.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "NULL", model)
-            os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > %s.tree" % (split_fields[0]+split_fields[2]))
-            subprocess.check_call("raxmlHPC-SSE3 -f e -m ASC_GTRGAMMA -s all_taxa.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (split_fields[0]+split_fields[2],split_fields[0]+split_fields[2]), shell=True)
+            subprocess.check_call("raxmlHPC-SSE3 -f e -m ASC_GTRGAMMA -s pruned_unique.fasta -t tmpxz.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (split_fields[0]+split_fields[2]), shell=True)
+            run_raxml("all_taxa.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "RAxML_binaryModelParameters.%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
+        os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > %s.tree" % (split_fields[0]+split_fields[2]))
         """dendropy is used to calculate pairwise patristic distances"""
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
         """parse the results from raxml and save the results to the subsamples file"""
