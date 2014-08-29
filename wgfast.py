@@ -218,7 +218,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         pass
     else:
         try:
-            subprocess.check_call("rm all.dist all.fasta mothur.* raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist temp.matrix tmp.tree tmp_patristic_distances.txt", shell=True, stderr=open(os.devnull, 'w'))
+            subprocess.check_call("rm all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist temp.matrix tmp.tree tmp_patristic_distances.txt", shell=True, stderr=open(os.devnull, 'w'))
         except:
             pass
         for outname in outnames:

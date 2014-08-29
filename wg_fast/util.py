@@ -627,11 +627,12 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
         remove_invariant_sites("pruned.fasta", "pruned_unique.fasta")
         remove_invariant_sites("out.fasta", "all_taxa.fasta")
         """first, I need to add in the unknown genomes into my tree.  If I've done it before, don't do it again"""
-        if os.path.isfile("RAxML_binaryModelParameters.%s-PARAMS" % (split_fields[0]+split_fields[2])):
-            run_raxml("all_taxa.fasta", "%s.tree" % (split_fields[0]+split_fields[2]), "subsampling_classifications.txt", insertion_method, "RAxML_binaryModelParameters.%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
+        if os.path.isfile("%s-PARAMS" % (split_fields[0]+split_fields[2])):
+            run_raxml("all_taxa.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
         else:
             subprocess.check_call("raxmlHPC-SSE3 -f e -m ASC_GTRGAMMA -s pruned_unique.fasta -t tmpxz.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (split_fields[0]+split_fields[2]), shell=True)
-            run_raxml("all_taxa.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "RAxML_binaryModelParameters.%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
+            os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])))
+            run_raxml("all_taxa.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
         os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > %s.tree" % (split_fields[0]+split_fields[2]))
         """dendropy is used to calculate pairwise patristic distances"""
         calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
