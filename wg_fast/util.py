@@ -573,7 +573,11 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
         """the genome names are parsed out of the tmp.matrices"""
-        name=get_seq_name(infile)
+        try:
+            os.system("rm tmpx.tree tmpxz.tree")
+        except:
+            pass
+	name=get_seq_name(infile)
         split_fields=name.split(".")
         outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
         name_fixed = []
