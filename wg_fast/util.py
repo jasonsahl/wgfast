@@ -573,54 +573,55 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
     curr_dir= os.getcwd()
     for infile in glob.glob(os.path.join(curr_dir, "*tmp.matrix")):
         """the genome names are parsed out of the tmp.matrices"""
-        try:
-            os.system("rm tmpx.tree tmpxz.tree")
-        except:
-            pass
-	name=get_seq_name(infile)
+        name=get_seq_name(infile)
         split_fields=name.split(".")
         outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
         name_fixed = []
         name_fixed.append(re.sub('[:,]', '', split_fields[2]))
-        tmptree = open("tmpx.tree", "w")
-        """The genomes in the dist_sets will be pruned in
-        the subsample routine"""
-        to_prune = []
-        for x in dist_sets:
-            if x[0] == split_fields[0]: 
-                if x[1] == split_fields[2] or x[2] == split_fields[2]:
-                    to_prune.append(x[1])
-        """names will be fixed if they contain characters
-        that are not accepted by downstream applications"""
-        to_prune_fixed=[]
-        for x in to_prune:
-            to_prune_fixed.append(re.sub('[:,]', '', x))
-        """dendropy is used here to import the tree and prune the taxa"""
-        tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
-        tree_full.prune_taxa_with_labels(to_prune_fixed)
-        """dendropy uses scientific notation, which needs to be converted
-        into decimals"""
-        final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
-        print >> tmptree, final_tree
-        tmptree.close()
-        """A new tree file is created, changing the dendropy
-        format into a more classical Newick format"""
-        tmptree2 = open("tmpxz.tree", "w")
-        for line in open("tmpx.tree", "U"):
-            if line.startswith("[&U]"):
-                fields = line.split()
-                fixed_fields = [ ]
-                for x in fields:
-                    fixed_fields.append(x.replace("'",""))
-                print >> tmptree2, fixed_fields[1]
-            else:
-                pass
-        tmptree2.close()
-        #Tree with single taxa pruned is now tmpxz.tree
+        if os.path.isfile("%s.tree" % (split_fields[0]+split_fields[2])):
+            pass
+        else:
+            tmptree = open("%s.tmp.tree" % ((split_fields[0]+split_fields[2])), "w")
+            """The genomes in the dist_sets will be pruned in
+            the subsample routine"""
+            to_prune = []
+            for x in dist_sets:
+                if x[0] == split_fields[0]: 
+                    if x[1] == split_fields[2] or x[2] == split_fields[2]:
+                        to_prune.append(x[1])
+            """names will be fixed if they contain characters
+            that are not accepted by downstream applications"""
+            to_prune_fixed=[]
+            for x in to_prune:
+                to_prune_fixed.append(re.sub('[:,]', '', x))
+            """dendropy is used here to import the tree and prune the taxa"""
+            tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
+            tree_full.prune_taxa_with_labels(to_prune_fixed)
+            """dendropy uses scientific notation, which needs to be converted
+            into decimals"""
+            final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+            print >> tmptree, final_tree
+            tmptree.close()
+            """A new tree file is created, changing the dendropy
+            format into a more classical Newick format"""
+            tmptree2 = open("%s.tree" % (split_fields[0]+split_fields[2]), "w")
+            for line in open("%s.tmp.tree" % (split_fields[0]+split_fields[2]), "U"):
+                if line.startswith("[&U]"):
+                    fields = line.split()
+                    fixed_fields = [ ]
+                    for x in fields:
+                        fixed_fields.append(x.replace("'",""))
+                    print >> tmptree2, fixed_fields[1]
+                else:
+                    pass
+            tmptree2.close()
+            os.system("rm *.tmp.tree")
         try:
             matrix_to_fasta(infile)
         except:
             print "problem converting matrix to fasta"
+            sys.exit()
+        #tree with single taxa pruned is sample_name+pruned_name.tree
         """if problems in the tree names are found, they are removed by the system command"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
         #file with fasta file that has sequences pruned will ultimately be called pruned_unique.fasta
@@ -628,19 +629,35 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
         os.system("cp out.fasta all_taxa.fasta")
         #fasta file with all of the taxa, including those to be added back into the tree is called all_taxa.fasta
         """with the ASC models in RAxML, you must have only polymorphic sites in your alignment"""
-        remove_invariant_sites("pruned.fasta", "pruned_unique.fasta")
-        remove_invariant_sites("out.fasta", "all_taxa.fasta")
+        #remove_invariant_sites("pruned.fasta", "pruned_unique.fasta")
+        #remove_invariant_sites("out.fasta", "all_taxa.fasta")
         """first, I need to add in the unknown genomes into my tree.  If I've done it before, don't do it again"""
         if os.path.isfile("%s-PARAMS" % (split_fields[0]+split_fields[2])):
-            run_raxml("all_taxa.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
+            try:
+                #run_raxml("all_taxa.fasta", "%s.tree" % (split_fields[0]+split_fields[2]), "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
+                run_raxml("all_taxa.fasta", "%s.tree" % (split_fields[0]+split_fields[2]), "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA")
+            except:
+                print "problem adding unknown sequences to the following tree (PARAMS already created): %s" % (split_fields[0]+split_fields[2])
+                os.system("rm RAx*")
+                pass
         else:
-            subprocess.check_call("raxmlHPC-SSE3 -f e -m ASC_GTRGAMMA -s pruned_unique.fasta -t tmpxz.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (split_fields[0]+split_fields[2]), shell=True)
-            os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])))
-            run_raxml("all_taxa.fasta", "tmpxz.tree", "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
-        os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > %s.tree" % (split_fields[0]+split_fields[2]))
-        """dendropy is used to calculate pairwise patristic distances"""
-        calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
-        """parse the results from raxml and save the results to the subsamples file"""
+            try:
+                #subprocess.check_call("raxmlHPC-SSE3 -f e -m ASC_GTRGAMMA -s pruned_unique.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])), shell=True)
+                subprocess.check_call("raxmlHPC-SSE3 -f e -m GTRGAMMA -s pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])), shell=True)
+                os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])))
+                #run_raxml("all_taxa.fasta", "%s.tree" % (split_fields[0]+split_fields[2]), "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
+                run_raxml("all_taxa.fasta", "%s.tree" % (split_fields[0]+split_fields[2]), "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), model)
+            except:
+                print "problem adding unknown sequences to the following tree: %s" % (split_fields[0]+split_fields[2])
+                os.system("rm RAx*")
+                pass
+        try:
+            #os.system("sed 's/QUERY___//g' tree_including_unknowns_noedges.tree > %s.tree" % (split_fields[0]+split_fields[2]))
+            """dendropy is used to calculate pairwise patristic distances"""
+            calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
+            """parse the results from raxml and save the results to the subsamples file"""
+        except:
+            pass
         for line in open("resampling_distances.txt","U"):
             resample_fields = line.split()
             myid = re.sub("[:']", "",resample_fields[4])
@@ -654,8 +671,8 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
             else:
                 pass
         outfile.close()
-        os.system("rm all.fasta tmpx.tree tree_including_unknowns_noedges.tree")
-        os.system("rm resampling_distances.txt out.fasta *.tree")
+        os.system("rm all.fasta tree_including_unknowns_noedges.tree tree_including_unknowns_edges.tree ")
+        os.system("rm resampling_distances.txt out.fasta all_taxa.fasta")
         
 def compare_subsample_results(outnames,distances,fudge):
     """needs testing"""

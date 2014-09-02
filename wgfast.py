@@ -200,7 +200,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                 sys.exit()
             final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
             results = get_closest_dists_new(final_sets,outnames)
-            log_isg.logPrint("running subsample routine")
+            log_isg.logPrint("running subsample routine, forcing GTRGAMMA model")
             thread_list = []
             files_and_temp_names = [(list(f)) for f in final_sets]
             allsnps = get_all_snps(matrix)
