@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-"""WG-FAST
+"""
+
+WG-FAST
 written by Jason Sahl
 correspondence: jasonsahl@gmail.com
 
@@ -12,12 +14,13 @@ import os
 import sys
 import errno
 import threading
-try:
-    from wg_fast.util import *
-    from igs.utils import logging as log_isg
-except:
-    print "wgfast path needs to be modified in the wgfast.py file"
-    sys.exit()
+import glob
+#try:
+from wg_fast.util import *
+from igs.utils import logging as log_isg
+#except:
+#    print "wgfast path needs to be modified in the wgfast.py file"
+#    sys.exit()
 
 """modify line below to reflect your installation directory"""
 WGFAST_PATH="/Users/jsahl/wgfast"
@@ -80,7 +83,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     start_dir = os.getcwd()
     log_isg.logPrint('testing the paths of all dependencies')
     ap=os.path.abspath("%s" % start_dir)
-    """need to check the paths for all dependencies"""
     aa = subprocess.call(['which', 'raxmlHPC-SSE3'])
     if aa == 0:
         pass
@@ -158,33 +160,33 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         """deletes temporary files that could be confused later on"""
         subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
         subprocess.check_call("paste temp.matrix merged.vcf > combined.matrix", shell=True)
-        matrix_to_fasta("combined.matrix")
+        matrix_to_fasta("combined.matrix", "all.fasta")
         os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
         """this fixes the SNP output to conform with RAxML"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
-        try:
-            if insertion_method == "ML":
-                run_raxml("out.fasta", tree,"classification_results.txt", "V", parameters, model)
-            elif insertion_method == "MP":
-                try:
-                    run_raxml("out.fasta", tree,"classification_results.txt", "y", parameters, model)
-                except:
-                    print "problem with MP, moving to ML"
-                    run_raxml("out.fasta", tree, "classification_results.txt", "V", parameters, model)
-            else:
-                pass
-            transform_tree("tree_including_unknowns_noedges.tree")
-            print ""
-            if insertion_method == "ML":
-                log_isg.logPrint("Insertion likelihood values:")
-                parse_likelihoods("classification_results.txt")
-                print ""
-            else:
-                pass
-        except:
-            print "raxml encountered an error and unknown couldn't be added"
+        #try:
         if insertion_method == "ML":
-            calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree","all_patristic_distances.txt")
+            suffix = run_raxml("out.fasta", tree,"out.classification_results.txt", "V", parameters, model, "out")
+        elif insertion_method == "MP":
+            try:
+                suffix = run_raxml("out.fasta", tree,"out.classification_results.txt", "y", parameters, model, "out")
+            except:
+                print "problem with MP, moving to ML"
+                suffix = run_raxml("out.fasta", tree, "out.classification_results.txt", "V", parameters, model, "out")
+        else:
+            pass
+        transform_tree("%s.tree_including_unknowns_noedges.tree" % suffix)
+        #except:
+        #    print "raxml encountered an error and unknown couldn't be added"
+        print ""
+        if insertion_method == "ML":
+            log_isg.logPrint("Insertion likelihood values:")
+            parse_likelihoods("out.classification_results.txt")
+            print ""
+        else:
+            pass
+        if insertion_method == "ML":
+            calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % suffix,"all_patristic_distances.txt")
         else:
             print "patrisitic distances can't always be calculated with parsimony"
             pass
@@ -210,7 +212,35 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             results = set(p_func.pmap(_perform_workflow,
                               files_and_temp_names,
                               num_workers=processors))
-            process_temp_matrices(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
+            temp_matrices = glob.glob(os.path.join(start_dir, "*tmp.matrix"))
+            final_matrices = []
+            for matrix in temp_matrices:
+                final_matrices.append(matrix.replace("%s/" % start_dir,""))
+            sample_sets = {}
+            for matrix in final_matrices:
+                entries = matrix.split(".")
+                if entries[0] in sample_sets:
+                    sample_sets[entries[0]].append(entries[2])
+                else:
+                    sample_sets[entries[0]]=[entries[2]]
+                #def _perform_workflow(data):
+            for k,v in sample_sets.iteritems():
+                uniques= []
+                [uniques.append(item) for item in v if item not in uniques]
+                def _perform_workflow(data):
+                    y = data
+                    #create_params_files(k, uniques, tree, "temp.matrix", final_sets)
+                    create_params_files(k, v, tree, "temp.matrix", final_sets)
+                results = set(p_func.pmap(_perform_workflow,
+                                      uniques,
+                                      num_workers=processors))
+            def _perform_workflow_2(data):
+                z = data
+                process_temp_matrices_dev(final_sets, z, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
+            results = set(p_func.pmap(_perform_workflow_2,
+                                      final_matrices,
+                                      num_workers=processors))
+                #process_temp_matrices(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
             compare_subsample_results(outnames,distances,fudge)
     else:
         pass

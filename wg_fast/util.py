@@ -19,8 +19,12 @@ except:
     print "dendropy is not installed, but needs to be"
     sys.exit()
 import glob
-from igs.threading import functional as p_func
-from igs.utils import logging as log_isg
+try:
+    from igs.threading import functional as p_func
+    from igs.utils import logging as log_isg
+except:
+    print "your PYTHONPATH needs to include the wg-fast repository"
+    sys.exit()
 from operator import itemgetter
 import random
 import threading
@@ -326,10 +330,10 @@ def sort_information(x):
     except:
         raise TypeError("problem encountered parsing fields")
 
-def matrix_to_fasta(matrix_in):
+def matrix_to_fasta(matrix_in, outfile):
     """function to convert a SNP matrix to a multi-fasta file - tested"""
     reduced = [ ]
-    out_fasta = open("all.fasta", "w")
+    out_fasta = open(outfile, "w")
     redux = [ ]
     for line in open(matrix_in,"U"):
         fields = line.split()
@@ -342,22 +346,22 @@ def matrix_to_fasta(matrix_in):
     out_fasta.close()
     return redux
 
-def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, model):
+def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, model, suffix):
     """untested function, system calls"""
     if "NULL" == parameters:
         args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
-	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', 'out', '-t',
+	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-t',
 	     '%s' % tree, '--no-bfgs', '>', '/dev/null 2>&1']
     else:
         args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
-	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', 'out', '-R', parameters, '-t',
+	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-R', parameters, '-t',
 	     '%s' % tree, '--no-bfgs', '>', '/dev/null 2>&1']
     try:
-        vcf_fh = open('raxml.out', 'w')
+        vcf_fh = open('%s.raxml.out' % suffix, 'w')
     except:
         log_isg.logPrint('could not open raxml file')
     try:
-        log_fh = open('raxml.log', 'w')
+        log_fh = open('%s.raxml.log' % suffix, 'w')
     except:
         log_isg.logPrint('could not open log file')
         
@@ -368,13 +372,14 @@ def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, mode
         log_isg.logPrint("sequence(s) inserted into tree")
     except:
         log_isg.logPrint("sequence(s) were not inserted into tree!!!!!")
-    os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.out > tree_including_unknowns_noedges.tree")
-    subprocess.check_call("mv RAxML_labelledTree.out tree_including_unknowns_edges.tree" , shell=True)
+    os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.%s > %s.tree_including_unknowns_noedges.tree" % (suffix, suffix))
+    subprocess.check_call("mv RAxML_labelledTree.%s %s_tree_including_unknowns_edges.tree" % (suffix, suffix) , shell=True)
     try:
-        subprocess.check_call("cat RAxML_classificationLikelihoodWeights.out >> %s" % out_class_file, shell=True)
+        subprocess.check_call("cat RAxML_classificationLikelihoodWeights.%s >> %s" % (suffix, out_class_file), shell=True)
     except:
         pass
-    subprocess.check_call("rm RAxML_*", shell=True)
+    os.system("rm RAxML_*.%s" % suffix)
+    return suffix
 
 def subsample_snps(matrix, dist_sets, used_snps, subnums):
     """get a list of all possible positions, depending
@@ -615,45 +620,40 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
                 else:
                     pass
             tmptree2.close()
-            os.system("rm *.tmp.tree")
+            #os.system("rm *.tmp.tree")
         try:
-            matrix_to_fasta(infile)
+            matrix_to_fasta(infile, "%s.fasta" % (split_fields[0]+split_fields[2]))
         except:
             print "problem converting matrix to fasta"
             sys.exit()
-        #tree with single taxa pruned is sample_name+pruned_name.tree
         """if problems in the tree names are found, they are removed by the system command"""
-        os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
-        #file with fasta file that has sequences pruned will ultimately be called pruned_unique.fasta
-        prune_fasta(to_prune, "out.fasta", "pruned.fasta")
-        os.system("cp out.fasta all_taxa.fasta")
-        #fasta file with all of the taxa, including those to be added back into the tree is called all_taxa.fasta
+        os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])))
+        prune_fasta(to_prune, "%s_in.fasta" % (split_fields[0]+split_fields[2]), "%s_pruned.fasta" % (split_fields[0]+split_fields[2]))
+        #os.system("cp out.fasta all_taxa.fasta")
         """These functions were recently removed, as ASC_GTRGAMMA models with these data will take too long"""
-        #remove_invariant_sites("pruned.fasta", "pruned_unique.fasta")
-        #remove_invariant_sites("out.fasta", "all_taxa.fasta")
         """Unknown genomes are added to the tree.  If the parameters file has already been created, don't create it again"""
         if os.path.isfile("%s-PARAMS" % (split_fields[0]+split_fields[2])):
             try:
                 #model is now hardcoded as GTRGAMMA
-                run_raxml("all_taxa.fasta", "%s.tree" % (split_fields[0]+split_fields[2]), "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA")
+                run_raxml("%s_in.fasta" % (split_fields[0]+split_fields[2]), "%s.tree" % (split_fields[0]+split_fields[2]), "%s.subsampling_classifications.txt" % (split_fields[0]+split_fields[2]), insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % (split_fields[0]+split_fields[2]))
             except:
-                print "problem adding unknown sequences to the following tree (PARAMS already created): %s" % (split_fields[0]+split_fields[2])
+                print "problem adding unknown sequences to the following tree: %s" % (split_fields[0]+split_fields[2])
                 os.system("rm RAx*")
                 pass
         else:
             try:
-                subprocess.check_call("raxmlHPC-SSE3 -f e -m GTRGAMMA -s pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])), shell=True)
+                subprocess.check_call("raxmlHPC-SSE3 -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])), shell=True)
                 os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])))
-                run_raxml("all_taxa.fasta", "%s.tree" % (split_fields[0]+split_fields[2]), "subsampling_classifications.txt", insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA")
+                run_raxml("%s_in.fasta" % (split_fields[0]+split_fields[2]), "%s.tree" % (split_fields[0]+split_fields[2]), "%s.subsampling_classifications.txt" % (split_fields[0]+split_fields[2]), insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % (split_fields[0]+split_fields[2]))
             except:
                 print "problem adding unknown sequences to the following tree: %s" % (split_fields[0]+split_fields[2])
                 os.system("rm RAx*")
                 pass
         try:
-            calculate_pairwise_tree_dists("tree_including_unknowns_noedges.tree", "resampling_distances.txt")
+            calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % (split_fields[0]+split_fields[2]), "%s.resampling_distances.txt" % (split_fields[0]+split_fields[2]))
         except:
             pass
-        for line in open("resampling_distances.txt","U"):
+        for line in open("%s.resampling_distances.txt" % (split_fields[0]+split_fields[2]),"U"):
             resample_fields = line.split()
             myid = re.sub("[:']", "",resample_fields[4])
             fixedid = myid.replace("QUERY___","")
@@ -666,8 +666,8 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
             else:
                 pass
         outfile.close()
-        os.system("rm all.fasta tree_including_unknowns_noedges.tree tree_including_unknowns_edges.tree ")
-        os.system("rm resampling_distances.txt out.fasta all_taxa.fasta")
+        #os.system("rm all.fasta tree_including_unknowns_noedges.tree tree_including_unknowns_edges.tree ")
+        #os.system("rm resampling_distances.txt out.fasta all_taxa.fasta")
         
 def compare_subsample_results(outnames,distances,fudge):
     """needs testing"""
@@ -929,4 +929,178 @@ def get_all_snps(matrix):
             allSNPs.append(fields[0])
     return allSNPs
 
+def process_temp_matrices_bck(dist_sets, sample, tree, processors, patristics, insertion_method, parameters, model):
+    """needs testing"""
+    name=get_seq_name(sample)
+    split_fields=name.split(".")
+    outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
+    name_fixed = []
+    full_context = split_fields[0]+split_fields[1]+split_fields[2]
+    name_fixed.append(re.sub('[:,]', '', split_fields[2]))
+    if os.path.isfile("%s.tree" % (split_fields[0]+split_fields[2])):
+        pass
+    else:
+        tmptree = open("%s.tmp.tree" % full_context, "w")
+        """The genomes in the dist_sets will be pruned in
+        the subsample routine"""
+        to_prune = []
+        for x in dist_sets:
+                if x[0] == split_fields[0]: 
+                    if x[1] == split_fields[2] or x[2] == split_fields[2]:
+                        to_prune.append(x[1])
+        """names will be fixed if they contain characters
+        that are not accepted by downstream applications"""
+        to_prune_fixed=[]
+        for x in to_prune:
+            to_prune_fixed.append(re.sub('[:,]', '', x))
+        """dendropy is used here to import the tree and prune the taxa"""
+        tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
+        tree_full.prune_taxa_with_labels(to_prune_fixed)
+        """dendropy uses scientific notation, which needs to be converted
+        into decimals"""
+        final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+        print >> tmptree, final_tree
+        tmptree.close()
+        """A new tree file is created, changing the dendropy
+        format into a more classical Newick format"""
+        tmptree2 = open("%s.tree" % full_context, "w")
+        for line in open("%s.tmp.tree" % full_context, "U"):
+            if line.startswith("[&U]"):
+                fields = line.split()
+                fixed_fields = [ ]
+                for x in fields:
+                    fixed_fields.append(x.replace("'",""))
+                print >> tmptree2, fixed_fields[1]
+            else:
+                pass
+        tmptree2.close()
+        try:
+            matrix_to_fasta(sample, "%s.fasta" % full_context)
+        except:
+            print "problem converting matrix to fasta"
+            sys.exit()
+        """if problems in the tree names are found, they are removed by the system command"""
+        os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
+        prune_fasta(to_prune, "%s_in.fasta" % full_context, "%s_pruned.fasta" % full_context)
+        """Unknown genomes are added to the tree.  If the parameters file has already been created, don't create it again"""
+        if os.path.isfile("%s-PARAMS" % (split_fields[0]+split_fields[2])):
+            try:
+                #model is now hardcoded as GTRGAMMA
+                run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
+            except:
+                print "problem adding unknown sequences to the following tree: %s" % full_context
+                os.system("rm RAx*")
+                pass
+        else:
+            subprocess.check_call("raxmlHPC-SSE3 -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (full_context, full_context, (split_fields[0]+split_fields[2])), shell=True)
+            os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])))
+            run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
+        try:
+            calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % full_context, "%s.resampling_distances.txt" % full_context)
+        except:
+            pass
+        for line in open("%s.resampling_distances.txt" % full_context,"U"):
+            resample_fields = line.split()
+            myid = re.sub("[:']", "",resample_fields[4])
+            fixedid = myid.replace("QUERY___","")
+            newid = re.sub("[:']","",resample_fields[2])
+            fixedid2 = newid.replace("QUERY___","")
+            if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
+                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
+            elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
+                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
+            else:
+                pass
+        outfile.close()
+        suffix = split_fields[0]+split_fields[2]
+        #os.system("rm all.fasta tree_including_unknowns_noedges.tree tree_including_unknowns_edges.tree ")
+        #os.system("rm resampling_distances.txt out.fasta all_taxa.fasta")
+        
 
+def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets):
+    for item in to_prune_set:
+        new_name = str(id)+str(item)
+        tmptree = open("%s.tmp.tree" % new_name, "w")
+        to_prune = []
+        for x in dist_sets:
+            if x[0] == id: 
+                if x[1] == item or x[2] == item:
+                    to_prune.append(x[1])
+        to_prune_fixed=[]
+        for x in to_prune:
+            to_prune_fixed.append(re.sub('[:,]', '', x))
+        tree_full = dendropy.Tree.get_from_path(full_tree,schema="newick",preserve_underscores=True)
+        tree_full.prune_taxa_with_labels(to_prune_fixed)
+        final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+        print >> tmptree, final_tree
+        tmptree.close()
+        tmptree2 = open("%s.tree" % new_name, "w")
+        for line in open("%s.tmp.tree" % new_name, "U"):
+            if line.startswith("[&U]"):
+                fields = line.split()
+                fixed_fields = [ ]
+                for x in fields:
+                    fixed_fields.append(x.replace("'",""))
+                print >> tmptree2, fixed_fields[1]
+            else:
+                pass
+        tmptree2.close()
+        """result is a pruned tree that is ready for RAxML"""
+        matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
+        os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (new_name, new_name))
+        prune_fasta(to_prune, "%s_in.fasta" % new_name, "%s_pruned.fasta" % new_name)
+        """what if I made this multi-threaded?"""
+        subprocess.check_call("raxmlHPC-SSE3 -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (new_name, new_name, new_name), shell=True)
+        os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
+        os.system("rm %s*tree" % new_name)
+    
+def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, insertion_method, parameters, model):
+    name=get_seq_name(sample)
+    split_fields=name.split(".")
+    outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
+    name_fixed = []
+    name_fixed.append(re.sub('[:,]', '', split_fields[2]))
+    to_prune = []
+    for x in dist_sets:
+        if x[0] == split_fields[0]: 
+            if x[1] == split_fields[2] or x[2] == split_fields[2]:
+                to_prune.append(x[1])
+    to_prune_fixed=[]
+    for x in to_prune:
+        to_prune_fixed.append(re.sub('[:,]', '', x))
+    full_context = split_fields[0]+split_fields[1]+split_fields[2]
+    tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
+    tree_full.prune_taxa_with_labels(to_prune_fixed)
+    tmptree = open("%s.tmp.tree" % full_context, "w")
+    final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+    print >> tmptree, final_tree
+    tmptree.close()
+    tmptree2 = open("%s.tree" % full_context, "w")
+    for line in open("%s.tmp.tree" % full_context, "U"):
+        if line.startswith("[&U]"):
+            fields = line.split()
+            fixed_fields = [ ]
+            for x in fields:
+                fixed_fields.append(x.replace("'",""))
+            print >> tmptree2, fixed_fields[1]
+        else:
+            pass
+    tmptree2.close()
+    matrix_to_fasta(sample, "%s.fasta" % full_context)
+    os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
+    run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
+    calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % full_context, "%s.resampling_distances.txt" % full_context)
+    for line in open("%s.resampling_distances.txt" % full_context,"U"):
+        resample_fields = line.split()
+        myid = re.sub("[:']", "",resample_fields[4])
+        fixedid = myid.replace("QUERY___","")
+        newid = re.sub("[:']","",resample_fields[2])
+        fixedid2 = newid.replace("QUERY___","")
+        if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
+            print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
+        elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
+            print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
+        else:
+            pass
+    outfile.close()
+        
