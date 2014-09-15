@@ -1017,7 +1017,11 @@ def process_temp_matrices_bck(dist_sets, sample, tree, processors, patristics, i
         #os.system("rm resampling_distances.txt out.fasta all_taxa.fasta")
         
 
-def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets):
+def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, processors):
+    if int(processors)<=2:
+        my_processors = 2
+    else:
+        my_processors = int(int(processors)/2)
     for item in to_prune_set:
         new_name = str(id)+str(item)
         tmptree = open("%s.tmp.tree" % new_name, "w")
@@ -1049,10 +1053,11 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets):
         matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (new_name, new_name))
         prune_fasta(to_prune, "%s_in.fasta" % new_name, "%s_pruned.fasta" % new_name)
-        """what if I made this multi-threaded?"""
-        subprocess.check_call("raxmlHPC-SSE3 -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (new_name, new_name, new_name), shell=True)
-        os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
-        os.system("rm %s*tree" % new_name)
+        try:
+            subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
+            os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
+        except:
+            pass
     
 def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, insertion_method, parameters, model):
     name=get_seq_name(sample)
