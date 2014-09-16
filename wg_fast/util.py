@@ -30,6 +30,51 @@ import random
 import threading
 import collections
 
+def test_file(option, opt_str, value, parser):
+    try:
+        with open(value): setattr(parser.values, option.dest, value)
+    except IOError:
+        print '%s file cannot be opened' % option
+        sys.exit()
+
+def test_dir(option, opt_str, value, parser):
+    if os.path.exists(value):
+        setattr(parser.values, option.dest, value)
+    else:
+        print "directory of fastqs cannot be found"
+        sys.exit()
+
+def test_filter(option, opt_str, value, parser):
+    if "F" in value:
+        setattr(parser.values, option.dest, value)
+    elif "T" in value:
+        setattr(parser.values, option.dest, value)
+    else:
+        print "option not supported.  Only select from T and F"
+        sys.exit()
+
+def test_methods(option, opt_str, value, parser):
+    if "ML" in value:
+        setattr(parser.values, option.dest, value)
+    elif "MP" in value:
+        setattr(parser.values, option.dest, value)
+    else:
+        print "option not supported.  Only select from MP or ML"
+        sys.exit()
+
+def test_models(option, opt_str, value, parser):
+    if "GTRGAMMA" in value:
+        setattr(parser.values, option.dest, value)
+    elif "ASC_GTRGAMMA" in value:
+        setattr(parser.values, option.dest, value)
+    elif "GTRCAT" in value:
+        setattr(parser.values, option.dest, value)
+    elif "ASC_GTRCAT" in value:
+        setattr(parser.values, option.dest, value)
+    else:
+        print "substitution model is not supported"
+        sys.exit()
+
 def get_seq_name(in_fasta):
     """used for renaming the sequences - tested"""
     return os.path.basename(in_fasta)

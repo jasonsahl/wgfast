@@ -13,14 +13,13 @@ import subprocess
 import os
 import sys
 import errno
-import threading
 import glob
-#try:
-from wg_fast.util import *
-from igs.utils import logging as log_isg
-#except:
-#    print "wgfast path needs to be modified in the wgfast.py file"
-#    sys.exit()
+try:
+    from wg_fast.util import *
+    from igs.utils import logging as log_isg
+except:
+    print "wgfast path needs to be modified in the wgfast.py file"
+    sys.exit()
 
 """modify line below to reflect your installation directory"""
 WGFAST_PATH="/Users/jsahl/wgfast"
@@ -33,56 +32,14 @@ GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
 TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
-
-def test_file(option, opt_str, value, parser):
-    try:
-        with open(value): setattr(parser.values, option.dest, value)
-    except IOError:
-        print '%s file cannot be opened' % option
-        sys.exit()
-
-def test_dir(option, opt_str, value, parser):
-    if os.path.exists(value):
-        setattr(parser.values, option.dest, value)
-    else:
-        print "directory of fastqs cannot be found"
-        sys.exit()
-
-def test_filter(option, opt_str, value, parser):
-    if "F" in value:
-        setattr(parser.values, option.dest, value)
-    elif "T" in value:
-        setattr(parser.values, option.dest, value)
-    else:
-        print "option not supported.  Only select from T and F"
-        sys.exit()
-
-def test_methods(option, opt_str, value, parser):
-    if "ML" in value:
-        setattr(parser.values, option.dest, value)
-    elif "MP" in value:
-        setattr(parser.values, option.dest, value)
-    else:
-        print "option not supported.  Only select from MP or ML"
-        sys.exit()
-
-def test_models(option, opt_str, value, parser):
-    if "GTRGAMMA" in value:
-        setattr(parser.values, option.dest, value)
-    elif "ASC_GTRGAMMA" in value:
-        setattr(parser.values, option.dest, value)
-    elif "GTRCAT" in value:
-        setattr(parser.values, option.dest, value)
-    elif "ASC_GTRCAT" in value:
-        setattr(parser.values, option.dest, value)
-    else:
-        print "substitution model is not supported"
-        sys.exit()
     
 def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model):
-    start_dir = os.getcwd()
+    #start_dir = os.getcwd()
+    ref_path=os.path.abspath("%s" % reference)
+    dir_path=os.path.abspath("%s" % directory)
+    #check for binary dependencies
     log_isg.logPrint('testing the paths of all dependencies')
-    ap=os.path.abspath("%s" % start_dir)
+    ap=os.path.abspath("%s" % os.getcwd())
     aa = subprocess.call(['which', 'raxmlHPC-SSE3'])
     if aa == 0:
         pass
@@ -112,20 +69,18 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     print "Uses trimmomatic for read trimming"
     print "*citation: Bolger A.M., Lohse M., Usadel B. Trimmomatic: A flexible trimmer for Illumina Sequence Data.  Bioinformatics. 2014.  Doi:10.1093/bioinformatics/btu170"
     print ""
-    """done checking for dependencies"""
+    #done checking for dependencies"""
     log_isg.logPrint('WG-FAST pipeline starting')
-    ref_path=os.path.abspath("%s" % reference)
-    dir_path=os.path.abspath("%s" % directory)
     try:
         os.makedirs('%s/scratch' % ap)
     except OSError, e:
         if e.errno != errno.EEXIST:raise
-    """copy stuff into the scratch directory"""
+    #copy reference into the scratch directory, where all of the work will take place
     subprocess.check_call("cp %s %s/scratch/reference.fasta" % (ref_path, ap), shell=True)
-    """index reference file.  GATK appears to do this incorrectly"""
+    #index reference file.  GATK appears to do this incorrectly"""
     subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % (ap), shell=True)
     subprocess.check_call("bwa index %s/scratch/reference.fasta > /dev/null 2>&1" % (ap), shell=True)
-    """write reduced matrix with only the SNP data"""
+    #write reduced matrix with only the SNP data"""
     write_reduced_matrix(matrix)
     ref_name=get_seq_name(reference)
     reduced=ref_name.replace(".fasta","")
@@ -164,7 +119,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
         """this fixes the SNP output to conform with RAxML"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
-        #try:
         if insertion_method == "ML":
             suffix = run_raxml("out.fasta", tree,"out.classification_results.txt", "V", parameters, model, "out")
         elif insertion_method == "MP":
@@ -176,8 +130,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         else:
             pass
         transform_tree("%s.tree_including_unknowns_noedges.tree" % suffix)
-        #except:
-        #    print "raxml encountered an error and unknown couldn't be added"
         print ""
         if insertion_method == "ML":
             log_isg.logPrint("Insertion likelihood values:")
@@ -191,6 +143,13 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             print "patrisitic distances can't always be calculated with parsimony"
             pass
     if subsample=="T":
+        aa = subprocess.call(['which', 'raxmlHPC-PTHREADS-SSE3'])
+        if aa == 0:
+            pass
+        else:
+            print "for sub-sample routine, RAxML must be in your path as raxmlHPC-PTHREADS-SSE3"
+            sys.exit()
+        print "*citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'"
         if insertion_method == "MP":
             print "subsample method is not compatible with MP"
             pass
@@ -212,10 +171,10 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             results = set(p_func.pmap(_perform_workflow,
                               files_and_temp_names,
                               num_workers=processors))
-            temp_matrices = glob.glob(os.path.join(start_dir, "*tmp.matrix"))
+            temp_matrices = glob.glob(os.path.join(ap, "*tmp.matrix"))
             final_matrices = []
             for matrix in temp_matrices:
-                final_matrices.append(matrix.replace("%s/" % start_dir,""))
+                final_matrices.append(matrix.replace("%s/" % ap,""))
             sample_sets = {}
             for matrix in final_matrices:
                 entries = matrix.split(".")
@@ -223,12 +182,10 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                     sample_sets[entries[0]].append(entries[2])
                 else:
                     sample_sets[entries[0]]=[entries[2]]
-                #def _perform_workflow(data):
             for k,v in sample_sets.iteritems():
                 uniques= []
                 [uniques.append(item) for item in v if item not in uniques]
                 def _perform_workflow(data):
-                    #create_params_files(k, uniques, tree, "temp.matrix", final_sets)
                     for unique in uniques:
                         create_params_files(k, v, tree, "temp.matrix", final_sets, processors)
                 results = set(p_func.pmap(_perform_workflow,
@@ -240,7 +197,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             results = set(p_func.pmap(_perform_workflow_2,
                                       final_matrices,
                                       num_workers=processors))
-                #process_temp_matrices(final_sets, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
             compare_subsample_results(outnames,distances,fudge)
     else:
         pass
