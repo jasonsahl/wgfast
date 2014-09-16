@@ -182,14 +182,16 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                     sample_sets[entries[0]].append(entries[2])
                 else:
                     sample_sets[entries[0]]=[entries[2]]
+            log_isg.logPrint('creating PARAMS file')
             for k,v in sample_sets.iteritems():
                 uniques= []
                 [uniques.append(item) for item in v if item not in uniques]
                 def _perform_workflow(data):
                     create_params_files(k, uniques, tree, "temp.matrix", final_sets, processors)
                 results = set(p_func.pmap(_perform_workflow,
-                                      uniques,
+                                      sample_sets,
                                       num_workers=processors))
+            log_isg.logPrint('adding unknowns to tree')
             def _perform_workflow_2(data):
                 z = data
                 process_temp_matrices_dev(final_sets, z, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
