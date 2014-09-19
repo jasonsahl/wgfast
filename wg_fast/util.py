@@ -214,7 +214,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 log_fh = open('%s.trimmomatic.log' % idx, 'w')
             except:
                 log_isg.logPrint('could not open log file')
-            if os.path.isfile("%s.single.fastq.gz"):
+            if os.path.isfile("%s.single.fastq.gz" % idx):
                 pass
             else:
                 try:
@@ -222,7 +222,10 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                     trim.wait()
                 except:
 		            log_isg.logPrint("problem encountered with trimmomatic")
-            run_bwa(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
+            if os.path.isfile("%s_renamed_header.bam" % idx):
+                pass
+            else:
+                run_bwa(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
         if os.path.isfile("%s_renamed_header.bam" % idx):
             pass
         else:
