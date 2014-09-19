@@ -190,7 +190,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                     create_params_files(k, uniques, tree, "temp.matrix", final_sets, processors)
                 results = set(p_func.pmap(_perform_workflow,
                                       sample_sets,
-                                      num_workers=processors))
+                                      num_workers=2))
             log_isg.logPrint('adding unknowns to tree')
             def _perform_workflow_2(data):
                 z = data
