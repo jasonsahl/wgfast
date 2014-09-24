@@ -1058,9 +1058,6 @@ def process_temp_matrices_bck(dist_sets, sample, tree, processors, patristics, i
                 pass
         outfile.close()
         suffix = split_fields[0]+split_fields[2]
-        #os.system("rm all.fasta tree_including_unknowns_noedges.tree tree_including_unknowns_edges.tree ")
-        #os.system("rm resampling_distances.txt out.fasta all_taxa.fasta")
-        
 
 def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, processors):
     if int(processors)<=2:
