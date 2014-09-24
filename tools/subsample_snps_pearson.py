@@ -11,17 +11,11 @@ import subprocess
 import random
 import os
 import glob
-
-def test_file(option, opt_str, value, parser):
-    try:
-        with open(value): setattr(parser.values, option.dest, value)
-    except IOError:
-        print 'genes file cannot be opened'
-        sys.exit()
+from wg_fast.util import test_file
 
 def subsample_snps(matrix, snps, iterations):
     """get a list of all possible positions, depending
-    on those positions in the original matrix"""
+    on those positions in the original matrix - tested?"""
     allSNPs = [ ]
     for line in open(matrix, "U"):
         if line.startswith("LocusID"):
@@ -40,9 +34,12 @@ def subsample_snps(matrix, snps, iterations):
              matrix_fields=line.split()
              if matrix_fields[0] in kept_snps:
                   print >> outfile, line,
+    outfile.close()
                     
 def matrix_to_fasta(matrix, prefix):
-    """converts an ISG matrix to fasta format"""
+    """converts a NASP matrix to fasta format.  Includes
+    SNP call field, which is different than the function
+    included for the main WG-FAST pipeline"""
     reduced = [ ]
     out_fasta = open("%s" % prefix, "w")
     firstLine = open(matrix).readline()
@@ -55,6 +52,7 @@ def matrix_to_fasta(matrix, prefix):
     for x in test:
         print >> out_fasta, ">"+str(x[0])
         print >> out_fasta, "".join(x[1:])
+    out_fasta.close()
 
 def compare_matrices(start_dir, ref_matrix, processors):
     for infile in glob.glob(os.path.join(start_dir, "*.tmp.matrix.xyzzy")):
@@ -73,6 +71,7 @@ def process_results(start_dir):
             else:
                 fields = line.split()
                 print >> outfile, fields[0]
+    outfile.close()
             
 def main(matrix,snps,iterations,processors):
     start_dir = os.getcwd()
