@@ -189,12 +189,18 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 log_fh = open('%s.trimmomatic.log' % idx, 'w')
             except:
                 log_isg.logPrint('could not open log file')
-	    try:
-	        trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                trim.wait()
-	    except:
-		log_isg.logPrint("problem encountered with trimmomatic")
-            run_bwa(reference, '%s.F.paired.fastq.gz' % idx, '%s.R.paired.fastq.gz' % idx, processors, idx)
+            if os.path.isfile("%s.F.paired.fastq.gz" % idx):
+                pass
+            else:
+                try:
+                    trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                    trim.wait()
+                except:
+                    log_isg.logPrint('problem enountered trying to run trimmomatic')
+            if os.path.isfile("%s_renamed_header.bam" % idx):
+                pass
+            else:
+                run_bwa(reference, '%s.F.paired.fastq.gz' % idx, '%s.R.paired.fastq.gz' % idx, processors, idx)
         else:
             """single end support"""
             args=['java','-jar','%s' % trim_path,'SE', '-threads', '%s' % processors,
@@ -208,16 +214,25 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 log_fh = open('%s.trimmomatic.log' % idx, 'w')
             except:
                 log_isg.logPrint('could not open log file')
-	    try:
-	        trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                trim.wait()
-	    except:
-		log_isg.logPrint("problem encountered with trimmomatic")
-            run_bwa(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
-        process_sam("%s.sam" % idx, idx)
-        """inserts read group information, required by new versions of GATK"""
-        os.system("java -jar %s INPUT=%s.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
-        os.system("samtools index %s_renamed_header.bam" % idx)
+            if os.path.isfile("%s.single.fastq.gz" % idx):
+                pass
+            else:
+                try:
+                    trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                    trim.wait()
+                except:
+		            log_isg.logPrint("problem encountered with trimmomatic")
+            if os.path.isfile("%s_renamed_header.bam" % idx):
+                pass
+            else:
+                run_bwa(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
+        if os.path.isfile("%s_renamed_header.bam" % idx):
+            pass
+        else:
+            process_sam("%s.sam" % idx, idx)
+            """inserts read group information, required by new versions of GATK"""
+            os.system("java -jar %s INPUT=%s.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
+            os.system("samtools index %s_renamed_header.bam" % idx)
         run_gatk(reference, processors, idx, gatk, tmp_dir)
         if "T" == doc:
             lock.acquire()
