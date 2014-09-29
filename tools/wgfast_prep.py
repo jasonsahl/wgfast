@@ -7,7 +7,13 @@ from optparse import OptionParser
 import subprocess
 import os
 import sys
-from wg_fast.util import test_file
+
+def test_file(option, opt_str, value, parser):
+    try:
+        with open(value): setattr(parser.values, option.dest, value)
+    except IOError:
+        print '%s file cannot be opened' % option
+        sys.exit()
 
 def get_field_index(matrix_in):
     matrix=open(matrix_in, "rU")
