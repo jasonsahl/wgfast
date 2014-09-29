@@ -22,7 +22,7 @@ except:
     sys.exit()
 
 """modify line below to reflect your installation directory"""
-WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
+WGFAST_PATH="/Users/jsahl/wgfast"
 if os.path.exists(WGFAST_PATH):
     sys.path.append("%s" % WGFAST_PATH)
 else:
@@ -32,7 +32,8 @@ GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
 TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
-    
+
+
 def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model):
     #start_dir = os.getcwd()
     ref_path=os.path.abspath("%s" % reference)
@@ -78,12 +79,11 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     #copy reference into the scratch directory, where all of the work will take place
     subprocess.check_call("cp %s %s/scratch/reference.fasta" % (ref_path, ap), shell=True)
     #index reference file.  GATK appears to do this incorrectly"""
-    subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % (ap), shell=True)
-    subprocess.check_call("bwa index %s/scratch/reference.fasta > /dev/null 2>&1" % (ap), shell=True)
+    subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % ap, shell=True)
+    subprocess.check_call("bwa index %s/scratch/reference.fasta > /dev/null 2>&1" % ap, shell=True)
     #write reduced matrix with only the SNP data"""
     write_reduced_matrix(matrix)
     ref_name=get_seq_name(reference)
-    reduced=ref_name.replace(".fasta","")
     """creates dict file with picard tools.  In testing, GATK does this incorrectly"""
     try:
         os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
@@ -162,7 +162,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
             results = get_closest_dists_new(final_sets,outnames)
             log_isg.logPrint("running subsample routine, forcing GTRGAMMA model")
-            thread_list = []
             files_and_temp_names = [(list(f)) for f in final_sets]
             allsnps = get_all_snps(matrix)
             def _perform_workflow(data):
@@ -188,7 +187,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                 [uniques.append(item) for item in v if item not in uniques]
                 def _perform_workflow(data):
                     create_params_files(k, uniques, tree, "temp.matrix", final_sets, processors)
-                results = set(p_func.pmap(_perform_workflow,
+                set(p_func.pmap(_perform_workflow,
                                       sample_sets,
                                       num_workers=2))
             log_isg.logPrint('adding unknowns to tree')
@@ -242,7 +241,7 @@ if __name__ == "__main__":
 		      help="minimum SNP coverage required to be called a SNP - defaults to 3",
                       default="3", type="int")
     parser.add_option("-o", "--proportion", dest="proportion",
-		      help="proportion of alleles to be called a SNP, defaults to 0.9",
+	          help="proportion of alleles to be called a SNP, defaults to 0.9",
                       default="0.9", type="float")
     parser.add_option("-k", "--keep", dest="keep",
                       help="keep temp files?  Defaults to F",

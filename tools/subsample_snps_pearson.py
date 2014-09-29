@@ -29,7 +29,6 @@ def subsample_snps(matrix, snps, iterations):
         in_matrix=open(matrix,"U")
         firstLine = in_matrix.readline()
         print >> outfile, firstLine,
-        first_fields = firstLine.split()
         for line in in_matrix:
              matrix_fields=line.split()
              if matrix_fields[0] in kept_snps:

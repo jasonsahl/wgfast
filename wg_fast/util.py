@@ -2,7 +2,6 @@ from __future__ import division
 import os,os.path
 import re
 import logging
-import glob
 import subprocess
 import sys
 from subprocess import Popen
@@ -26,7 +25,6 @@ except:
     print "your PYTHONPATH needs to include the wg-fast repository"
     sys.exit()
 from operator import itemgetter
-import random
 import threading
 import collections
 
@@ -85,12 +83,12 @@ def get_readFile_components(full_file_path):
     (file_path,file_name) = os.path.split(full_file_path)
     m1 = re.match("(.*).gz",file_name)
     ext = ""
-    if m1 != None:
+    if m1 is not None:
         ext = ".gz"
         file_name = m1.groups()[0]
     (file_name_before_ext,ext2) = os.path.splitext(file_name)
     full_ext = ext2+ext
-    return(file_path,file_name_before_ext,full_ext)
+    return file_path,file_name_before_ext,full_ext
 
 def read_file_sets(dir_path):        
     """match up pairs of sequence data, adapted from
@@ -103,14 +101,14 @@ def read_file_sets(dir_path):
     for infile in glob.glob(os.path.join(dir_path, "*.fastq.gz")):
         (file_path,file_name_before_ext,full_ext) = get_readFile_components(infile)
         m=re.match("(.*)(_S.*)(_L.*)(_R.*)(_.*)", file_name_before_ext)
-        if m==None:
+        if m is None:
             m=re.match("(.*)("+"_R1"+")(_.*)$",file_name_before_ext)
-            if m!=None:
+            if m is not None:
                 (baseName,read) = m.groups()[0], m.groups()[1]
                 forward_reads[baseName] = infile
             else:
                 m=re.match("(.*)("+"_R2"+")(_.*)$",file_name_before_ext)
-                if m!=None:
+                if m is not None:
                     (baseName,read) = m.groups()[0], m.groups()[1]
                     reverse_reads[baseName] = infile
                 else:
@@ -148,7 +146,6 @@ def read_file_sets(dir_path):
 
 def process_coverage(name):
     """function required in loop - tested"""
-    curr_dir= os.getcwd()
     outfile = open("coverage_out.txt", "a")
     coverage_dict = {}
     try:
@@ -221,7 +218,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                     trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
                     trim.wait()
                 except:
-		            log_isg.logPrint("problem encountered with trimmomatic")
+                    log_isg.logPrint("problem encountered with trimmomatic")
             if os.path.isfile("%s_renamed_header.bam" % idx):
                 pass
             else:
@@ -262,8 +259,6 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
            log_fh = open(log_file, 'w')
        except:
            print log_file, 'could not open'
-    else:
-        log_fh = PIPE
     try:
         sam_fh = open(sam_file, 'w')
     except:
@@ -465,8 +460,8 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
                         print >> outfile, firstLine,
                         first_fields = firstLine.split()
                         fixed_fields = []
-                        for x in first_fields:
-                            fixed_fields.append(re.sub('[:,]', '', x))
+                        for y in first_fields:
+                            fixed_fields.append(re.sub('[:,]', '', y))
                         gindex=fixed_fields.index(z[1])
                         for line in in_matrix:
                             matrix_fields=line.split()
@@ -536,7 +531,7 @@ def tab_to_fasta(new_tab):
     outfile = open("out.fasta", "w")
     for line in infile:
         fields = line.split()
-        print >> outfile, ">"+fields[0];
+        print >> outfile, ">"+fields[0]
         print >> outfile, fields[1].upper()
     infile.close()
     outfile.close()
@@ -832,7 +827,6 @@ def make_temp_matrix(vcf, matrix, name):
     in_matrix = open(matrix, "U")
     """these are all of the screened SNPs - tested"""
     matrix_ids=[ ]
-    firstLine = in_matrix.readline()
     for line in in_matrix:
         mfields=line.split()
         matrix_ids.append(mfields[0])
@@ -964,8 +958,8 @@ def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
                 print >> outfile, firstLine,
                 first_fields = firstLine.split()
                 fixed_fields = []
-                for x in first_fields:
-                    fixed_fields.append(re.sub('[:,]', '', x))
+                for y in first_fields:
+                    fixed_fields.append(re.sub('[:,]', '', y))
                 gindex=fixed_fields.index(final_set[1])
                 for line in in_matrix:
                     matrix_fields=line.split()
