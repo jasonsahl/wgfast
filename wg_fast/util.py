@@ -93,7 +93,8 @@ def get_readFile_components(full_file_path):
 
 def read_file_sets(dir_path):        
     """match up pairs of sequence data, adapted from
-    https://github.com/katholt/srst2 - untested"""
+    https://github.com/katholt/srst2 will be tough to test
+    with variable names and read paths"""
     fileSets = {} 
     forward_reads = {}
     reverse_reads = {} 
@@ -519,27 +520,38 @@ def branch_lengths_2_decimals(str_newick_tree):
     return new_tree
 
 def fasta_to_tab(fasta):
-    """currently untested, most of the work done by BioPython"""
+    """tested"""
     infile = open(fasta, "rU")
     outfile = open("out.tab", "w")
     for record in SeqIO.parse(infile, "fasta"):
+        """this list is just for testing,
+        and is ok if it's overwritten for each
+        fasta"""
+        for_test = []
         print >> outfile, record.id, record.seq
+        for_test.append(record.id)
+        for_test.append(str(record.seq))
     infile.close()
     outfile.close()
+    return for_test
 
 def tab_to_fasta(new_tab):
-    """currently untested, but needs to be"""
+    """tested"""
     infile = open(new_tab, "rU")
     outfile = open("out.fasta", "w")
     for line in infile:
+        to_test = []
         fields = line.split()
         print >> outfile, ">"+fields[0]
         print >> outfile, fields[1].upper()
+        to_test.append(fields[0])
+        to_test.append(fields[1].upper())
     infile.close()
     outfile.close()
+    return to_test
     
 def tab_to_matrix(tab):
-    """currently untested, but needs to be"""
+    """tested"""
     reduced = [ ]
     out_matrix = open("tab_matrix", "w")
     for line in open(tab):
@@ -553,6 +565,7 @@ def tab_to_matrix(tab):
     for x in test:
         print >> out_matrix, "\t".join(x)
     out_matrix.close()
+    return test
         
 def filter_alignment(tab):
     """currently untested, but needs to be"""
@@ -599,7 +612,7 @@ def raxml_calculate_base_tree(in_fasta, model, name):
         sys.exit()
     
 def file_to_fasta(matrix, out_fasta):
-    """currently untested, but needs to be"""
+    """almost identical to matrix_to_fasta. Not tested"""
     reduced = [ ]
     out_matrix = open(out_fasta, "w")
     for line in open(matrix, "U"):
@@ -615,12 +628,16 @@ def prune_fasta(to_prune, infile, outfile):
     my_in = open(infile, "U")
     my_out = open(outfile, "w")
     seqrecords = [ ]
+    ids = [ ]
     for record in SeqIO.parse(my_in, "fasta"):
         if record.id not in to_prune:
             seqrecords.append(record)
+            ids.append(record.id)
     SeqIO.write(seqrecords, my_out, "fasta")
     my_in.close()
     my_out.close()
+    return ids
+    
     
     
 def remove_invariant_sites(in_fasta, out_fasta):
@@ -677,7 +694,6 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
                 else:
                     pass
             tmptree2.close()
-            #os.system("rm *.tmp.tree")
         try:
             matrix_to_fasta(infile, "%s.fasta" % (split_fields[0]+split_fields[2]))
         except:
@@ -686,12 +702,10 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
         """if problems in the tree names are found, they are removed by the system command"""
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])))
         prune_fasta(to_prune, "%s_in.fasta" % (split_fields[0]+split_fields[2]), "%s_pruned.fasta" % (split_fields[0]+split_fields[2]))
-        #os.system("cp out.fasta all_taxa.fasta")
-        """These functions were recently removed, as ASC_GTRGAMMA models with these data will take too long"""
         """Unknown genomes are added to the tree.  If the parameters file has already been created, don't create it again"""
         if os.path.isfile("%s-PARAMS" % (split_fields[0]+split_fields[2])):
             try:
-                #model is now hardcoded as GTRGAMMA
+                #model is now hardcoded as GTRGAMMA; this makes it possible to use multiple processors
                 run_raxml("%s_in.fasta" % (split_fields[0]+split_fields[2]), "%s.tree" % (split_fields[0]+split_fields[2]), "%s.subsampling_classifications.txt" % (split_fields[0]+split_fields[2]), insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % (split_fields[0]+split_fields[2]))
             except:
                 print "problem adding unknown sequences to the following tree: %s" % (split_fields[0]+split_fields[2])
@@ -723,8 +737,6 @@ def process_temp_matrices(dist_sets, tree, processors, patristics, insertion_met
             else:
                 pass
         outfile.close()
-        #os.system("rm all.fasta tree_including_unknowns_noedges.tree tree_including_unknowns_edges.tree ")
-        #os.system("rm resampling_distances.txt out.fasta all_taxa.fasta")
         
 def compare_subsample_results(outnames,distances,fudge):
     """needs testing"""
@@ -987,6 +999,7 @@ def get_all_snps(matrix):
     return allSNPs
 
 def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, processors):
+    """not currently tested, but needs to be"""
     if int(processors)<=2:
         my_processors = 2
     else:
@@ -1029,6 +1042,7 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
             pass
     
 def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, insertion_method, parameters, model):
+    """not currently tested, but needs to be"""
     name=get_seq_name(sample)
     split_fields=name.split(".")
     outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")

@@ -72,6 +72,24 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     print ""
     #done checking for dependencies"""
     log_isg.logPrint('WG-FAST pipeline starting')
+    log_isg.logPrint("WG-FAST was envoked with the following parameters:")
+    print "-m %s" % matrix
+    print "-t %s" % tree
+    print "-r %s" % reference
+    print "-d %s" % directory
+    print "-x %s" % parameters
+    print "-p %s" % processors
+    print "-c %s" % coverage
+    print "-o %s" % proportion
+    print "-k %s" % keep
+    print "-s %s" % subsample
+    print "-n %s" % subnums
+    print "-g %s" % doc
+    print "-e %s" % tmp_dir
+    print "-z %s" % insertion_method
+    print "-f %s" % fudge
+    print "-y %s" % only_subs
+    print "-j %s" % model
     try:
         os.makedirs('%s/scratch' % ap)
     except OSError, e:
@@ -209,7 +227,8 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             pass
         for outname in outnames:
             try:
-                subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log %s.closest.two.txt %s_coverage*" % (outname,outname,outname,outname,outname,outname), shell=True, stderr=open(os.devnull, 'w'))
+                #subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log %s.closest.two.txt %s_coverage*" % (outname,outname,outname,outname,outname,outname), shell=True, stderr=open(os.devnull, 'w'))
+                subprocess.check_call("rm %s* RAxML_log* RAxML_info*" % outname, shell=True, stderr=open(os.devnull, 'w'))
             except:
                 pass
             os.chdir("%s" % ap)

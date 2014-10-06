@@ -97,7 +97,7 @@ class Test6(unittest.TestCase):
         fp.write("ADK::1\tA\tT\tT\n")
         fp.write("ADK::2\tT\tT\tT\n")
         fp.close()
-        self.assertEqual(matrix_to_fasta(fpath), [">ReferenceAT", ">genome1TT", ">genome2TT"])
+        self.assertEqual(matrix_to_fasta(fpath, "%s/outfile.txt" % tdir), [">ReferenceAT", ">genome1TT", ">genome2TT"])
         shutil.rmtree(tdir)
     def test_matrix_to_fasta_unequal_fields(self):
         tdir = tempfile.mkdtemp(prefix="filetest_",)
@@ -107,7 +107,7 @@ class Test6(unittest.TestCase):
         fp.write("ADK::1\tA\tT\tT\n")
         fp.write("ADK::2\tT\tT\n")
         fp.close()
-        self.assertEqual(matrix_to_fasta(fpath), [">ReferenceAT", ">genome1TT"])
+        self.assertEqual(matrix_to_fasta(fpath, "%s/outfile.txt" % tdir), [">ReferenceAT", ">genome1TT"])
         shutil.rmtree(tdir)
     def test_matrix_to_fasta_multiple_states(self):
         tdir = tempfile.mkdtemp(prefix="filetest_",)
@@ -117,7 +117,7 @@ class Test6(unittest.TestCase):
         fp.write("ADK::1\tA\tT\tT\n")
         fp.write("ADK::2\tT\tT\tTT\n")
         fp.close()
-        self.assertEqual(matrix_to_fasta(fpath), [">ReferenceAT", ">genome1TT", ">genome2TTT"])
+        self.assertEqual(matrix_to_fasta(fpath, "%s/outfile.txt" % tdir), [">ReferenceAT", ">genome1TT", ">genome2TTT"])
         shutil.rmtree(tdir)
         
 class Test7(unittest.TestCase):
@@ -389,7 +389,49 @@ class Test19(unittest.TestCase):
         self.assertEqual(parse_likelihoods(fpath), {'ECOLI':['0.298716','0.298714','0.298714']})
         shutil.rmtree(tdir)
 
-      
+class Test20(unittest.TestCase):
+    def test_fasta_to_tab(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.fasta")
+        fp = open(fpath, "w")
+        fp.write(">id\n")
+        fp.write("ATGC")
+        fp.close()
+        self.assertEqual(fasta_to_tab(fpath), ["id","ATGC"])
+        shutil.rmtree(tdir)
+
+class Test21(unittest.TestCase):
+    def test_tab_to_fasta(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.tab")
+        fp = open(fpath, "w")
+        fp.write(">id\tATCG\n")
+        fp.close()
+        self.assertEqual(tab_to_fasta(fpath), [">id","ATCG"])
+        shutil.rmtree(tdir)
+
+class Test22(unittest.TestCase):
+    def test_tab_to_matrix(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.tab")
+        fp = open(fpath, "w")
+        fp.write("id\tATCG\n")
+        fp.write("id2\tTTCG\n")
+        fp.close()
+        self.assertEqual(tab_to_matrix(fpath), [['id', 'id2'], ['A', 'T'], ['T', 'T'], ['C', 'C'], ['G', 'G']])
+        shutil.rmtree(tdir)
+
+class Test23(unittest.TestCase):
+    def test_prune_fasta(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.tab")
+        fp = open(fpath, "w")
+        fp.write(">id\nATCG\n")
+        fp.write(">id2\nTTCG\n")
+        fp.close()
+        self.assertEqual(prune_fasta("id",fpath,"%s/outfile.txt" % tdir), ['id2'])
+        shutil.rmtree(tdir)
+        
 if __name__ == "__main__":
     unittest.main()
     main()
