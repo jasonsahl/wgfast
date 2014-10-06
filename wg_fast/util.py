@@ -391,7 +391,8 @@ def matrix_to_fasta(matrix_in, outfile):
     out_fasta = open(outfile, "w")
     redux = [ ]
     for line in open(matrix_in,"U"):
-        fields = line.split()
+        newline = line.strip()
+        fields = newline.split()
         reduced.append(fields[1:])
     test=map(list, zip(*reduced))
     for x in test:
@@ -827,6 +828,7 @@ def make_temp_matrix(vcf, matrix, name):
     in_matrix = open(matrix, "U")
     """these are all of the screened SNPs - tested"""
     matrix_ids=[ ]
+    firstLine = in_matrix.readline()
     for line in in_matrix:
         mfields=line.split()
         matrix_ids.append(mfields[0])
