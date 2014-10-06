@@ -113,7 +113,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         """need to change this to a python function"""
         subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
         """deletes temporary files that could be confused later on"""
-        #subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
+        subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
         subprocess.check_call("paste temp.matrix merged.vcf > combined.matrix", shell=True)
         matrix_to_fasta("combined.matrix", "all.fasta")
         os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
@@ -204,7 +204,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         pass
     else:
         try:
-            subprocess.check_call("rm all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist temp.matrix tmp.tree tmp_patristic_distances.txt", shell=True, stderr=open(os.devnull, 'w'))
+            subprocess.check_call("rm all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist temp.matrix tmp.tree tmp_patristic_distances.txt out* RAxML_portableTree*jplace *.unpaired.fastq.gz", shell=True, stderr=open(os.devnull, 'w'))
         except:
             pass
         for outname in outnames:

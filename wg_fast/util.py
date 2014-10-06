@@ -27,6 +27,7 @@ except:
 from operator import itemgetter
 import threading
 import collections
+import random
 
 def test_file(option, opt_str, value, parser):
     try:
@@ -984,91 +985,6 @@ def get_all_snps(matrix):
             fields=line.split()
             allSNPs.append(fields[0])
     return allSNPs
-
-def process_temp_matrices_bck(dist_sets, sample, tree, processors, patristics, insertion_method, parameters, model):
-    """needs testing"""
-    name=get_seq_name(sample)
-    split_fields=name.split(".")
-    outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
-    name_fixed = []
-    full_context = split_fields[0]+split_fields[1]+split_fields[2]
-    name_fixed.append(re.sub('[:,]', '', split_fields[2]))
-    if os.path.isfile("%s.tree" % (split_fields[0]+split_fields[2])):
-        pass
-    else:
-        tmptree = open("%s.tmp.tree" % full_context, "w")
-        """The genomes in the dist_sets will be pruned in
-        the subsample routine"""
-        to_prune = []
-        for x in dist_sets:
-                if x[0] == split_fields[0]: 
-                    if x[1] == split_fields[2] or x[2] == split_fields[2]:
-                        to_prune.append(x[1])
-        """names will be fixed if they contain characters
-        that are not accepted by downstream applications"""
-        to_prune_fixed=[]
-        for x in to_prune:
-            to_prune_fixed.append(re.sub('[:,]', '', x))
-        """dendropy is used here to import the tree and prune the taxa"""
-        tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
-        tree_full.prune_taxa_with_labels(to_prune_fixed)
-        """dendropy uses scientific notation, which needs to be converted
-        into decimals"""
-        final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
-        print >> tmptree, final_tree
-        tmptree.close()
-        """A new tree file is created, changing the dendropy
-        format into a more classical Newick format"""
-        tmptree2 = open("%s.tree" % full_context, "w")
-        for line in open("%s.tmp.tree" % full_context, "U"):
-            if line.startswith("[&U]"):
-                fields = line.split()
-                fixed_fields = [ ]
-                for x in fields:
-                    fixed_fields.append(x.replace("'",""))
-                print >> tmptree2, fixed_fields[1]
-            else:
-                pass
-        tmptree2.close()
-        try:
-            matrix_to_fasta(sample, "%s.fasta" % full_context)
-        except:
-            print "problem converting matrix to fasta"
-            sys.exit()
-        """if problems in the tree names are found, they are removed by the system command"""
-        os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
-        prune_fasta(to_prune, "%s_in.fasta" % full_context, "%s_pruned.fasta" % full_context)
-        """Unknown genomes are added to the tree.  If the parameters file has already been created, don't create it again"""
-        if os.path.isfile("%s-PARAMS" % (split_fields[0]+split_fields[2])):
-            try:
-                #model is now hardcoded as GTRGAMMA
-                run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
-            except:
-                print "problem adding unknown sequences to the following tree: %s" % full_context
-                os.system("rm RAx*")
-                pass
-        else:
-            subprocess.check_call("raxmlHPC-SSE3 -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (full_context, full_context, (split_fields[0]+split_fields[2])), shell=True)
-            os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % ((split_fields[0]+split_fields[2]),(split_fields[0]+split_fields[2])))
-            run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
-        try:
-            calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % full_context, "%s.resampling_distances.txt" % full_context)
-        except:
-            pass
-        for line in open("%s.resampling_distances.txt" % full_context,"U"):
-            resample_fields = line.split()
-            myid = re.sub("[:']", "",resample_fields[4])
-            fixedid = myid.replace("QUERY___","")
-            newid = re.sub("[:']","",resample_fields[2])
-            fixedid2 = newid.replace("QUERY___","")
-            if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
-                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
-            elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
-                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
-            else:
-                pass
-        outfile.close()
-        suffix = split_fields[0]+split_fields[2]
 
 def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, processors):
     if int(processors)<=2:
