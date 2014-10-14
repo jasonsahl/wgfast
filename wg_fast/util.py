@@ -967,23 +967,26 @@ def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
             for x in range(1,int(subnums)+1):
                 kept_snps=random.sample(set(allsnps), int(v))
                 solids = set(kept_snps)
-                outfile = open("%s.%s.%s.tmp.matrix" % (k,x,final_set[1]), "w")
-                in_matrix=open(matrix,"U")
-                firstLine = in_matrix.readline()
-                print >> outfile, firstLine,
-                first_fields = firstLine.split()
-                fixed_fields = []
-                for y in first_fields:
-                    fixed_fields.append(re.sub('[:,]', '', y))
-                gindex=fixed_fields.index(final_set[1])
-                for line in in_matrix:
-                    matrix_fields=line.split()
-                    if matrix_fields[0] in solids:
-                        print >> outfile, line,
-                    else:
-                        print >> outfile, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
-                in_matrix.close()
-                outfile.close()
+                if os.path.isfile("%s.%s.%s.tmp.matrix" * (k,x,final_set[1])):
+                    pass
+                else:
+                    outfile = open("%s.%s.%s.tmp.matrix" % (k,x,final_set[1]), "w")
+                    in_matrix=open(matrix,"U")
+                    firstLine = in_matrix.readline()
+                    print >> outfile, firstLine,
+                    first_fields = firstLine.split()
+                    fixed_fields = []
+                    for y in first_fields:
+                        fixed_fields.append(re.sub('[:,]', '', y))
+                    gindex=fixed_fields.index(final_set[1])
+                    for line in in_matrix:
+                        matrix_fields=line.split()
+                        if matrix_fields[0] in solids:
+                            print >> outfile, line,
+                        else:
+                            print >> outfile, "\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n",
+                    in_matrix.close()
+                    outfile.close()
         else:
             pass
 
@@ -1035,17 +1038,20 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
         matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (new_name, new_name))
         prune_fasta(to_prune, "%s_in.fasta" % new_name, "%s_pruned.fasta" % new_name)
-        try:
+        if os.path.isfile("%s-PARAMS" % new_name):
+            pass
+        else:
             subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
             os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
-        except:
-            pass
     
 def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, insertion_method, parameters, model):
     """not currently tested, but needs to be"""
     name=get_seq_name(sample)
     split_fields=name.split(".")
-    outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
+    if os.path.isfile("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2])):
+        pass
+    else:
+        outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
     name_fixed = []
     name_fixed.append(re.sub('[:,]', '', split_fields[2]))
     to_prune = []
@@ -1076,19 +1082,22 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
     tmptree2.close()
     matrix_to_fasta(sample, "%s.fasta" % full_context)
     os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
-    run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
-    calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % full_context, "%s.resampling_distances.txt" % full_context)
-    for line in open("%s.resampling_distances.txt" % full_context,"U"):
-        resample_fields = line.split()
-        myid = re.sub("[:']", "",resample_fields[4])
-        fixedid = myid.replace("QUERY___","")
-        newid = re.sub("[:']","",resample_fields[2])
-        fixedid2 = newid.replace("QUERY___","")
-        if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
-            print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
-        elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
-            print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
-        else:
-            pass
+    if os.path.isfile("%s.tree_including_unknowns_noedges.tree" % full_context):
+        pass
+    else:
+        run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
+        calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % full_context, "%s.resampling_distances.txt" % full_context)
+        for line in open("%s.resampling_distances.txt" % full_context,"U"):
+            resample_fields = line.split()
+            myid = re.sub("[:']", "",resample_fields[4])
+            fixedid = myid.replace("QUERY___","")
+            newid = re.sub("[:']","",resample_fields[2])
+            fixedid2 = newid.replace("QUERY___","")
+            if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
+                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
+            elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
+                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
+            else:
+                pass
     outfile.close()
         
