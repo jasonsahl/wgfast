@@ -967,7 +967,7 @@ def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
             for x in range(1,int(subnums)+1):
                 kept_snps=random.sample(set(allsnps), int(v))
                 solids = set(kept_snps)
-                if os.path.isfile("%s.%s.%s.tmp.matrix" * (k,x,final_set[1])):
+                if os.path.isfile("%s.%s.%s.tmp.matrix" % (k,x,final_set[1])):
                     pass
                 else:
                     outfile = open("%s.%s.%s.tmp.matrix" % (k,x,final_set[1]), "w")
