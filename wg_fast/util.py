@@ -1007,38 +1007,38 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
         my_processors = int(int(processors)/2)
     for item in to_prune_set:
         new_name = str(id)+str(item)
-        tmptree = open("%s.tmp.tree" % new_name, "w")
-        to_prune = []
-        for x in dist_sets:
-            if x[0] == id: 
-                if x[1] == item or x[2] == item:
-                    to_prune.append(x[1])
-        to_prune_fixed=[]
-        for x in to_prune:
-            to_prune_fixed.append(re.sub('[:,]', '', x))
-        tree_full = dendropy.Tree.get_from_path(full_tree,schema="newick",preserve_underscores=True)
-        tree_full.prune_taxa_with_labels(to_prune_fixed)
-        final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
-        print >> tmptree, final_tree
-        tmptree.close()
-        tmptree2 = open("%s.tree" % new_name, "w")
-        for line in open("%s.tmp.tree" % new_name, "U"):
-            if line.startswith("[&U]"):
-                fields = line.split()
-                fixed_fields = [ ]
-                for x in fields:
-                    fixed_fields.append(x.replace("'",""))
-                print >> tmptree2, fixed_fields[1]
-            else:
-                pass
-        tmptree2.close()
-        """result is a pruned tree that is ready for RAxML"""
-        matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
-        os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (new_name, new_name))
-        prune_fasta(to_prune, "%s_in.fasta" % new_name, "%s_pruned.fasta" % new_name)
         if os.path.isfile("%s-PARAMS" % new_name):
             pass
         else:
+            tmptree = open("%s.tmp.tree" % new_name, "w")
+            to_prune = []
+            for x in dist_sets:
+                if x[0] == id: 
+                    if x[1] == item or x[2] == item:
+                        to_prune.append(x[1])
+            to_prune_fixed=[]
+            for x in to_prune:
+                to_prune_fixed.append(re.sub('[:,]', '', x))
+            tree_full = dendropy.Tree.get_from_path(full_tree,schema="newick",preserve_underscores=True)
+            tree_full.prune_taxa_with_labels(to_prune_fixed)
+            final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+            print >> tmptree, final_tree
+            tmptree.close()
+            tmptree2 = open("%s.tree" % new_name, "w")
+            for line in open("%s.tmp.tree" % new_name, "U"):
+                if line.startswith("[&U]"):
+                    fields = line.split()
+                    fixed_fields = [ ]
+                    for x in fields:
+                        fixed_fields.append(x.replace("'",""))
+                    print >> tmptree2, fixed_fields[1]
+                else:
+                    pass
+            tmptree2.close()
+            """result is a pruned tree that is ready for RAxML"""
+            matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
+            os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (new_name, new_name))
+            prune_fasta(to_prune, "%s_in.fasta" % new_name, "%s_pruned.fasta" % new_name)
             subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
             os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
     
