@@ -638,8 +638,6 @@ def prune_fasta(to_prune, infile, outfile):
     my_out.close()
     return ids
     
-    
-    
 def remove_invariant_sites(in_fasta, out_fasta):
     """only keep invarint sites, doesn't need testing"""
     fasta_to_tab(in_fasta)
@@ -1048,10 +1046,10 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
     """not currently tested, but needs to be"""
     name=get_seq_name(sample)
     split_fields=name.split(".")
-    if os.path.isfile("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2])):
-        pass
-    else:
-        outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
+    #if os.path.isfile("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2])):
+    #    pass
+    #else:
+    outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
     name_fixed = []
     name_fixed.append(re.sub('[:,]', '', split_fields[2]))
     to_prune = []
@@ -1063,29 +1061,35 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
     for x in to_prune:
         to_prune_fixed.append(re.sub('[:,]', '', x))
     full_context = split_fields[0]+split_fields[1]+split_fields[2]
-    tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
-    tree_full.prune_taxa_with_labels(to_prune_fixed)
-    tmptree = open("%s.tmp.tree" % full_context, "w")
-    final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
-    print >> tmptree, final_tree
-    tmptree.close()
-    tmptree2 = open("%s.tree" % full_context, "w")
-    for line in open("%s.tmp.tree" % full_context, "U"):
-        if line.startswith("[&U]"):
-            fields = line.split()
-            fixed_fields = [ ]
-            for x in fields:
-                fixed_fields.append(x.replace("'",""))
-            print >> tmptree2, fixed_fields[1]
-        else:
-            pass
-    tmptree2.close()
-    matrix_to_fasta(sample, "%s.fasta" % full_context)
-    os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
     if os.path.isfile("%s.tree_including_unknowns_noedges.tree" % full_context):
         pass
     else:
+        tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
+        tree_full.prune_taxa_with_labels(to_prune_fixed)
+        tmptree = open("%s.tmp.tree" % full_context, "w")
+        final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+        print >> tmptree, final_tree
+        tmptree.close()
+        tmptree2 = open("%s.tree" % full_context, "w")
+        for line in open("%s.tmp.tree" % full_context, "U"):
+            if line.startswith("[&U]"):
+                fields = line.split()
+                fixed_fields = [ ]
+                for x in fields:
+                    fixed_fields.append(x.replace("'",""))
+                print >> tmptree2, fixed_fields[1]
+            else:
+                pass
+        tmptree2.close()
+        matrix_to_fasta(sample, "%s.fasta" % full_context)
+        os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
+        #if os.path.isfile("%s.tree_including_unknowns_noedges.tree" % full_context):
+        #pass
+        #else:
         run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
+    if os.path.isfile("%s.resampling_distances.txt" % full_context):
+        pass
+    else:
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % full_context, "%s.resampling_distances.txt" % full_context)
         for line in open("%s.resampling_distances.txt" % full_context,"U"):
             resample_fields = line.split()
@@ -1099,5 +1103,5 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
                 print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
             else:
                 pass
-    outfile.close()
+            #outfile.close()
         
