@@ -1008,7 +1008,7 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
     for item in to_prune_set:
         new_name = str(id)+str(item)
         if os.path.isfile("%s-PARAMS" % new_name):
-            pass
+            continue
         else:
             tmptree = open("%s.tmp.tree" % new_name, "w")
             to_prune = []
@@ -1046,9 +1046,6 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
     """not currently tested, but needs to be"""
     name=get_seq_name(sample)
     split_fields=name.split(".")
-    #if os.path.isfile("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2])):
-    #    pass
-    #else:
     outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
     name_fixed = []
     name_fixed.append(re.sub('[:,]', '', split_fields[2]))
@@ -1083,9 +1080,6 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
         tmptree2.close()
         matrix_to_fasta(sample, "%s.fasta" % full_context)
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
-        #if os.path.isfile("%s.tree_including_unknowns_noedges.tree" % full_context):
-        #pass
-        #else:
         run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
     if os.path.isfile("%s.resampling_distances.txt" % full_context):
         pass
@@ -1103,5 +1097,4 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
                 print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
             else:
                 pass
-            #outfile.close()
         

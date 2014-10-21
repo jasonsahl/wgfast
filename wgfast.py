@@ -95,12 +95,18 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     except OSError, e:
         if e.errno != errno.EEXIST:raise
     #copy reference into the scratch directory, where all of the work will take place
-    subprocess.check_call("cp %s %s/scratch/reference.fasta" % (ref_path, ap), shell=True)
-    #index reference file.  GATK appears to do this incorrectly"""
-    subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % ap, shell=True)
-    subprocess.check_call("bwa index %s/scratch/reference.fasta > /dev/null 2>&1" % ap, shell=True)
-    #write reduced matrix with only the SNP data"""
-    write_reduced_matrix(matrix)
+    if only_subs == "T":
+        pass
+    else:
+        subprocess.check_call("cp %s %s/scratch/reference.fasta" % (ref_path, ap), shell=True)
+        #index reference file.  GATK appears to do this incorrectly"""
+        subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % ap, shell=True)
+        subprocess.check_call("bwa index %s/scratch/reference.fasta > /dev/null 2>&1" % ap, shell=True)
+        #write reduced matrix with only the SNP data"""
+    if os.path.isfile("temp.matrix"):
+        pass
+    else:
+        write_reduced_matrix(matrix)
     ref_name=get_seq_name(reference)
     """creates dict file with picard tools.  In testing, GATK does this incorrectly"""
     try:
@@ -173,7 +179,10 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             pass
         else:
             try:
-                os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
+                if os.path.isfile("tmp_patristic_distances.txt"):
+                    pass
+                else:
+                    os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
             except:
                 print "all_patrisitic_distances.txt must be in your analysis directory!"
                 sys.exit()
