@@ -212,6 +212,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             for k,v in sample_sets.iteritems():
                 uniques= []
                 [uniques.append(item) for item in v if item not in uniques]
+                print k, uniques
                 def _perform_workflow(data):
                     create_params_files(k, uniques, tree, "temp.matrix", final_sets, processors)
                 set(p_func.pmap(_perform_workflow,
