@@ -73,22 +73,22 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     #done checking for dependencies"""
     log_isg.logPrint('WG-FAST pipeline starting')
     log_isg.logPrint("WG-FAST was envoked with the following parameters:")
-    print "-m %s" % matrix
-    print "-t %s" % tree
-    print "-r %s" % reference
-    print "-d %s" % directory
-    print "-x %s" % parameters
-    print "-p %s" % processors
-    print "-c %s" % coverage
-    print "-o %s" % proportion
-    print "-k %s" % keep
-    print "-s %s" % subsample
-    print "-n %s" % subnums
-    print "-g %s" % doc
-    print "-e %s" % tmp_dir
-    print "-z %s" % insertion_method
-    print "-f %s" % fudge
-    print "-y %s" % only_subs
+    print "-m %s \\" % matrix
+    print "-t %s \\" % tree
+    print "-r %s \\" % reference
+    print "-d %s \\" % directory
+    print "-x %s \\" % parameters
+    print "-p %s \\" % processors
+    print "-c %s \\" % coverage
+    print "-o %s \\" % proportion
+    print "-k %s \\" % keep
+    print "-s %s \\" % subsample
+    print "-n %s \\" % subnums
+    print "-g %s \\" % doc
+    print "-e %s \\" % tmp_dir
+    print "-z %s \\" % insertion_method
+    print "-f %s \\" % fudge
+    print "-y %s \\" % only_subs
     print "-j %s" % model
     try:
         os.makedirs('%s/scratch' % ap)
@@ -231,7 +231,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         pass
     else:
         try:
-            subprocess.check_call("rm all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist temp.matrix tmp.tree tmp_patristic_distances.txt out* RAxML_portableTree*jplace *.unpaired.fastq.gz", shell=True, stderr=open(os.devnull, 'w'))
+            subprocess.check_call("rm all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist tmp.tree temp.matrix tmp_patristic_distances.txt out* RAxML_portableTree*jplace *.unpaired.fastq.gz", shell=True, stderr=open(os.devnull, 'w'))
         except:
             pass
         for outname in outnames:

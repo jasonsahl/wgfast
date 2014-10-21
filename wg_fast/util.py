@@ -748,15 +748,18 @@ def compare_subsample_results(outnames,distances,fudge):
         dists_equal_to_true=[ ]
         dists_less_than_true=[ ]
         """Here, I get the list of the genomes that are being analyzed"""
-        for line in open(infile, "U"):
-            fields = line.split()
-            all_dists.append(float(fields[7]))
         try:
+            for line in open(infile, "U"):
+                fields = line.split()
+                all_dists.append(float(fields[7]))
+        except:
+           print "problem parsing input file: ", infile
+        if len(all_dists)>=1:
             max_dist=max(all_dists)
             print ""
             print "maximum subsample distance between %s and %s = %.2f" % (fields[3],fields[5],float(max_dist)),"\n",
-        except:
-            print "problem found in input file: ", infile
+        else:
+            print "probelm grabbing distances"
         true_dists = [ ]
         for distance in distances:
             if distance[1] == split_fields[1]:
@@ -1039,6 +1042,7 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
             matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
             os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (new_name, new_name))
             prune_fasta(to_prune, "%s_in.fasta" % new_name, "%s_pruned.fasta" % new_name)
+            #forcing GTRGAMMA
             subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
             os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
     
