@@ -231,7 +231,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
             process_sam("%s.sam" % idx, idx)
             """inserts read group information, required by new versions of GATK"""
             os.system("java -jar %s INPUT=%s.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
-            os.system("samtools index %s_renamed_header.bam" % idx)
+            os.system("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx)
         run_gatk(reference, processors, idx, gatk, tmp_dir)
         if "T" == doc:
             lock.acquire()
@@ -1042,13 +1042,18 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
             matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
             os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (new_name, new_name))
             prune_fasta(to_prune, "%s_in.fasta" % new_name, "%s_pruned.fasta" % new_name)
+            try:
+                subprocess.check_call("rm RAxML*%s-PARAMS" % new_name, shell=True, stderr=open(os.devnull, 'w'))
+            except:
+                pass
             #forcing GTRGAMMA
             try:
-                subprocess.check_call("rm RAxML*%s" % new_name, shell=True, stderr=open(os.devnull, 'w'))
+                #subprocess.check_call("rm RAxML*%s*PARAMS" % new_name, shell=True, stderr=open(os.devnull, 'w'))
                 subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
+                os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
             except:
-                print "problem building parameters file for %s" % new_name
-            os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
+                continue
+            
     
 def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, insertion_method, parameters, model):
     """not currently tested, but needs to be"""

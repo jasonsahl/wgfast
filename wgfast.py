@@ -193,6 +193,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             allsnps = get_all_snps(matrix)
             def _perform_workflow(data):
                 f = data
+                #If you already have tmp.matrices created, they won't be made again
                 subsample_snps_dev("temp.matrix", f, used_snps, subnums, allsnps)
             results = set(p_func.pmap(_perform_workflow,
                               files_and_temp_names,
@@ -212,8 +213,8 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             for k,v in sample_sets.iteritems():
                 uniques= []
                 [uniques.append(item) for item in v if item not in uniques]
-                print k, uniques
                 def _perform_workflow(data):
+                    #If you already have PARAMS files in your analysis directory, they won't be made again
                     create_params_files(k, uniques, tree, "temp.matrix", final_sets, processors)
                 set(p_func.pmap(_perform_workflow,
                                       sample_sets,
@@ -237,7 +238,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             pass
         for outname in outnames:
             try:
-                #subprocess.check_call("rm %s.bam* %s.vcf* %s.filtered.vcf %s.sam.log %s.closest.two.txt %s_coverage*" % (outname,outname,outname,outname,outname,outname), shell=True, stderr=open(os.devnull, 'w'))
                 subprocess.check_call("rm %s* RAxML_log* RAxML_info*" % outname, shell=True, stderr=open(os.devnull, 'w'))
             except:
                 pass
