@@ -219,6 +219,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                 set(p_func.pmap(_perform_workflow,
                                       sample_sets,
                                       num_workers=4))
+            subprocess.check_call("rm RAxML*", shell=True)
             log_isg.logPrint('adding unknowns to tree')
             def _perform_workflow_2(data):
                 z = data

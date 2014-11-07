@@ -759,7 +759,7 @@ def compare_subsample_results(outnames,distances,fudge):
             print ""
             print "maximum subsample distance between %s and %s = %.2f" % (fields[3],fields[5],float(max_dist)),"\n",
         else:
-            print "probelm grabbing distances"
+            print "problem grabbing distances"
         true_dists = [ ]
         for distance in distances:
             if distance[1] == split_fields[1]:
@@ -1071,7 +1071,8 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
     for x in to_prune:
         to_prune_fixed.append(re.sub('[:,]', '', x))
     full_context = split_fields[0]+split_fields[1]+split_fields[2]
-    new_name = split_fields[0]+split_fields[2]
+    #new_name = split_fields[0]+split_fields[2]
+    #Problem is that this can't distinguish from empty files
     if os.path.isfile("%s.tree_including_unknowns_noedges.tree" % full_context):
         pass
     else:
@@ -1095,11 +1096,12 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
         matrix_to_fasta(sample, "%s.fasta" % full_context)
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
         if os.path.isfile("%s-PARAMS" % new_name): 
-            run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % new_name, "GTRGAMMA", "%s" % full_context)
+            run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % full_context, "GTRGAMMA", "%s" % full_context)
         else:
-            subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
+            subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, full_context, full_context, full_context), shell=True)
             os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
-            run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
+            run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % full_context, "GTRGAMMA", "%s" % full_context)
+    #if these are already calculated, we don't want to calculate again!
     if os.path.isfile("%s.resampling_distances.txt" % full_context):
         pass
     else:
