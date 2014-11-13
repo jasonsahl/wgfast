@@ -22,7 +22,7 @@ except:
     sys.exit()
 
 """modify line below to reflect your installation directory"""
-WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
+WGFAST_PATH="/Users/jsahl/wgfast/run"
 if os.path.exists(WGFAST_PATH):
     sys.path.append("%s" % WGFAST_PATH)
 else:

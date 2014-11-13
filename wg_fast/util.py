@@ -1095,25 +1095,32 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
         matrix_to_fasta(sample, "%s.fasta" % full_context)
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
         if os.path.isfile("%s-PARAMS" % new_name): 
-            run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % new_name, "GTRGAMMA", "%s" % full_context)
+            try:
+                run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % new_name, "GTRGAMMA", "%s" % full_context)
+            except:
+                pass
         else:
-            subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
-            os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
-            run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
+            try:
+                subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
+                os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
+                run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
+            except:
+                pass
     if os.path.isfile("%s.resampling_distances.txt" % full_context):
         pass
     else:
-        calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % full_context, "%s.resampling_distances.txt" % full_context)
-        for line in open("%s.resampling_distances.txt" % full_context,"U"):
-            resample_fields = line.split()
-            myid = re.sub("[:']", "",resample_fields[4])
-            fixedid = myid.replace("QUERY___","")
-            newid = re.sub("[:']","",resample_fields[2])
-            fixedid2 = newid.replace("QUERY___","")
-            if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
-                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
-            elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
-                print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
-            else:
-                pass
+        try:
+            calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % full_context, "%s.resampling_distances.txt" % full_context)
+            for line in open("%s.resampling_distances.txt" % full_context,"U"):
+                resample_fields = line.split()
+                myid = re.sub("[:']", "",resample_fields[4])
+                fixedid = myid.replace("QUERY___","")
+                newid = re.sub("[:']","",resample_fields[2])
+                fixedid2 = newid.replace("QUERY___","")
+                if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
+                    print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid, resample_fields[5])
+                elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
+                    print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
+                else:
+                    pass
         
