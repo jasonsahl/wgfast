@@ -1123,4 +1123,5 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
                     print >> outfile, "resampled distance between Reference and %s = %s" % (fixedid2, resample_fields[5])
                 else:
                     pass
-        
+        except:
+            pass
