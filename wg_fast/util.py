@@ -428,15 +428,18 @@ def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, mode
         raxml_run = Popen(args, stderr=log_fh, stdout=vcf_fh)
         raxml_run.wait()
         log_isg.logPrint("sequence(s) inserted into tree")
+        os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.%s > %s.tree_including_unknowns_noedges.tree" % (suffix, suffix))
     except:
         log_isg.logPrint("sequence(s) were not inserted into tree!!!!!")
-    os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.%s > %s.tree_including_unknowns_noedges.tree" % (suffix, suffix))
-    subprocess.check_call("mv RAxML_labelledTree.%s %s_tree_including_unknowns_edges.tree" % (suffix, suffix) , shell=True)
+    #subprocess.check_call("mv RAxML_labelledTree.%s %s_tree_including_unknowns_edges.tree" % (suffix, suffix) , shell=True)
     try:
         subprocess.check_call("cat RAxML_classificationLikelihoodWeights.%s >> %s" % (suffix, out_class_file), shell=True)
     except:
         pass
-    os.system("rm RAxML_*.%s" % suffix)
+    try:
+        os.system("rm RAxML_*.%s" % suffix)
+    except:
+        pass
     return suffix
 
 def subsample_snps(matrix, dist_sets, used_snps, subnums):
