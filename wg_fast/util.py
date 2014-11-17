@@ -771,17 +771,20 @@ def compare_subsample_results(outnames,distances,fudge):
                 dists_less_than_true.append("1")
             else:
                 dists_equal_to_true.append("1")
-        greaters = int(len(dists_greater_than_true))
-        equals = int(len(dists_equal_to_true))
-        lessers = int(len(dists_less_than_true))
-        print "True distance between Reference and %s = %.2f" % (split_fields[1],float(true_dists[0]))
-        print "Sample: %s" % split_fields[0]
-        print "Subsample distances between Reference and %s greater than true value = %s" % (split_fields[2],greaters)
-        print "Subsample distances between Reference and %s equal to true value = %s" % (split_fields[2],equals)
-        print "Subsample distances between Reference and %s less than true value = %s" % (split_fields[2],lessers)    
-        p = (greaters+lessers)/(greaters+lessers+equals)
-        print "Placement p value = %.3f" % float(p)
-        
+        try:
+            greaters = int(len(dists_greater_than_true))
+            equals = int(len(dists_equal_to_true))
+            lessers = int(len(dists_less_than_true))
+            print "True distance between Reference and %s = %.2f" % (split_fields[1],float(true_dists[0]))
+            print "Sample: %s" % split_fields[0]
+            print "Subsample distances between Reference and %s greater than true value = %s" % (split_fields[2],greaters)
+            print "Subsample distances between Reference and %s equal to true value = %s" % (split_fields[2],equals)
+            print "Subsample distances between Reference and %s less than true value = %s" % (split_fields[2],lessers)    
+            p = (greaters+lessers)/(greaters+lessers+equals)
+            print "Placement p value = %.3f" % float(p)
+        except:
+            pass
+            
 def transform_tree(tree):
     """converts a Newick tree into a Nexus-formatted
     tree that can be visualized with FigTree - needs testing"""
@@ -843,6 +846,7 @@ def make_temp_matrix(vcf, matrix, name):
     """these are all of the screened SNPs - tested"""
     matrix_ids=[ ]
     firstLine = in_matrix.readline()
+    #Only reads the first field in for each line in matrix
     for line in in_matrix:
         mfields=line.split()
         matrix_ids.append(mfields[0])
@@ -850,6 +854,7 @@ def make_temp_matrix(vcf, matrix, name):
     new_dicts={}
     with open(vcf, "U") as my_file:
         first_char = my_file.read(1)
+        #Only reads in if file isn't empty
         if first_char:
             my_file.seek(0)
             for line in my_file:
@@ -860,6 +865,8 @@ def make_temp_matrix(vcf, matrix, name):
             new_dicts.update({k:v})
         for x in matrix_ids:
             if x not in value_dict.keys():new_dicts.update({x:"-"})
+    else:
+        print "no usable information in dictionary"
     variety = [ ]
     for x in matrix_ids:
         if x in new_dicts:
