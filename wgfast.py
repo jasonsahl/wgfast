@@ -22,7 +22,7 @@ except:
     sys.exit()
 
 """modify line below to reflect your installation directory"""
-WGFAST_PATH="/Users/jsahl/wgfast/run"
+WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
 if os.path.exists(WGFAST_PATH):
     sys.path.append("%s" % WGFAST_PATH)
 else:
@@ -271,10 +271,10 @@ if __name__ == "__main__":
                       help="# of processors to use - defaults to 2",
                       default="2", type="int")
     parser.add_option("-c", "--coverage", dest="coverage",
-		      help="minimum SNP coverage required to be called a SNP - defaults to 3",
+		              help="minimum SNP coverage required to be called a SNP - defaults to 3",
                       default="3", type="int")
     parser.add_option("-o", "--proportion", dest="proportion",
-	          help="proportion of alleles to be called a SNP, defaults to 0.9",
+	                  help="proportion of alleles to be called a SNP, defaults to 0.9",
                       default="0.9", type="float")
     parser.add_option("-k", "--keep", dest="keep",
                       help="keep temp files?  Defaults to F",
