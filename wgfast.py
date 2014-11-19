@@ -229,7 +229,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                         #If you already have PARAMS files in your analysis directory, they won't be made again
                         create_params_files(k, v, tree, "temp.matrix", final_sets, processors)
                     set(p_func.pmap(_perform_workflow,
-                                    #sample_sets,
                                     new_sample_dicts,
                                     num_workers=4))
             try:
@@ -239,9 +238,8 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             log_isg.logPrint('adding unknowns to tree')
             def _perform_workflow_2(data):
                 z = data
-                print z
                 process_temp_matrices_dev(final_sets, z, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
-            results = set(p_func.pmap(_perform_workflow_2,
+            set(p_func.pmap(_perform_workflow_2,
                                       final_matrices,
                                       num_workers=processors))
             compare_subsample_results(outnames,distances,fudge)
