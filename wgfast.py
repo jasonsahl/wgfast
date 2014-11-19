@@ -103,17 +103,17 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % ap, shell=True)
         subprocess.check_call("bwa index %s/scratch/reference.fasta > /dev/null 2>&1" % ap, shell=True)
         #write reduced matrix with only the SNP data"""
+        """creates dict file with picard tools.  In testing, GATK does this incorrectly"""
+        try:
+            os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
+        except:
+            print "dict wasn't created"
+            sys.exit()
     if os.path.isfile("temp.matrix"):
         pass
     else:
         write_reduced_matrix(matrix)
     ref_name=get_seq_name(reference)
-    """creates dict file with picard tools.  In testing, GATK does this incorrectly"""
-    try:
-        os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
-    except:
-        print "dict wasn't created"
-        sys.exit()
     if only_subs == "T":
         pass
     else:
@@ -122,6 +122,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
+    #Outnames is required for the sub-sampling routine, even with -y T
     outnames=grab_names()
     for name in outnames:
         for k,v in used_snps.iteritems():
@@ -210,17 +211,26 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                 else:
                     sample_sets[entries[0]]=[entries[2]]
             log_isg.logPrint('creating PARAMS file')
+            #trial code
+            new_sample_dicts = {}
+            for k,v in sample_sets.iteritems():
+                uniques = []
+                [uniques.append(item) for item in v if item not in uniques]
+                new_sample_dicts.update({k:uniques})
+            #end of trial code
             if os.path.isfile("*PARAMS"):
                 pass
             else:
-                for k,v in sample_sets.iteritems():
-                    uniques= []
-                    [uniques.append(item) for item in v if item not in uniques]
+                #for k,v in sample_sets.iteritems():
+                for k,v in new_sample_dicts.iteritems():
+                    #uniques= []
+                    #[uniques.append(item) for item in v if item not in uniques]
                     def _perform_workflow(data):
                         #If you already have PARAMS files in your analysis directory, they won't be made again
-                        create_params_files(k, uniques, tree, "temp.matrix", final_sets, processors)
+                        create_params_files(k, v, tree, "temp.matrix", final_sets, processors)
                     set(p_func.pmap(_perform_workflow,
-                                    sample_sets,
+                                    #sample_sets,
+                                    new_sample_dicts,
                                     num_workers=4))
             try:
                 subprocess.check_call("rm RAxML*", shell=True, stderr=open(os.devnull, 'w'))
