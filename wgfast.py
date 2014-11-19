@@ -215,7 +215,10 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                 [uniques.append(item) for item in v if item not in uniques]
                 def _perform_workflow(data):
                     #If you already have PARAMS files in your analysis directory, they won't be made again
-                    create_params_files(k, uniques, tree, "temp.matrix", final_sets, processors)
+                    if os.path.isfile("*PARAMS"):
+                        pass
+                    else:
+                        create_params_files(k, uniques, tree, "temp.matrix", final_sets, processors)
                 set(p_func.pmap(_perform_workflow,
                                       sample_sets,
                                       num_workers=4))
