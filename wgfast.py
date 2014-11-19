@@ -210,7 +210,6 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                     sample_sets[entries[0]].append(entries[2])
                 else:
                     sample_sets[entries[0]]=[entries[2]]
-            log_isg.logPrint('creating PARAMS file')
             #trial code
             new_sample_dicts = {}
             for k,v in sample_sets.iteritems():
@@ -218,6 +217,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                 [uniques.append(item) for item in v if item not in uniques]
                 new_sample_dicts.update({k:uniques})
             #end of trial code
+            log_isg.logPrint('creating PARAMS file')
             if os.path.isfile("*PARAMS"):
                 pass
             else:
@@ -228,6 +228,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                     def _perform_workflow(data):
                         #If you already have PARAMS files in your analysis directory, they won't be made again
                         create_params_files(k, v, tree, "temp.matrix", final_sets, processors)
+                        print "done"
                     set(p_func.pmap(_perform_workflow,
                                     #sample_sets,
                                     new_sample_dicts,
