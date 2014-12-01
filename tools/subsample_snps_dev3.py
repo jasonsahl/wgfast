@@ -12,9 +12,17 @@ import re
 import os
 import subprocess
 import dendropy
-from dendropy import treecalc
+try:
+    from dendropy import treecalc
+except:
+    print "Dendropy needs to be installed for this script to run"
+    sys.exit()
 from subprocess import Popen
-from Bio import SeqIO
+try:
+    from Bio import SeqIO
+except:
+    print "BioPython needs to be installed for this script to run"
+    sys.exit()
 
 def test_file(option, opt_str, value, parser):
     try:
@@ -25,7 +33,8 @@ def test_file(option, opt_str, value, parser):
 
 def subsample_snps(matrix, name, start):
     """get a list of all possible positions, depending
-    on those positions in the original matrix"""
+    on those positions in the original matrix.  Similar
+    to method in the main script"""
     allSNPs = [ ]
     for line in open(matrix, "U"):
         if line.startswith("LocusID"):
@@ -58,7 +67,9 @@ def subsample_snps(matrix, name, start):
     return last
 
 def matrix_to_fasta(matrix_in, name, last):
-    """converts a SNP matrix to fasta format"""
+    """converts a SNP matrix to fasta format.
+    Again, slightly different output compared to tested
+    function"""
     reduced = [ ]
     out_fasta = open("%s.fasta" % name, "w")
     for line in open(matrix_in):
@@ -70,7 +81,8 @@ def matrix_to_fasta(matrix_in, name, last):
         print >> out_fasta, "".join(x[1:])
 
 def branch_lengths_2_decimals(str_newick_tree):
-    """replaces branch lengths in scientific notation with decimals"""
+    """replaces branch lengths in scientific notation with decimals
+    Identical to tested function in main script"""
     colon_s = 0
     comma_back_paren_s = 0
     num = ''
@@ -92,10 +104,15 @@ def branch_lengths_2_decimals(str_newick_tree):
     new_tree = new_tree.strip('\'').strip('\"').strip('\'') + ";"
     return new_tree
 
-def insert_sequence(in_fasta, tree, processors, fixed_name):
-    args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', 'v',
-	     '-s', '%s' % in_fasta, '-m', 'GTRGAMMA', '-n', '%s' % fixed_name, '-t',
-	     '%s' % tree, '>', '/dev/null 2>&1']
+def insert_sequence(in_fasta, tree, fixed_name, parameters):
+    if "NULL" == parameters:
+        args = ['raxmlHPC-SSE3S', '-f', 'V',
+	         '-s', '%s' % in_fasta, '-m', 'ASC_GTRGAMMA', '-n', '%s' % fixed_name, '-t',
+	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
+    else:
+        args = ['raxmlHPC-SSE3', '-f', 'V',
+	         '-s', '%s' % fasta_in, '-m', 'ASC_GTRGAMMA', '-n', '%s' % fixed_name, '-R', parameters, '-t',
+	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
     try:
         vcf_fh = open('raxml.out', 'w')
     except:
@@ -189,7 +206,6 @@ def rename_fasta(in_fasta, name, out_fasta):
     output_handle.close()
 
 def get_field_index(matrix_in):
-    matrix=open(matrix_in, "rU")
     firstLine = open(matrix_in).readline()
     first_fields = firstLine.split("\t")
     last=first_fields.index("#SNPcall")
@@ -206,11 +222,19 @@ def remove_sequence(in_fasta,name,out_fasta):
     infile.close()
     output_handle.close()
 
-def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
+def main(matrix,tree,parameters,name,start,step,end,processors,iterations,deviation):
+    aa = subprocess.call(['which', 'raxmlHPC-SSE3'])
+    if aa == 0:
+        pass
+    else:
+        print "RAxML must be in your path as raxmlHPC-SSE3"
+        sys.exit()
+    """get starting information"""
     start_dir = os.getcwd()
     start_path = os.path.abspath("%s" % start_dir)
     matrix_path = os.path.abspath("%s" % matrix)
     tree_path = os.path.abspath("%s" % tree)
+    """done"""
     os.system("mkdir %s/%s.tmp" % (start_path,name))
     fixed_name = []
     os.chdir("%s/%s.tmp" % (start_path,name))
@@ -234,7 +258,7 @@ def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
             rename_fasta("%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j), tmp_name,"%s.%s.%s.zzyzz.fasta" % ("".join(fixed_name),i,j))
         os.system("cat %s.*.zzyzz.fasta REF_pruned.fasta > %s.joined.fasta" % ("".join(fixed_name),"".join(fixed_name)))
         os.system("rm %s.*.tmp.fasta %s.*.zzyzz.fasta" % ("".join(fixed_name),"".join(fixed_name)))
-        insert_sequence("%s.joined.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), processors, ''.join(fixed_name))
+        insert_sequence("%s.joined.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), ''.join(fixed_name), parameters)
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % "".join(fixed_name),"%s.all_patristic_distances.txt" % "".join(fixed_name))
         os.system("cp %s.tree_including_unknowns_noedges.tree %s.%s.%s.tree" % ("".join(fixed_name),"".join(fixed_name),i,j))
         query_names = []
@@ -259,6 +283,9 @@ if __name__ == "__main__":
     parser.add_option("-t", "--tree", dest="tree",
                       help="path to input tree [REQUIRED]",
                       action="callback", callback=test_file, type="string")
+    arser.add_option("-x", "--parameters", dest="parameters",
+                      help="path to RAxML parameters file",
+                      action="store", type="string", default="NULL")
     parser.add_option("-n", "--name", dest="name",
                       help="name of genome to test [REQUIRED]",
                       action="store", type="string")
@@ -290,5 +317,5 @@ if __name__ == "__main__":
             parser.print_help()
             exit(-1)
 
-    main(options.matrix,options.tree,options.name,options.start,options.step,options.end,options.processors,
-         options.iterations,options.deviation)
+    main(options.matrix,options.tree,options.parameters,options.name,options.start,options.step,options.end,
+         options.processors,options.iterations,options.deviation)

@@ -44,7 +44,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     if aa == 0:
         pass
     else:
-        print "RAxML must be in your path as raxmlHPC-PTHREADS"
+        print "RAxML must be in your path as raxmlHPC-SSE3"
         sys.exit()
     print "*citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'"
     print "*citation: 'Berger SA, Krompass D, Stamatakis A. Performance, accuracy, and Web server for evolutionary placement of short sequence reads under maximum likelihood. Syst Biol. 2011;60(3):291-302'"
