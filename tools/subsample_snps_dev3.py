@@ -338,9 +338,11 @@ def main(matrix,tree,parameters,name,start,step,end,processors,iterations,deviat
     calculate_pairwise_tree_dists(tree_path, "%s.all_snps_patristic_distances.txt" % "".join(fixed_name))
     last=get_field_index(matrix_path)
     matrix_to_fasta("REF.matrix","REF",last)
+    #Prunes out your chosen sequence from the FASTA file, only appears to prune out genome of interest
     remove_sequence("REF.fasta", "".join(fixed_name), "REF_pruned.fasta")
     true_value = parse_distances("%s.all_snps_patristic_distances.txt" % "".join(fixed_name),fixed_name)
     outfile = open("%s.results.out" % ''.join(fixed_name), "w")
+    #Pruning tree appears to only truly remove the genome of interest
     prune_tree(''.join(fixed_name),tree_path)
     for i in range(start, end+1, step):
         hits = []
