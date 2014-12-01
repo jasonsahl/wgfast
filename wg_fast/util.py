@@ -407,13 +407,23 @@ def matrix_to_fasta(matrix_in, outfile):
 def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, model, suffix):
     """untested function, system calls"""
     if "NULL" == parameters:
-        args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
-	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-t',
-	     '%s' % tree, '--asc-corr=lewis','>', '/dev/null 2>&1']
+        if "ASC_GTRGAMMA" == model:
+            args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
+	         '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-t',
+	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
+        else:
+            args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
+	         '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-t',
+	         '%s' % tree, '--no-bfgs', '>', '/dev/null 2>&1']
     else:
-        args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
-	     '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-R', parameters, '-t',
-	     '%s' % tree, '--asc-corr=lewis', '>', '/dev/null 2>&1']
+        if "ASC_GTRGAMMA" == model:
+            args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
+	         '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-R', parameters, '-t',
+	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
+        else:
+            args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
+	         '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-R', parameters, '-t',
+	         '%s' % tree, '--no-bfgs', '>', '/dev/null 2>&1'] 
     try:
         vcf_fh = open('%s.raxml.out' % suffix, 'w')
     except:
