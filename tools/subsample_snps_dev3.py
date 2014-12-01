@@ -25,7 +25,7 @@ except:
     sys.exit()
 try:
     from wg_fast.util import *
-    from igs.utils import logging as log_isg
+    from wg_fast.util import remove_invariant_sites
 except:
     print "wgfast path needs to be modified in the wgfast.py file"
     sys.exit()
