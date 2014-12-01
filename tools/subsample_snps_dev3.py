@@ -95,7 +95,20 @@ def tab_to_fasta(new_tab):
     infile.close()
     outfile.close()
     return to_test
-    
+
+def file_to_fasta(matrix, out_fasta):
+    """almost identical to matrix_to_fasta. Not tested"""
+    reduced = [ ]
+    out_matrix = open(out_fasta, "w")
+    for line in open(matrix, "U"):
+        fields = line.strip().split()
+        reduced.append(fields)
+    test=map(list, zip(*reduced))
+    for x in test:
+        print >> out_matrix, ">"+str(x[0])
+        print >> out_matrix, "".join(x[1:])
+    out_matrix.close()
+   
 def tab_to_matrix(tab):
     """tested"""
     reduced = [ ]
