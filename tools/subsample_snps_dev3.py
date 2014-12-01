@@ -12,6 +12,8 @@ import re
 import os
 import subprocess
 import dendropy
+import collections
+
 try:
     from dendropy import treecalc
 except:
