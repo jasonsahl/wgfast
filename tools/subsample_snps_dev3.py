@@ -23,6 +23,13 @@ try:
 except:
     print "BioPython needs to be installed for this script to run"
     sys.exit()
+try:
+    from wg_fast.util import *
+    from igs.utils import logging as log_isg
+except:
+    print "wgfast path needs to be modified in the wgfast.py file"
+    sys.exit()
+
 
 def test_file(option, opt_str, value, parser):
     try:
@@ -258,6 +265,7 @@ def main(matrix,tree,parameters,name,start,step,end,processors,iterations,deviat
             rename_fasta("%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j), tmp_name,"%s.%s.%s.zzyzz.fasta" % ("".join(fixed_name),i,j))
         os.system("cat %s.*.zzyzz.fasta REF_pruned.fasta > %s.joined.fasta" % ("".join(fixed_name),"".join(fixed_name)))
         os.system("rm %s.*.tmp.fasta %s.*.zzyzz.fasta" % ("".join(fixed_name),"".join(fixed_name)))
+        #problem starts here
         insert_sequence("%s.joined.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), ''.join(fixed_name), parameters)
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % "".join(fixed_name),"%s.all_patristic_distances.txt" % "".join(fixed_name))
         os.system("cp %s.tree_including_unknowns_noedges.tree %s.%s.%s.tree" % ("".join(fixed_name),"".join(fixed_name),i,j))
