@@ -11,7 +11,6 @@ import subprocess
 import random
 import os
 import glob
-from wg_fast.util import test_file
 
 def test_file(option, opt_str, value, parser):
     try:
