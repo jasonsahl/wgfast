@@ -23,13 +23,6 @@ try:
 except:
     print "BioPython needs to be installed for this script to run"
     sys.exit()
-try:
-    from wg_fast.util import *
-    from wg_fast.util import remove_invariant_sites
-except:
-    print "wgfast path needs to be modified in the wgfast.py file"
-    sys.exit()
-
 
 def test_file(option, opt_str, value, parser):
     try:
@@ -37,6 +30,86 @@ def test_file(option, opt_str, value, parser):
     except IOError:
         print '%s file cannot be opened' % option
         sys.exit()
+
+def remove_invariant_sites(in_fasta, out_fasta):
+    """only keep invarint sites, doesn't need testing"""
+    fasta_to_tab(in_fasta)
+    tab_to_matrix("out.tab")
+    filter_alignment("tab_matrix")
+    file_to_fasta("tab.filtered", out_fasta)
+
+def fasta_to_tab(fasta):
+    """tested"""
+    infile = open(fasta, "rU")
+    outfile = open("out.tab", "w")
+    for record in SeqIO.parse(infile, "fasta"):
+        """this list is just for testing,
+        and is ok if it's overwritten for each
+        fasta"""
+        for_test = []
+        print >> outfile, record.id, record.seq
+        for_test.append(record.id)
+        for_test.append(str(record.seq))
+    infile.close()
+    outfile.close()
+    return for_test
+
+def filter_alignment(tab):
+    """currently untested, but needs to be"""
+    outfile = open("tab.filtered", "w")
+    infile = open(tab, "U")
+    firstLine = infile.readline()
+    print >> outfile, firstLine,
+    for line in infile:
+        valid_fields = []
+        fields = line.split()
+        for field in fields:
+            """skip fields that might be present when missing data are included"""
+            if field != "-" and field != "N" and field != "X":
+                valid_fields.append(field)
+            else:
+                pass
+        counter=collections.Counter(valid_fields)
+        values=counter.values()
+        values.sort(key=int)
+        if len(values)>int(1):
+            print >> outfile, line,
+        else:
+            pass
+    outfile.close()
+    infile.close()
+
+def tab_to_fasta(new_tab):
+    """tested"""
+    infile = open(new_tab, "rU")
+    outfile = open("out.fasta", "w")
+    for line in infile:
+        to_test = []
+        fields = line.split()
+        print >> outfile, ">"+fields[0]
+        print >> outfile, fields[1].upper()
+        to_test.append(fields[0])
+        to_test.append(fields[1].upper())
+    infile.close()
+    outfile.close()
+    return to_test
+    
+def tab_to_matrix(tab):
+    """tested"""
+    reduced = [ ]
+    out_matrix = open("tab_matrix", "w")
+    for line in open(tab):
+        tmp_list = []
+        fields = line.split()
+        tmp_list.append(fields[0])
+        for nucs in fields[1]:
+            tmp_list.append(nucs.upper())
+        reduced.append(tmp_list)
+    test=map(list, zip(*reduced))
+    for x in test:
+        print >> out_matrix, "\t".join(x)
+    out_matrix.close()
+    return test
 
 def subsample_snps(matrix, name, start):
     """get a list of all possible positions, depending
