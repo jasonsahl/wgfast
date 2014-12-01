@@ -71,7 +71,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     print ""
     #done checking for dependencies"""
     log_isg.logPrint('WG-FAST pipeline starting')
-    log_isg.logPrint("WG-FAST was envoked with the following parameters:")
+    log_isg.logPrint("WG-FAST was invoked with the following parameters:")
     print "-m %s \\" % matrix
     print "-t %s \\" % tree
     print "-r %s \\" % reference
