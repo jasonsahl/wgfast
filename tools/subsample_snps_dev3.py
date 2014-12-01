@@ -283,7 +283,7 @@ if __name__ == "__main__":
     parser.add_option("-t", "--tree", dest="tree",
                       help="path to input tree [REQUIRED]",
                       action="callback", callback=test_file, type="string")
-    arser.add_option("-x", "--parameters", dest="parameters",
+    parser.add_option("-x", "--parameters", dest="parameters",
                       help="path to RAxML parameters file",
                       action="store", type="string", default="NULL")
     parser.add_option("-n", "--name", dest="name",
