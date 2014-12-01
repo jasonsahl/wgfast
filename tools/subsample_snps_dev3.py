@@ -111,7 +111,7 @@ def insert_sequence(in_fasta, tree, fixed_name, parameters):
 	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
     else:
         args = ['raxmlHPC-SSE3', '-f', 'V',
-	         '-s', '%s' % fasta_in, '-m', 'ASC_GTRGAMMA', '-n', '%s' % fixed_name, '-R', parameters, '-t',
+	         '-s', '%s' % in_fasta, '-m', 'ASC_GTRGAMMA', '-n', '%s' % fixed_name, '-R', parameters, '-t',
 	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
     try:
         vcf_fh = open('raxml.out', 'w')
