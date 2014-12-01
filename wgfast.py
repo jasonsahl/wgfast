@@ -35,7 +35,6 @@ TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
 
 
 def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model):
-    #start_dir = os.getcwd()
     ref_path=os.path.abspath("%s" % reference)
     dir_path=os.path.abspath("%s" % directory)
     #check for binary dependencies
