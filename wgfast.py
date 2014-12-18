@@ -69,6 +69,9 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     print "Uses trimmomatic for read trimming"
     print "*citation: Bolger A.M., Lohse M., Usadel B. Trimmomatic: A flexible trimmer for Illumina Sequence Data.  Bioinformatics. 2014.  Doi:10.1093/bioinformatics/btu170"
     print ""
+    print "Uses BioPython for FASTA parsing"
+    print "*citation :Cock PJ, Antao T, Chang JT, Chapman BA, Cox CJ, Dalke A, Friedberg I, Hamelryck T, Kauff F, Wilczynski B, de Hoon MJ. Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics. 2009;25(11):1422-3"
+    print ""
     #done checking for dependencies"""
     log_isg.logPrint('WG-FAST pipeline starting')
     log_isg.logPrint("WG-FAST was invoked with the following parameters:")
