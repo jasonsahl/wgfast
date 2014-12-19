@@ -762,7 +762,7 @@ def compare_subsample_results(outnames,distances,fudge):
             print ""
             print "maximum subsample distance between %s and %s = %.2f" % (fields[3],fields[5],float(max_dist)),"\n",
         else:
-            print "probelm grabbing distances"
+            print "problem grabbing distances- make sure that subsample.distances.txt files aren't empty"
         true_dists = [ ]
         for distance in distances:
             if distance[1] == split_fields[1]:
