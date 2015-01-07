@@ -11,7 +11,13 @@ import subprocess
 import random
 import os
 import glob
-from wg_fast.util import test_file
+
+def test_file(option, opt_str, value, parser):
+    try:
+        with open(value): setattr(parser.values, option.dest, value)
+    except IOError:
+        print '%s file cannot be opened' % option
+        sys.exit()
 
 def subsample_snps(matrix, snps, iterations):
     """get a list of all possible positions, depending
@@ -62,6 +68,7 @@ def compare_matrices(start_dir, ref_matrix, processors):
         '#mantel(phylip1=%s, phylip2=%s, method=pearson)' % (distfile, ref_matrix), '>/dev/null 2>&1'])
 
 def process_results(start_dir):
+    """un-tested function"""
     outfile = open("results.txt", "w")
     for infile in glob.glob(os.path.join(start_dir, '*.tmp.matrix.phylip.mantel')):
         for line in open(infile, "U"):

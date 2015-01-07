@@ -12,9 +12,19 @@ import re
 import os
 import subprocess
 import dendropy
-from dendropy import treecalc
+import collections
+
+try:
+    from dendropy import treecalc
+except:
+    print "Dendropy needs to be installed for this script to run"
+    sys.exit()
 from subprocess import Popen
-from Bio import SeqIO
+try:
+    from Bio import SeqIO
+except:
+    print "BioPython needs to be installed for this script to run"
+    sys.exit()
 
 def test_file(option, opt_str, value, parser):
     try:
@@ -23,9 +33,103 @@ def test_file(option, opt_str, value, parser):
         print '%s file cannot be opened' % option
         sys.exit()
 
+def remove_invariant_sites(in_fasta, out_fasta):
+    """only keep invarint sites, doesn't need testing"""
+    fasta_to_tab(in_fasta)
+    tab_to_matrix("out.tab")
+    filter_alignment("tab_matrix")
+    file_to_fasta("tab.filtered", out_fasta)
+
+def fasta_to_tab(fasta):
+    """tested"""
+    infile = open(fasta, "rU")
+    outfile = open("out.tab", "w")
+    for record in SeqIO.parse(infile, "fasta"):
+        """this list is just for testing,
+        and is ok if it's overwritten for each
+        fasta"""
+        for_test = []
+        print >> outfile, record.id, record.seq
+        for_test.append(record.id)
+        for_test.append(str(record.seq))
+    infile.close()
+    outfile.close()
+    return for_test
+
+def filter_alignment(tab):
+    """currently untested, but needs to be"""
+    outfile = open("tab.filtered", "w")
+    infile = open(tab, "U")
+    firstLine = infile.readline()
+    print >> outfile, firstLine,
+    for line in infile:
+        valid_fields = []
+        fields = line.split()
+        for field in fields:
+            """skip fields that might be present when missing data are included"""
+            if field != "-" and field != "N" and field != "X":
+                valid_fields.append(field)
+            else:
+                pass
+        counter=collections.Counter(valid_fields)
+        values=counter.values()
+        values.sort(key=int)
+        if len(values)>int(1):
+            print >> outfile, line,
+        else:
+            pass
+    outfile.close()
+    infile.close()
+
+def tab_to_fasta(new_tab):
+    """tested"""
+    infile = open(new_tab, "rU")
+    outfile = open("out.fasta", "w")
+    for line in infile:
+        to_test = []
+        fields = line.split()
+        print >> outfile, ">"+fields[0]
+        print >> outfile, fields[1].upper()
+        to_test.append(fields[0])
+        to_test.append(fields[1].upper())
+    infile.close()
+    outfile.close()
+    return to_test
+
+def file_to_fasta(matrix, out_fasta):
+    """almost identical to matrix_to_fasta. Not tested"""
+    reduced = [ ]
+    out_matrix = open(out_fasta, "w")
+    for line in open(matrix, "U"):
+        fields = line.strip().split()
+        reduced.append(fields)
+    test=map(list, zip(*reduced))
+    for x in test:
+        print >> out_matrix, ">"+str(x[0])
+        print >> out_matrix, "".join(x[1:])
+    out_matrix.close()
+   
+def tab_to_matrix(tab):
+    """tested"""
+    reduced = [ ]
+    out_matrix = open("tab_matrix", "w")
+    for line in open(tab):
+        tmp_list = []
+        fields = line.split()
+        tmp_list.append(fields[0])
+        for nucs in fields[1]:
+            tmp_list.append(nucs.upper())
+        reduced.append(tmp_list)
+    test=map(list, zip(*reduced))
+    for x in test:
+        print >> out_matrix, "\t".join(x)
+    out_matrix.close()
+    return test
+
 def subsample_snps(matrix, name, start):
     """get a list of all possible positions, depending
-    on those positions in the original matrix"""
+    on those positions in the original matrix.  Similar
+    to method in the main script"""
     allSNPs = [ ]
     for line in open(matrix, "U"):
         if line.startswith("LocusID"):
@@ -58,7 +162,9 @@ def subsample_snps(matrix, name, start):
     return last
 
 def matrix_to_fasta(matrix_in, name, last):
-    """converts a SNP matrix to fasta format"""
+    """converts a SNP matrix to fasta format.
+    Again, slightly different output compared to tested
+    function"""
     reduced = [ ]
     out_fasta = open("%s.fasta" % name, "w")
     for line in open(matrix_in):
@@ -70,7 +176,8 @@ def matrix_to_fasta(matrix_in, name, last):
         print >> out_fasta, "".join(x[1:])
 
 def branch_lengths_2_decimals(str_newick_tree):
-    """replaces branch lengths in scientific notation with decimals"""
+    """replaces branch lengths in scientific notation with decimals
+    Identical to tested function in main script"""
     colon_s = 0
     comma_back_paren_s = 0
     num = ''
@@ -92,10 +199,15 @@ def branch_lengths_2_decimals(str_newick_tree):
     new_tree = new_tree.strip('\'').strip('\"').strip('\'') + ";"
     return new_tree
 
-def insert_sequence(in_fasta, tree, processors, fixed_name):
-    args = ['raxmlHPC-PTHREADS', '-T', '%s' % processors, '-f', 'v',
-	     '-s', '%s' % in_fasta, '-m', 'GTRGAMMA', '-n', '%s' % fixed_name, '-t',
-	     '%s' % tree, '>', '/dev/null 2>&1']
+def insert_sequence(in_fasta, tree, fixed_name, parameters):
+    if "NULL" == parameters:
+        args = ['raxmlHPC-SSE3S', '-f', 'V',
+	         '-s', '%s' % in_fasta, '-m', 'ASC_GTRGAMMA', '-n', '%s' % fixed_name, '-t',
+	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
+    else:
+        args = ['raxmlHPC-SSE3', '-f', 'V',
+	         '-s', '%s' % in_fasta, '-m', 'ASC_GTRGAMMA', '-n', '%s' % fixed_name, '-R', parameters, '-t',
+	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
     try:
         vcf_fh = open('raxml.out', 'w')
     except:
@@ -189,7 +301,6 @@ def rename_fasta(in_fasta, name, out_fasta):
     output_handle.close()
 
 def get_field_index(matrix_in):
-    matrix=open(matrix_in, "rU")
     firstLine = open(matrix_in).readline()
     first_fields = firstLine.split("\t")
     last=first_fields.index("#SNPcall")
@@ -206,11 +317,19 @@ def remove_sequence(in_fasta,name,out_fasta):
     infile.close()
     output_handle.close()
 
-def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
+def main(matrix,tree,parameters,name,start,step,end,processors,iterations,deviation):
+    aa = subprocess.call(['which', 'raxmlHPC-SSE3'])
+    if aa == 0:
+        pass
+    else:
+        print "RAxML must be in your path as raxmlHPC-SSE3"
+        sys.exit()
+    """get starting information"""
     start_dir = os.getcwd()
     start_path = os.path.abspath("%s" % start_dir)
     matrix_path = os.path.abspath("%s" % matrix)
     tree_path = os.path.abspath("%s" % tree)
+    """done"""
     os.system("mkdir %s/%s.tmp" % (start_path,name))
     fixed_name = []
     os.chdir("%s/%s.tmp" % (start_path,name))
@@ -219,9 +338,11 @@ def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
     calculate_pairwise_tree_dists(tree_path, "%s.all_snps_patristic_distances.txt" % "".join(fixed_name))
     last=get_field_index(matrix_path)
     matrix_to_fasta("REF.matrix","REF",last)
+    #Prunes out your chosen sequence from the FASTA file, only appears to prune out genome of interest
     remove_sequence("REF.fasta", "".join(fixed_name), "REF_pruned.fasta")
     true_value = parse_distances("%s.all_snps_patristic_distances.txt" % "".join(fixed_name),fixed_name)
     outfile = open("%s.results.out" % ''.join(fixed_name), "w")
+    #Pruning tree appears to only truly remove the genome of interest
     prune_tree(''.join(fixed_name),tree_path)
     for i in range(start, end+1, step):
         hits = []
@@ -234,7 +355,9 @@ def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
             rename_fasta("%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j), tmp_name,"%s.%s.%s.zzyzz.fasta" % ("".join(fixed_name),i,j))
         os.system("cat %s.*.zzyzz.fasta REF_pruned.fasta > %s.joined.fasta" % ("".join(fixed_name),"".join(fixed_name)))
         os.system("rm %s.*.tmp.fasta %s.*.zzyzz.fasta" % ("".join(fixed_name),"".join(fixed_name)))
-        insert_sequence("%s.joined.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), processors, ''.join(fixed_name))
+        #problem starts here
+        remove_invariant_sites("%s.joined.fasta" % "".join(fixed_name), "%s.raxml.fasta" % "".join(fixed_name))
+        insert_sequence("%s.raxml.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), ''.join(fixed_name), parameters)
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % "".join(fixed_name),"%s.all_patristic_distances.txt" % "".join(fixed_name))
         os.system("cp %s.tree_including_unknowns_noedges.tree %s.%s.%s.tree" % ("".join(fixed_name),"".join(fixed_name),i,j))
         query_names = []
@@ -259,6 +382,9 @@ if __name__ == "__main__":
     parser.add_option("-t", "--tree", dest="tree",
                       help="path to input tree [REQUIRED]",
                       action="callback", callback=test_file, type="string")
+    parser.add_option("-x", "--parameters", dest="parameters",
+                      help="path to RAxML parameters file",
+                      action="store", type="string", default="NULL")
     parser.add_option("-n", "--name", dest="name",
                       help="name of genome to test [REQUIRED]",
                       action="store", type="string")
@@ -290,5 +416,5 @@ if __name__ == "__main__":
             parser.print_help()
             exit(-1)
 
-    main(options.matrix,options.tree,options.name,options.start,options.step,options.end,options.processors,
-         options.iterations,options.deviation)
+    main(options.matrix,options.tree,options.parameters,options.name,options.start,options.step,options.end,
+         options.processors,options.iterations,options.deviation)

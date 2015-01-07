@@ -35,7 +35,6 @@ TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
 
 
 def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model):
-    #start_dir = os.getcwd()
     ref_path=os.path.abspath("%s" % reference)
     dir_path=os.path.abspath("%s" % directory)
     #check for binary dependencies
@@ -45,7 +44,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     if aa == 0:
         pass
     else:
-        print "RAxML must be in your path as raxmlHPC-PTHREADS"
+        print "RAxML must be in your path as raxmlHPC-SSE3"
         sys.exit()
     print "*citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'"
     print "*citation: 'Berger SA, Krompass D, Stamatakis A. Performance, accuracy, and Web server for evolutionary placement of short sequence reads under maximum likelihood. Syst Biol. 2011;60(3):291-302'"
@@ -70,9 +69,12 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     print "Uses trimmomatic for read trimming"
     print "*citation: Bolger A.M., Lohse M., Usadel B. Trimmomatic: A flexible trimmer for Illumina Sequence Data.  Bioinformatics. 2014.  Doi:10.1093/bioinformatics/btu170"
     print ""
+    print "Uses BioPython for FASTA parsing"
+    print "*citation :Cock PJ, Antao T, Chang JT, Chapman BA, Cox CJ, Dalke A, Friedberg I, Hamelryck T, Kauff F, Wilczynski B, de Hoon MJ. Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics. 2009;25(11):1422-3"
+    print ""
     #done checking for dependencies"""
     log_isg.logPrint('WG-FAST pipeline starting')
-    log_isg.logPrint("WG-FAST was envoked with the following parameters:")
+    log_isg.logPrint("WG-FAST was invoked with the following parameters:")
     print "-m %s \\" % matrix
     print "-t %s \\" % tree
     print "-r %s \\" % reference
@@ -210,21 +212,16 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                     sample_sets[entries[0]].append(entries[2])
                 else:
                     sample_sets[entries[0]]=[entries[2]]
-            #trial code
             new_sample_dicts = {}
             for k,v in sample_sets.iteritems():
                 uniques = []
                 [uniques.append(item) for item in v if item not in uniques]
                 new_sample_dicts.update({k:uniques})
-            #end of trial code
             log_isg.logPrint('creating PARAMS file')
             if os.path.isfile("*PARAMS"):
                 pass
             else:
-                #for k,v in sample_sets.iteritems():
                 for k,v in new_sample_dicts.iteritems():
-                    #uniques= []
-                    #[uniques.append(item) for item in v if item not in uniques]
                     def _perform_workflow(data):
                         #If you already have PARAMS files in your analysis directory, they won't be made again
                         create_params_files(k, v, tree, "temp.matrix", final_sets, processors)
@@ -283,10 +280,10 @@ if __name__ == "__main__":
                       help="# of processors to use - defaults to 2",
                       default="2", type="int")
     parser.add_option("-c", "--coverage", dest="coverage",
-		              help="minimum SNP coverage required to be called a SNP - defaults to 3",
+		      help="minimum SNP coverage required to be called a SNP - defaults to 3",
                       default="3", type="int")
     parser.add_option("-o", "--proportion", dest="proportion",
-	                  help="proportion of alleles to be called a SNP, defaults to 0.9",
+	              help="proportion of alleles to be called a SNP, defaults to 0.9",
                       default="0.9", type="float")
     parser.add_option("-k", "--keep", dest="keep",
                       help="keep temp files?  Defaults to F",
