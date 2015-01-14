@@ -4,11 +4,12 @@
 code"""
 
 import unittest
-from wg_fast.util import *
 import os
 import tempfile
 import shutil
 import re
+import sys
+from util import *
 
 curr_dir=os.getcwd()
 
@@ -282,7 +283,7 @@ class Test14(unittest.TestCase):
         shutil.rmtree(tdir)
 
 class Test15(unittest.TestCase):
-    def test_process_temp_matrices(self):
+    def test_process_temp_matrices_dev(self):
         tdir = tempfile.mkdtemp(prefix="filetest_",)
         fpath = os.path.join(tdir, "tmp.tree")
         fpath2 = os.path.join(tdir, "all.distances")
@@ -431,7 +432,31 @@ class Test23(unittest.TestCase):
         fp.close()
         self.assertEqual(prune_fasta("id",fpath,"%s/outfile.txt" % tdir), ['id2'])
         shutil.rmtree(tdir)
-        
+
+class Test24(unittest.TestCase):
+    def test_filter_alignment(self):
+        """tests to make sure that this function
+        throws out all characters that it is supposed to"""
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        fpath = os.path.join(tdir,"testfile.tab")
+        fp = open(fpath, "w")
+        fp.write("throw away line\n")
+        fp.write("X\tA\tN\tX\t-\n")
+        fp.close()
+        self.assertEqual(filter_alignment(fpath), [['A']])
+        shutil.rmtree(tdir)
+
+class Test25(unittest.TestCase):
+    def test_compare_subsample_results(self):
+        tdir = tempfile.mkdtemp(prefix="filetest_",)
+        os.chdir("%s" % tdir)
+        fpath = os.path.join(tdir,"sample..testfile.tab")
+        fp = open(fpath, "w")
+        fp.write("Cluster0	Cluster0	100.00	15	0	0	1	15	1	15	1e-07	30.2")
+        fp.close()
+        os.chdir("%s" % curr_dir)
+        shutil.rmtree(tdir)
+                
 if __name__ == "__main__":
     unittest.main()
     main()

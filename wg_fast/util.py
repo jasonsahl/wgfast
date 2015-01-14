@@ -578,10 +578,11 @@ def tab_to_matrix(tab):
     return test
         
 def filter_alignment(tab):
-    """currently untested, but needs to be"""
+    """tested"""
     outfile = open("tab.filtered", "w")
     infile = open(tab, "U")
     firstLine = infile.readline()
+    test_fields = []
     print >> outfile, firstLine,
     for line in infile:
         valid_fields = []
@@ -599,10 +600,13 @@ def filter_alignment(tab):
             print >> outfile, line,
         else:
             pass
+        test_fields.append(valid_fields)
     outfile.close()
     infile.close()
+    return test_fields
 
 def raxml_calculate_base_tree(in_fasta, model, name):
+    """not tested, all system calls"""
     args = ['raxmlHPC-SSE3', '-f', 'd', '-p', '12345',
 	     '-s', '%s' % in_fasta, '-m', '%s' % model, '-n', '%s' % name, "--no-bfgs",
 	     '>', '/dev/null 2>&1']
@@ -635,6 +639,7 @@ def file_to_fasta(matrix, out_fasta):
     out_matrix.close()
 
 def prune_fasta(to_prune, infile, outfile):
+    """tested"""
     my_in = open(infile, "U")
     my_out = open(outfile, "w")
     seqrecords = [ ]
@@ -649,7 +654,7 @@ def prune_fasta(to_prune, infile, outfile):
     return ids
     
 def remove_invariant_sites(in_fasta, out_fasta):
-    """only keep invarint sites, doesn't need testing"""
+    """only keep invarint sites, all functions are tested"""
     fasta_to_tab(in_fasta)
     tab_to_matrix("out.tab")
     filter_alignment("tab_matrix")

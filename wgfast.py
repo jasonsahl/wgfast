@@ -14,15 +14,16 @@ import os
 import sys
 import errno
 import glob
+
 try:
-    from wg_fast.util import *
+    from util import *
     from igs.utils import logging as log_isg
 except:
     print "wgfast path needs to be modified in the wgfast.py file"
     sys.exit()
 
 """modify line below to reflect your installation directory"""
-WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
+WGFAST_PATH="/Users/jasonsahl/tools/wgfast/wg_fast"
 if os.path.exists(WGFAST_PATH):
     sys.path.append("%s" % WGFAST_PATH)
 else:
