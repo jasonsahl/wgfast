@@ -312,6 +312,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     outdata = []
     good_snps = [ ]
     mixed_snps = [ ]
+    mixed_refs = [ ]
     ref_set = set(ref_coords)
     for line in vcf_in:
         if line.startswith('#'):
@@ -353,6 +354,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                 outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                         else:
                             pass
+                    """This represents the case where the call is the reference"""
                     elif "." == fields[4]:
                         nosnp_fields=fields[7].split(';')
                         cov_fields=nosnp_fields[1].replace("DP=","")
@@ -363,6 +365,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                             else:
                                 print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
                                 outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                mixed_refs.append("1")
                         except:
                             print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
                             outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
@@ -375,6 +378,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                 pass
     print "number of SNPs in genome %s = " % name, len(good_snps)
     print "number of discarded SNPs in genome %s = " % name, len(mixed_snps)
+    print "number of discarded Reference positions in genome %s = " % name, len(mixed_refs)
     vcf_in.close()
     vcf_out.close()
     return outdata
