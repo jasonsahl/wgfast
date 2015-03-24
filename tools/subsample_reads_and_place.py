@@ -3,7 +3,7 @@
 """From a SNP matrix, sub-sample
 SNPs from a given genome, then find
 the SNP level where the unknown genome
-is placed correctly 95% of the time"""
+is placed correctly >90% of the time"""
 
 from optparse import OptionParser
 import sys
@@ -269,7 +269,6 @@ def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
             query_names.append("QUERY___"+"".join(fixed_name)+str(j))
         subsampled_values = parse_distances("%s.all_patristic_distances.txt" % "".join(fixed_name),query_names)
         for value in subsampled_values:
-            #print (float(value)/float(''.join(true_value)))
             if (float(value)/float(''.join(true_value)))<(1+float(deviation)):
                 hits.append("1")
             else:
@@ -308,7 +307,7 @@ if __name__ == "__main__":
                       help="number of processors to use with RAxML, defaults to 4",
                       action="store", type="int", default="4")
     parser.add_option("-i", "--iterations", dest="iterations",
-                      help="number of iterations at each level",
+                      help="number of iterations at each level, defaults to 10",
                       action="store", type="int", default="10")
     parser.add_option("-d", "--deviation", dest="deviation",
                       help="deviation from 1, to determine correct placement, defaults to 0.05",
