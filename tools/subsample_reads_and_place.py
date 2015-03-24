@@ -275,7 +275,7 @@ def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
                 pass
         print >> outfile, i, len(hits)
         if int(len(hits))>=int(0.95*iterations):
-            print "optimial value is for %s is %s" % ("".join(fixed_name),i)
+            print "optimal value is for %s is %s" % ("".join(fixed_name),i)
             print >> outfile, "optimial value is for %s is %s" % ("".join(fixed_name),i)
             break
     os.system("mv %s.results.out %s" % (''.join(fixed_name), start_path))
