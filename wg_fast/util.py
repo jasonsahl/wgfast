@@ -1007,6 +1007,7 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
     full_context = split_fields[0]+split_fields[1]+split_fields[2]
     new_name = split_fields[0]+split_fields[2]
     if os.path.isfile("%s.tree_including_unknowns_noedges.tree" % full_context):
+        print "tree already present, skipping"
         pass
     else:
         tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
