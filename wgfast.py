@@ -15,20 +15,23 @@ import sys
 import errno
 import glob
 
+
+"""modify line below to reflect your installation directory"""
+WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
+
+if os.path.exists(WGFAST_PATH):
+    sys.path.append("%s" % WGFAST_PATH)
+else:
+    print "your WG-FAST path is not correct.  Edit the path in wgfast.py and try again"
+    sys.exit()
 try:
-    from util import *
+    from wg_fast.util import *
     from igs.utils import logging as log_isg
 except:
     print "wgfast path needs to be modified in the wgfast.py file"
     sys.exit()
 
-"""modify line below to reflect your installation directory"""
-WGFAST_PATH="/Users/jasonsahl/tools/wgfast/wg_fast"
-if os.path.exists(WGFAST_PATH):
-    sys.path.append("%s" % WGFAST_PATH)
-else:
-    print "your WGFAST path is not correct.  Edit the path in wgfast.py and try again"
-    sys.exit()
+
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"

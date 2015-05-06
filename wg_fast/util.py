@@ -354,7 +354,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                 outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                         else:
                             pass
-                    """This represents the case where the call is the reference"""
+                        """This represents the case where the call is the reference"""
                     elif "." == fields[4]:
                         nosnp_fields=fields[7].split(';')
                         cov_fields=nosnp_fields[1].replace("DP=","")
