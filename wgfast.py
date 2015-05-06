@@ -217,6 +217,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
                 else:
                     sample_sets[entries[0]]=[entries[2]]
             new_sample_dicts = {}
+            print len(new_sample_dicts)
             for k,v in sample_sets.iteritems():
                 uniques = []
                 [uniques.append(item) for item in v if item not in uniques]
