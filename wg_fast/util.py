@@ -1060,3 +1060,22 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
                     pass
         except:
             pass
+
+
+def check_input_files(matrix, reference):
+    ref_names = []
+    for record in SeqIO.parse(open(reference, "U"), "fasta"):
+        ref_names.append(record.id)
+    with open(matrix, "U") as f:
+        for line in f.readlines()[:2]:
+            if line.startswith("LocusID"):
+                pass
+            else:
+                fields = line.split()
+                name_fields=fields[0].split("::")
+                if name_fields[0] in ref_names:
+                    pass
+                else:
+                    print "The IDs in your Reference don't match the names in your SNP matrix! Please fix and re-start...exiting..."
+                    sys.exit()
+                 

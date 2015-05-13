@@ -100,6 +100,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
         os.makedirs('%s/scratch' % ap)
     except OSError, e:
         if e.errno != errno.EEXIST:raise
+    check_input_files(matrix, ref_path)
     #copy reference into the scratch directory, where all of the work will take place
     if only_subs == "T":
         pass
