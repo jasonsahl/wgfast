@@ -68,6 +68,45 @@ def subsample_snps(matrix, name, start):
     outfile.close()
     return last
 
+def subsample_snps_keep(matrix, name, start):
+    """get a list of all possible positions, depending
+    on those positions in the original matrix.  Similar
+    to method in the main script"""
+    allSNPs = [ ]
+    for line in open(matrix, "U"):
+        if line.startswith("LocusID"):
+            pass
+        else:
+            fields=line.split()
+            allSNPs.append(fields[0])
+    kept_snps=random.sample(set(allSNPs), int(start))
+    outfile = open("%s.%s.tmp.matrix" % (name,start), "w")
+    in_matrix=open(matrix,"U")
+    firstLine = in_matrix.readline()
+    #print >> outfile, firstLine,
+    first_fields = firstLine.split()
+    last=first_fields.index("#SNPcall")
+    #ammended_fields = first_fields[:last]+"QUERY:%s" % name+first_fields[last:]
+    first_fields.insert(last,"QUERY_%s" % name)
+    print >> outfile, "\t".join(first_fields)
+    """mygenome is the index of the genome that we want to subsample"""
+    mygenome=first_fields.index(name)
+    fixed_fields = []
+    for x in first_fields[:last]:
+        fixed_fields.append(re.sub('[:,]', '', x))
+    gindex = [ ]
+    for x in first_fields[:last]:
+        gindex.append(first_fields.index(x))
+    for line in in_matrix:
+        matrix_fields=line.split()
+        if matrix_fields[0] in kept_snps:
+            print >> outfile, "\t".join(matrix_fields[:last])+"\t"+"\t".join(matrix_fields[mygenome])+"\t"+"".join(matrix_fields[last:])+"\n",
+        else:
+            print >> outfile, "\t".join(matrix_fields[:last])+"\t"+"-"+"\t"+"\t".join(matrix_fields[last:])+"\n",
+    in_matrix.close()
+    outfile.close()
+    return last
+
 def matrix_to_fasta(matrix_in, name, last):
     """converts a SNP matrix to fasta format.
     Again, slightly different output compared to tested
@@ -220,7 +259,7 @@ def remove_sequence(in_fasta,name,out_fasta):
     infile.close()
     output_handle.close()
 
-def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
+def main(matrix,tree,name,start,step,end,processors,iterations,deviation,remove):
     aa = subprocess.call(['which', 'raxmlHPC-PTHREADS-SSE3'])
     if aa == 0:
         pass
@@ -245,28 +284,48 @@ def main(matrix,tree,name,start,step,end,processors,iterations,deviation):
     remove_sequence("REF.fasta", "".join(fixed_name), "REF_pruned.fasta")
     true_value = parse_distances("%s.all_snps_patristic_distances.txt" % "".join(fixed_name),fixed_name)
     outfile = open("%s.results.out" % ''.join(fixed_name), "w")
-    prune_tree(''.join(fixed_name),tree_path)
+    if remove == "T":
+        prune_tree(''.join(fixed_name),tree_path)
+    else:
+        pass
     print "creating parameters file"
-    subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -f e -m GTRGAMMA -s REF_pruned.fasta -t %s.tmpxz.tree -n PARAMS --no-bfgs -T %s > /dev/null 2>&1" % ("".join(fixed_name),processors) , shell=True)
-    subprocess.check_call("mv RAxML_binaryModelParameters.PARAMS %s.PARAMS" % "".join(fixed_name), shell=True)
+    if remove == "T":
+        subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -f e -m GTRGAMMA -s REF_pruned.fasta -t %s.tmpxz.tree -n PARAMS --no-bfgs -T %s > /dev/null 2>&1" % ("".join(fixed_name),processors) , shell=True)
+        subprocess.check_call("mv RAxML_binaryModelParameters.PARAMS %s.PARAMS" % "".join(fixed_name), shell=True)
+    elif remove == "F":
+        subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -f e -m GTRGAMMA -s REF.fasta -t %s -n PARAMS --no-bfgs -T %s > /dev/null 2>&1" % (tree_path,processors) , shell=True)
+        subprocess.check_call("mv RAxML_binaryModelParameters.PARAMS %s.PARAMS" % "".join(fixed_name), shell=True)
+    else:
+        print "you need to choose between 'T' and 'F' for remove value. Exiting..."
+        sys.exit()    
     print "starting loop"
     for i in range(start, end+1, step):
         hits = []
         for j in range(1,iterations+1):
-            last=subsample_snps("REF.matrix", "".join(fixed_name), i)
+            if remove == "T":
+                last=subsample_snps("REF.matrix", "".join(fixed_name), i)
+            else:
+                last=subsample_snps_keep("REF.matrix", "".join(fixed_name), i)
             os.system("sed 's/://g' %s.%s.tmp.matrix | sed 's/,//g' > %s.%s.tmp.fixed.matrix" % ("".join(fixed_name),i,"".join(fixed_name),i))
-            matrix_to_fasta("%s.%s.tmp.fixed.matrix" % ("".join(fixed_name),i), "%s.%s" % ("".join(fixed_name),i), last)
-            get_name_by_ID("%s.%s.fasta" % ("".join(fixed_name),i), ''.join(fixed_name), "%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j))
-            tmp_name = ''.join(fixed_name)+str(j)
-            rename_fasta("%s.%s.%s.tmp.fasta" % ("".join(fixed_name),i,j), tmp_name,"%s.%s.%s.zzyzz.fasta" % ("".join(fixed_name),i,j))
-        os.system("cat %s.*.zzyzz.fasta REF_pruned.fasta > %s.joined.fasta" % ("".join(fixed_name),"".join(fixed_name)))
-        os.system("rm %s.*.tmp.fasta %s.*.zzyzz.fasta" % ("".join(fixed_name),"".join(fixed_name)))
-        insert_sequence("%s.joined.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), ''.join(fixed_name), "%s.PARAMS" % "".join(fixed_name), processors)
+            last=get_field_index("%s.%s.tmp.fixed.matrix" % ("".join(fixed_name),i))
+            matrix_to_fasta("%s.%s.tmp.fixed.matrix" % ("".join(fixed_name),i), "%s.%s" % ("QUERY_"+"".join(fixed_name),i), last)
+            get_name_by_ID("%s.%s.fasta" % ("QUERY_"+"".join(fixed_name),i), ''.join(fixed_name), "%s.%s.%s.tmp.fasta" % ("QUERY_"+"".join(fixed_name),i,j))
+            tmp_name = "QUERY_"+''.join(fixed_name)+str(j)
+            rename_fasta("%s.%s.%s.tmp.fasta" % ("QUERY_"+"".join(fixed_name),i,j), tmp_name,"%s.%s.%s.zzyzz.fasta" % ("QUERY_"+"".join(fixed_name),i,j))
+        if remove == "T":
+            os.system("cat %s.*.zzyzz.fasta REF.fasta > %s.joined.fasta" % ("QUERY_"+"".join(fixed_name),"".join(fixed_name)))
+        else:
+            os.system("cat %s.*.zzyzz.fasta REF.fasta > %s.joined.fasta" % ("QUERY_"+"".join(fixed_name),"QUERY_"+"".join(fixed_name)))
+        os.system("rm %s.*.tmp.fasta %s.*.zzyzz.fasta" % ("QUERY_"+"".join(fixed_name),"QUERY_"+"".join(fixed_name)))
+        if remove =="T":
+            insert_sequence("%s.joined.fasta" % "".join(fixed_name), "%s.tmpxz.tree" % "".join(fixed_name), ''.join(fixed_name), "%s.PARAMS" % "".join(fixed_name), processors)
+        else:
+            insert_sequence("%s.joined.fasta" % ("QUERY_"+"".join(fixed_name)), "%s" % tree_path, ''.join(fixed_name), "%s.PARAMS" % "".join(fixed_name), processors)
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % "".join(fixed_name),"%s.all_patristic_distances.txt" % "".join(fixed_name))
         os.system("cp %s.tree_including_unknowns_noedges.tree %s.%s.%s.tree" % ("".join(fixed_name),"".join(fixed_name),i,j))
         query_names = []
         for j in range(1,iterations+1):
-            query_names.append("QUERY___"+"".join(fixed_name)+str(j))
+            query_names.append("QUERY___"+"QUERY_"+"".join(fixed_name)+str(j))
         subsampled_values = parse_distances("%s.all_patristic_distances.txt" % "".join(fixed_name),query_names)
         for value in subsampled_values:
             if (float(value)/float(''.join(true_value)))<(1+float(deviation)):
@@ -312,6 +371,9 @@ if __name__ == "__main__":
     parser.add_option("-d", "--deviation", dest="deviation",
                       help="deviation from 1, to determine correct placement, defaults to 0.05",
                       action="store", type="float", default="0.05")
+    parser.add_option("-r", "--remove", dest="remove",
+                      help="remove original from tree and place?  Defaults to T",
+                      action="store", type="string", default="T")
     
     options, args = parser.parse_args()
     
@@ -323,4 +385,4 @@ if __name__ == "__main__":
             exit(-1)
 
     main(options.matrix,options.tree,options.name,options.start,options.step,options.end,
-         options.processors,options.iterations,options.deviation)
+         options.processors,options.iterations,options.deviation,options.remove)
