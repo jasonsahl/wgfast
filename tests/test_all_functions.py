@@ -456,6 +456,7 @@ class Test25(unittest.TestCase):
         fp.close()
         os.chdir("%s" % curr_dir)
         shutil.rmtree(tdir)
+        os.system("rm tmp.filtered.vcf test.tmp.matrix temp.matrix tab_matrix tab.filtered out.tab out.fasta")
                 
 if __name__ == "__main__":
     unittest.main()
