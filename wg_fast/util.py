@@ -174,75 +174,78 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
     def _perform_workflow(data):
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
-        if len(f)>1:
-            """paired end sequences - won't work for old, short sequences"""
-            args=['java','-jar','%s' % trim_path,'PE', '-threads', '%s' % processors,
-                  '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
-	          '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	          'MINLEN:50']
-            try:
-                vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
-            except:
-                log_isg.logPrint('could not open trimmomatic file')
-            try:
-                log_fh = open('%s.trimmomatic.log' % idx, 'w')
-            except:
-                log_isg.logPrint('could not open log file')
-            if os.path.isfile("%s.F.paired.fastq.gz" % idx):
-                pass
-            else:
+        if os.path.isfile("%s.tmp.matrix" % idx):
+            pass
+        else:
+            if len(f)>1:
+                """paired end sequences - won't work for old, short sequences"""
+                args=['java','-jar','%s' % trim_path,'PE', '-threads', '%s' % processors,
+                      '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
+	              '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
+	              'MINLEN:50']
                 try:
-                    trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                    trim.wait()
+                    vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                 except:
-                    log_isg.logPrint('problem enountered trying to run trimmomatic')
+                    log_isg.logPrint('could not open trimmomatic file')
+                try:
+                    log_fh = open('%s.trimmomatic.log' % idx, 'w')
+                except:
+                    log_isg.logPrint('could not open log file')
+                if os.path.isfile("%s.F.paired.fastq.gz" % idx):
+                    pass
+                else:
+                    try:
+                        trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                        trim.wait()
+                    except:
+                        log_isg.logPrint('problem enountered trying to run trimmomatic')
+                if os.path.isfile("%s_renamed_header.bam" % idx):
+                    pass
+                else:
+                     run_bwa(reference, '%s.F.paired.fastq.gz' % idx, '%s.R.paired.fastq.gz' % idx, processors, idx)
+            else:
+                """single end support"""
+                args=['java','-jar','%s' % trim_path,'SE', '-threads', '%s' % processors,
+                      '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
+	              'MINLEN:50']
+                try:
+                    vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
+                except:
+                    log_isg.logPrint('could not open trimmomatic file')
+                try:
+                    log_fh = open('%s.trimmomatic.log' % idx, 'w')
+                except:
+                    log_isg.logPrint('could not open log file')
+                if os.path.isfile("%s.single.fastq.gz" % idx):
+                    pass
+                else:
+                    try:
+                        trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                        trim.wait()
+                    except:
+                        log_isg.logPrint("problem encountered with trimmomatic")
+                if os.path.isfile("%s_renamed_header.bam" % idx):
+                    pass
+                else:
+                    run_bwa(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
             if os.path.isfile("%s_renamed_header.bam" % idx):
                 pass
             else:
-                run_bwa(reference, '%s.F.paired.fastq.gz' % idx, '%s.R.paired.fastq.gz' % idx, processors, idx)
-        else:
-            """single end support"""
-            args=['java','-jar','%s' % trim_path,'SE', '-threads', '%s' % processors,
-                  '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	          'MINLEN:50']
-            try:
-                vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
-            except:
-                log_isg.logPrint('could not open trimmomatic file')
-            try:
-                log_fh = open('%s.trimmomatic.log' % idx, 'w')
-            except:
-                log_isg.logPrint('could not open log file')
-            if os.path.isfile("%s.single.fastq.gz" % idx):
-                pass
+                process_sam("%s.sam" % idx, idx)
+                """inserts read group information, required by new versions of GATK"""
+                os.system("java -jar %s INPUT=%s.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
+                os.system("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx)
+            run_gatk(reference, processors, idx, gatk, tmp_dir)
+            if "T" == doc:
+                lock.acquire()
+                os.system("echo %s_renamed_header.bam > %s.bam.list" % (idx,idx))
+                os.system("java -Djava.io.tmpdir=%s -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (tmp_dir,gatk,ap,idx,idx))
+                lock.release()
+                process_coverage(idx)
             else:
-                try:
-                    trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                    trim.wait()
-                except:
-                    log_isg.logPrint("problem encountered with trimmomatic")
-            if os.path.isfile("%s_renamed_header.bam" % idx):
                 pass
-            else:
-                run_bwa(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
-        if os.path.isfile("%s_renamed_header.bam" % idx):
-            pass
-        else:
-            process_sam("%s.sam" % idx, idx)
-            """inserts read group information, required by new versions of GATK"""
-            os.system("java -jar %s INPUT=%s.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
-            os.system("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx)
-        run_gatk(reference, processors, idx, gatk, tmp_dir)
-        if "T" == doc:
-            lock.acquire()
-            os.system("echo %s_renamed_header.bam > %s.bam.list" % (idx,idx))
-            os.system("java -Djava.io.tmpdir=%s -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (tmp_dir,gatk,ap,idx,idx))
-            lock.release()
-            process_coverage(idx)
-        else:
-            pass
-        process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
-        make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
+            process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
+            make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
     results = set(p_func.pmap(_perform_workflow,
                               files_and_temp_names,
                               num_workers=processors))
