@@ -1091,9 +1091,13 @@ def check_input_files(matrix, reference):
                     sys.exit()
                  
 
-                    #def create_merged_vcf():
-                    #start_dir = os.getcwd()
-                    #lists = []
-                    #for infile in glob.glob(os.path.join(start_dir, "*.tmp.matrix")):
+def create_merged_vcf():
+    start_dir = os.getcwd()
+    lists = []
+    for infile in glob.glob(os.path.join(start_dir, "*.tmp.matrix")):
+        data = open(infile, "U").read().splitlines()
+        lists.append(data)
+    print lists
+            
         
         

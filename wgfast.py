@@ -144,6 +144,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     else:
         """need to change this to a python function"""
         subprocess.check_call("paste *.tmp.matrix > merged.vcf", shell=True)
+        create_merged_vcf()
         """deletes temporary files that could be confused later on"""
         #subprocess.check_call("rm -rf *.tmp.matrix", shell=True)
         subprocess.check_call("paste temp.matrix merged.vcf > combined.matrix", shell=True)
