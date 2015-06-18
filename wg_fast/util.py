@@ -168,6 +168,13 @@ def process_coverage(name):
     infile.close()
     outfile.close()
 
+def get_sequence_length(fastq_in):
+    from itertools import islice
+    from gzip import GzipFile
+    with GzipFile("%s" % fastq_in) as file:
+        head = list(islice(file, 2))
+    return len(head[1])
+
 def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path):
     files_and_temp_names = [(str(idx), list(f)) for idx, f in fileSets.iteritems()]
     lock = threading.Lock()
@@ -176,13 +183,14 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
         idx, f = data
         if os.path.isfile("%s.tmp.matrix" % idx):
             pass
+        length = get_sequence_length(f[0])
         else:
             if len(f)>1:
                 """paired end sequences - won't work for old, short sequences"""
                 args=['java','-jar','%s' % trim_path,'PE', '-threads', '%s' % processors,
                       '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
 	              '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	              'MINLEN:50']
+	              'MINLEN:%s' % (int(length)/2)]
                 try:
                     vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                 except:
