@@ -1092,7 +1092,7 @@ def check_input_files(matrix, reference):
                  
 
 def create_merged_vcf():
-    out_file = open("tmp.test", "w")
+    out_file = open("merged.vcf", "w")
     start_dir = os.getcwd()
     lists = []
     for infile in glob.glob(os.path.join(start_dir, "*.tmp.matrix")):
