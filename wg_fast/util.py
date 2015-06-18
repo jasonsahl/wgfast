@@ -393,7 +393,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     print "number of discarded Reference positions in genome %s = " % name, len(mixed_refs)
     vcf_in.close()
     vcf_out.close()
-    return outdata
+    #return outdata
     
 def sort_information(x):
     """simple sort - tested"""
@@ -811,8 +811,9 @@ def make_temp_matrix(vcf, matrix, name):
     for x in matrix_ids:
         if x in new_dicts:
             variety.append(new_dicts.get('%s' % x))
+    variety_set = set(variety)
     if len(variety)>=1:
-        if "A" or "T" or "G" or "C" in variety:
+        if "A" or "T" or "G" or "C" in variety_set:
             open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
             for x in matrix_ids:
                 if x in new_dicts:
