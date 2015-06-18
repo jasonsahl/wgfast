@@ -181,8 +181,8 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
     def _perform_workflow(data):
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
-        length_to_use = get_sequence_length(f[0])/2
-        print length_to_use
+        #length_to_use = get_sequence_length(f[0])/2
+        #print length_to_use
         if os.path.isfile("%s.tmp.matrix" % idx):
             pass
         else:
@@ -191,7 +191,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 args=['java','-jar','%s' % trim_path,'PE', '-threads', '%s' % processors,
                       '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
 	              '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	              'MINLEN:%s' % length_to_use]
+	              'MINLEN:"0.f"' % get_sequence_length(%s/2) % f[0]]
                 try:
                     vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                 except:
@@ -216,7 +216,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 """single end support"""
                 args=['java','-jar','%s' % trim_path,'SE', '-threads', '%s' % processors,
                       '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	              'MINLEN:%s' % length_to_use]
+	              'MINLEN:"0.f"' % get_sequence_length(%s/2) % f[0]]
                 try:
                     vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                 except:
