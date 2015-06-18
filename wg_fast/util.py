@@ -181,8 +181,6 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
     def _perform_workflow(data):
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
-        #length_to_use = get_sequence_length(f[0])/2
-        #print length_to_use
         if os.path.isfile("%s.tmp.matrix" % idx):
             pass
         else:
