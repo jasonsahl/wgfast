@@ -354,16 +354,16 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                             if int(snp_fields[2])>=coverage:
                                 if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
                                     print >> vcf_out, fields[0]+"::"+fields[1],fields[4]+"\n",
-                                    outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
+                                    #outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
                                     good_snps.append("1")
                                 else:
                                     print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                    #outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                                     mixed_snps.append("1")
                                 """if problems are encountered, throw in a gap.  Could be too conservative"""
                             else:
                                 print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                                outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                #outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                         else:
                             pass
                         """This represents the case where the call is the reference"""
@@ -373,14 +373,14 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                         try:
                             if int(cov_fields)>=coverage:
                                 print >> vcf_out, fields[0]+"::"+fields[1],fields[3]+"\n",
-                                outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
+                                #outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
                             else:
                                 print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                                outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                #outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                                 mixed_refs.append("1")
                         except:
                             print >> vcf_out, fields[0]+"::"+fields[1],"-"+"\n",
-                            outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                            #outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                     else:
                         print "error in vcf file found!"
                         sys.exit()
