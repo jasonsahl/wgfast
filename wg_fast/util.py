@@ -190,7 +190,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 args=['java','-jar','%s' % trim_path,'PE', '-threads', '%s' % processors,
                       '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
 	              '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	              'MINLEN:%s' % (int(length)/2)]
+	              'MINLEN:%s' % length/2]
                 try:
                     vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                 except:
@@ -215,7 +215,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 """single end support"""
                 args=['java','-jar','%s' % trim_path,'SE', '-threads', '%s' % processors,
                       '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	              'MINLEN:%s' % (int(length)/2)]
+	              'MINLEN:%s' % length/2]
                 try:
                     vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                 except:
