@@ -181,9 +181,9 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
     def _perform_workflow(data):
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
+        length = get_sequence_length(f[0])
         if os.path.isfile("%s.tmp.matrix" % idx):
             pass
-        length = get_sequence_length(f[0])
         else:
             if len(f)>1:
                 """paired end sequences - won't work for old, short sequences"""
@@ -215,7 +215,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 """single end support"""
                 args=['java','-jar','%s' % trim_path,'SE', '-threads', '%s' % processors,
                       '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	              'MINLEN:50']
+	              'MINLEN:%s' % (int(length)/2)]
                 try:
                     vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                 except:
@@ -1090,3 +1090,10 @@ def check_input_files(matrix, reference):
                     print "The IDs in your Reference don't match the names in your SNP matrix! Please fix and re-start...exiting..."
                     sys.exit()
                  
+
+                    #def create_merged_vcf():
+                    #start_dir = os.getcwd()
+                    #lists = []
+                    #for infile in glob.glob(os.path.join(start_dir, "*.tmp.matrix")):
+        
+        
