@@ -114,7 +114,7 @@ def read_file_sets(dir_path):
                     (baseName,read) = m.groups()[0], m.groups()[1]
                     reverse_reads[baseName] = infile
                 else:
-                    print "Could not determine forward/reverse read status for input file "
+                    print "Could not determine forward/reverse read status for input file %s" % infile
         else:
             baseName, read  = m.groups()[0], m.groups()[3]
             if read == "_R1":
