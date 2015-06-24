@@ -185,8 +185,8 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
             pass
         else:
             if len(f)>1:
-                """paired end sequences - won't work for old, short sequences"""
-                args=['java','-jar','%s' % trim_path,'PE', '-threads', '%s' % processors,
+                """paired end sequences - won't work for old, short sequences. Changed the number of processors per job to 2"""
+                args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
                       '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
 	              '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
 	              'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
@@ -212,7 +212,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                      run_bwa(reference, '%s.F.paired.fastq.gz' % idx, '%s.R.paired.fastq.gz' % idx, processors, idx)
             else:
                 """single end support"""
-                args=['java','-jar','%s' % trim_path,'SE', '-threads', '%s' % processors,
+                args=['java','-jar','%s' % trim_path,'SE', '-threads', '2',
                       '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
 	              'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
                 try:
