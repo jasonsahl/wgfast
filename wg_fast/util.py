@@ -185,7 +185,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
             pass
         else:
             if len(f)>1:
-                if "T" in trim:
+                if "T" not in trim:
                     """paired end sequences - Hardcoded the number of processors per job to 2"""
                     args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
                           '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
@@ -203,8 +203,8 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                         pass
                     else:
                         try:
-                            trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                            trim.wait()
+                            trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                            trim_cmd.wait()
                         except:
                             log_isg.logPrint('problem enountered trying to run trimmomatic')
                 else:
@@ -231,8 +231,8 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                     pass
                 else:
                     try:
-                        trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                        trim.wait()
+                        trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                        trim_cmd.wait()
                     except:
                         log_isg.logPrint("problem encountered with trimmomatic")
                 if os.path.isfile("%s_renamed_header.bam" % idx):
