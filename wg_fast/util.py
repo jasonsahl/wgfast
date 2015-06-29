@@ -185,7 +185,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
             pass
         else:
             if len(f)>1:
-                """paired end sequences - won't work for old, short sequences. Changed the number of processors per job to 2"""
+                """paired end sequences - Hardcoded the number of processors per job to 2"""
                 args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
                       '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
 	              '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
@@ -812,7 +812,7 @@ def make_temp_matrix(vcf, matrix, name):
     variety_set = set(variety)
     if len(variety)>=1:
         if "A" or "T" or "G" or "C" in variety_set:
-            open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
+            open("%s.tmp.xyx.matrix" % name, 'a').write('%s\n' % name)
             for x in matrix_ids:
                 if x in new_dicts:
                     open("%s.tmp.xyx.matrix" % name, 'a').write("%s\n" % new_dicts.get('%s' % x))
