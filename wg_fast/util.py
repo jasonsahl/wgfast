@@ -185,7 +185,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
             pass
         else:
             if len(f)>1:
-                if "T" not in trim:
+                if "T" in trim:
                     """paired end sequences - Hardcoded the number of processors per job to 2"""
                     args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
                           '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
@@ -215,26 +215,29 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 else:
                      run_bwa(reference, '%s.F.paired.fastq.gz' % idx, '%s.R.paired.fastq.gz' % idx, processors, idx)
             else:
-                """single end support"""
-                args=['java','-jar','%s' % trim_path,'SE', '-threads', '2',
-                      '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	              'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
-                try:
-                    vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
-                except:
-                    log_isg.logPrint('could not open trimmomatic file')
-                try:
-                    log_fh = open('%s.trimmomatic.log' % idx, 'w')
-                except:
-                    log_isg.logPrint('could not open log file')
-                if os.path.isfile("%s.single.fastq.gz" % idx):
-                    pass
-                else:
+                if "T" in trim:
+                    """single end support"""
+                    args=['java','-jar','%s' % trim_path,'SE', '-threads', '2',
+                          '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
+	                  'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
                     try:
-                        trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                        trim_cmd.wait()
+                        vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                     except:
-                        log_isg.logPrint("problem encountered with trimmomatic")
+                        log_isg.logPrint('could not open trimmomatic file')
+                    try:
+                        log_fh = open('%s.trimmomatic.log' % idx, 'w')
+                    except:
+                        log_isg.logPrint('could not open log file')
+                    if os.path.isfile("%s.single.fastq.gz" % idx):
+                        pass
+                    else:
+                        try:
+                            trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                            trim_cmd.wait()
+                        except:
+                            log_isg.logPrint("problem encountered with trimmomatic")
+                else:
+                    os.link(f[0], "%s.single.fastq.gz" % idx)
                 if os.path.isfile("%s_renamed_header.bam" % idx):
                     pass
                 else:
