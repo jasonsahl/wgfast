@@ -317,7 +317,7 @@ if __name__ == "__main__":
                       help="which model to run with raxml, GTRGAMMA, ASC_GTRGAMMA, GTRCAT, ASC_GTRCAT",
                       action="callback", callback=test_models, type="string", default="ASC_GTRGAMMA")
     parser.add_option("-i", "--trim", dest="trim",
-                      help="trim sequences with trimmomatic? Defaults to T,
+                      help="trim sequences with trimmomatic? Defaults to T",
                       action="callback", callback=test_filter, type="string", default="T")
 
     options, args = parser.parse_args()
