@@ -208,7 +208,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                         except:
                             log_isg.logPrint('problem enountered trying to run trimmomatic')
                 else:
-                    os.link(f[0], "%s.F.paired.fastq.gz" % idx
+                    os.link(f[0], "%s.F.paired.fastq.gz" % idx)
                     os.link(f[1], "%s.R.paired.fastq.gz" % idx)
                 if os.path.isfile("%s_renamed_header.bam" % idx):
                     pass
