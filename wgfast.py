@@ -38,7 +38,7 @@ ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
 TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
 
 
-def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model):
+def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model,trim):
     ref_path=os.path.abspath("%s" % reference)
     dir_path=os.path.abspath("%s" % directory)
     #check for binary dependencies
@@ -95,7 +95,8 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     print "-z %s \\" % insertion_method
     print "-f %s \\" % fudge
     print "-y %s \\" % only_subs
-    print "-j %s" % model
+    print "-j %s \\" % model
+    print "-i %s" % trim
     try:
         os.makedirs('%s/scratch' % ap)
     except OSError, e:
@@ -126,7 +127,7 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     else:
         fileSets=read_file_sets(dir_path)
         ref_coords = get_all_snps(matrix)
-        run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH)
+        run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
     #Outnames is required for the sub-sampling routine, even with -y T
@@ -260,10 +261,10 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
             os.chdir("%s" % ap)
             subprocess.check_call("rm -rf scratch", shell=True)
     log_isg.logPrint("all done")
-    
+
 if __name__ == "__main__":
     usage="usage: %prog [options]"
-    parser = OptionParser(usage=usage) 
+    parser = OptionParser(usage=usage)
     parser.add_option("-m", "--snp_matrix", dest="matrix",
                       help="path to NASP snp_matrix [REQUIRED]",
                       action="callback", callback=test_file, type="string")
@@ -315,9 +316,12 @@ if __name__ == "__main__":
     parser.add_option("-j", "--model", dest="model",
                       help="which model to run with raxml, GTRGAMMA, ASC_GTRGAMMA, GTRCAT, ASC_GTRCAT",
                       action="callback", callback=test_models, type="string", default="ASC_GTRGAMMA")
+    parser.add_option("-i", "--trim", dest="trim",
+                      help="trim sequences with trimmomatic? Defaults to T,
+                      action="callback", callback=test_filter, type="string", default="T")
 
     options, args = parser.parse_args()
-    
+
     mandatories = ["matrix", "tree", "reference", "directory"]
     for m in mandatories:
         if not options.__dict__[m]:
@@ -328,4 +332,4 @@ if __name__ == "__main__":
     main(options.matrix,options.tree,options.reference,options.directory,options.parameters,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
          options.subnums,options.doc,options.tmp_dir,options.insertion_method,options.fudge,
-         options.only_subs,options.model)
+         options.only_subs,options.model,options.trim)

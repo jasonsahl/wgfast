@@ -91,13 +91,13 @@ def get_readFile_components(full_file_path):
     full_ext = ext2+ext
     return file_path,file_name_before_ext,full_ext
 
-def read_file_sets(dir_path):        
+def read_file_sets(dir_path):
     """match up pairs of sequence data, adapted from
     https://github.com/katholt/srst2 will be tough to test
     with variable names and read paths"""
-    fileSets = {} 
+    fileSets = {}
     forward_reads = {}
-    reverse_reads = {} 
+    reverse_reads = {}
     num_paired_readsets = 0
     num_single_readsets = 0
     for infile in glob.glob(os.path.join(dir_path, "*.fastq.gz")):
@@ -138,9 +138,9 @@ def read_file_sets(dir_path):
             fileSets[sample] = reverse_reads[sample] # no forward found
             num_single_readsets += 1
             logging.info('Warning, could not find pair for read:' + reverse_reads[sample])
-                                
+
     if num_paired_readsets > 0:
-        logging.info('Total paired readsets found:' + str(num_paired_readsets))        
+        logging.info('Total paired readsets found:' + str(num_paired_readsets))
     if num_single_readsets > 0:
         logging.info('Total single reads found:' + str(num_single_readsets))
 
@@ -175,7 +175,7 @@ def get_sequence_length(fastq_in):
         head = list(islice(file, 2))
     return len(head[1])
 
-def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path):
+def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path,trim):
     files_and_temp_names = [(str(idx), list(f)) for idx, f in fileSets.iteritems()]
     lock = threading.Lock()
     def _perform_workflow(data):
@@ -185,27 +185,31 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
             pass
         else:
             if len(f)>1:
-                """paired end sequences - Hardcoded the number of processors per job to 2"""
-                args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
-                      '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
-	              '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	              'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
-                try:
-                    vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
-                except:
-                    log_isg.logPrint('could not open trimmomatic file')
-                try:
-                    log_fh = open('%s.trimmomatic.log' % idx, 'w')
-                except:
-                    log_isg.logPrint('could not open log file')
-                if os.path.isfile("%s.F.paired.fastq.gz" % idx):
-                    pass
-                else:
+                if "T" in trim:
+                    """paired end sequences - Hardcoded the number of processors per job to 2"""
+                    args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
+                          '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
+	                  '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
+	                  'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
                     try:
-                        trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                        trim.wait()
+                        vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                     except:
-                        log_isg.logPrint('problem enountered trying to run trimmomatic')
+                        log_isg.logPrint('could not open trimmomatic file')
+                    try:
+                        log_fh = open('%s.trimmomatic.log' % idx, 'w')
+                    except:
+                        log_isg.logPrint('could not open log file')
+                    if os.path.isfile("%s.F.paired.fastq.gz" % idx):
+                        pass
+                    else:
+                        try:
+                            trim = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                            trim.wait()
+                        except:
+                            log_isg.logPrint('problem enountered trying to run trimmomatic')
+                else:
+                    os.link(f[0], "%s.F.paired.fastq.gz" % idx
+                    os.link(f[1], "%s.R.paired.fastq.gz" % idx)
                 if os.path.isfile("%s_renamed_header.bam" % idx):
                     pass
                 else:
@@ -265,7 +269,7 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
     if "NULL" in read2:
         mem_arguments.extend([reference,read1])
     else:
-        mem_arguments.extend([reference,read1,read2]) 
+        mem_arguments.extend([reference,read1,read2])
     if log_file:
        try:
            log_fh = open(log_file, 'w')
@@ -275,14 +279,14 @@ def bwa(reference,read1,read2,sam_file, processors, log_file='',**my_opts):
         sam_fh = open(sam_file, 'w')
     except:
         print sam_file, 'could not open'
- 
+
     bwa = Popen(mem_arguments, stderr=log_fh, stdout=sam_fh)
     bwa.wait()
 
 def run_bwa(reference, read1, read2, processors, name):
     """launches bwa. Adds in read_group for compatability with GATK - untested"""
     read_group = '@RG\tID:%s\tSM:%s\tPL:ILLUMINA\tPU:%s' % (name,name,name)
-    bwa(reference,read1, read2,"%s.sam" % name, processors, log_file='%s.sam.log' % name,**{'-R':read_group}) 
+    bwa(reference,read1, read2,"%s.sam" % name, processors, log_file='%s.sam.log' % name,**{'-R':read_group})
 
 def process_sam(in_sam, name):
     """samtools runs to remove multiple mapped reads and unmapped reads - untested, system calls"""
@@ -392,7 +396,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     vcf_in.close()
     vcf_out.close()
     #return outdata
-    
+
 def sort_information(x):
     """simple sort - tested"""
     try:
@@ -437,7 +441,7 @@ def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, mode
         else:
             args = ['raxmlHPC-SSE3', '-f', '%s' % insertion_method,
 	         '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-R', parameters, '-t',
-	         '%s' % tree, '--no-bfgs', '>', '/dev/null 2>&1'] 
+	         '%s' % tree, '--no-bfgs', '>', '/dev/null 2>&1']
     try:
         vcf_fh = open('%s.raxml.out' % suffix, 'w')
     except:
@@ -446,7 +450,7 @@ def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, mode
         log_fh = open('%s.raxml.log' % suffix, 'w')
     except:
         log_isg.logPrint('could not open log file')
-        
+
     log_isg.logPrint("inserting sequence into tree")
     try:
         raxml_run = Popen(args, stderr=log_fh, stdout=vcf_fh)
@@ -573,7 +577,7 @@ def tab_to_fasta(new_tab):
     infile.close()
     outfile.close()
     return to_test
-    
+
 def tab_to_matrix(tab):
     """tested"""
     reduced = [ ]
@@ -590,7 +594,7 @@ def tab_to_matrix(tab):
         print >> out_matrix, "\t".join(x)
     out_matrix.close()
     return test
-        
+
 def filter_alignment(tab):
     """tested"""
     outfile = open("tab.filtered", "w")
@@ -638,7 +642,7 @@ def raxml_calculate_base_tree(in_fasta, model, name):
     except:
         print "could not infer base pruned tree"
         sys.exit()
-    
+
 def file_to_fasta(matrix, out_fasta):
     """almost identical to matrix_to_fasta. Not tested"""
     reduced = [ ]
@@ -666,7 +670,7 @@ def prune_fasta(to_prune, infile, outfile):
     my_in.close()
     my_out.close()
     return ids
-    
+
 def remove_invariant_sites(in_fasta, out_fasta):
     """only keep invarint sites, all functions are tested"""
     fasta_to_tab(in_fasta)
@@ -717,12 +721,12 @@ def compare_subsample_results(outnames,distances,fudge):
             print "Sample: %s" % split_fields[0]
             print "Subsample distances between Reference and %s greater than true value = %s" % (split_fields[2],greaters)
             print "Subsample distances between Reference and %s equal to true value = %s" % (split_fields[2],equals)
-            print "Subsample distances between Reference and %s less than true value = %s" % (split_fields[2],lessers)    
+            print "Subsample distances between Reference and %s less than true value = %s" % (split_fields[2],lessers)
             p = (greaters+lessers)/(greaters+lessers+equals)
             print "Placement p value = %.3f" % float(p)
         except:
             pass
-            
+
 def transform_tree(tree):
     """converts a Newick tree into a Nexus-formatted
     tree that can be visualized with FigTree - needs testing"""
@@ -778,7 +782,7 @@ def write_reduced_matrix(matrix):
     outfile.close()
     in_matrix.close()
     return outdata
-        
+
 def make_temp_matrix(vcf, matrix, name):
     in_matrix = open(matrix, "U")
     """these are all of the screened SNPs - tested"""
@@ -875,7 +879,7 @@ def get_closest_dists_new(final_sets, outnames):
             pass
         results.append(final_set[1]+final_set[2])
     return results
-            
+
 def find_two_new(infile,outnames):
     """find two closest genomes to each query genome,
     return the names and distances (sorted), for the
@@ -962,7 +966,7 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
             tmptree = open("%s.tmp.tree" % new_name, "w")
             to_prune = []
             for x in dist_sets:
-                if x[0] == id: 
+                if x[0] == id:
                     if x[1] == item or x[2] == item:
                         to_prune.append(x[1])
             to_prune_fixed=[]
@@ -998,7 +1002,7 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
                 os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
             except:
                 continue
-            
+
 def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, insertion_method, parameters, model):
     """not currently tested, but needs to be"""
     name=get_seq_name(sample)
@@ -1008,7 +1012,7 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
     name_fixed.append(re.sub('[:,]', '', split_fields[2]))
     to_prune = []
     for x in dist_sets:
-        if x[0] == split_fields[0]: 
+        if x[0] == split_fields[0]:
             if x[1] == split_fields[2] or x[2] == split_fields[2]:
                 to_prune.append(x[1])
     to_prune_fixed=[]
@@ -1040,7 +1044,7 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
         tmptree2.close()
         matrix_to_fasta(sample, "%s.fasta" % full_context)
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
-        if os.path.isfile("%s-PARAMS" % new_name): 
+        if os.path.isfile("%s-PARAMS" % new_name):
             try:
                 run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % new_name, "GTRGAMMA", "%s" % full_context)
             except:
@@ -1089,7 +1093,7 @@ def check_input_files(matrix, reference):
                 else:
                     print "The IDs in your Reference don't match the names in your SNP matrix! Please fix and re-start...exiting..."
                     sys.exit()
-                 
+
 
 def create_merged_vcf():
     out_file = open("merged.vcf", "w")
@@ -1102,6 +1106,3 @@ def create_merged_vcf():
     for x in test:
         print >> out_file, "\t".join(x)
     out_file.close()
-            
-        
-        
