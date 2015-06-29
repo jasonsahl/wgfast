@@ -181,7 +181,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
     def _perform_workflow(data):
         """idx is the sample name, f is the file dictionary"""
         idx, f = data
-        if os.path.isfile("%s.tmp.matrix" % idx):
+        if os.path.isfile("%s.tmp.xyx.matrix" % idx):
             pass
         else:
             if len(f)>1:
@@ -815,7 +815,7 @@ def make_temp_matrix(vcf, matrix, name):
             open("%s.tmp.matrix" % name, 'a').write('%s\n' % name)
             for x in matrix_ids:
                 if x in new_dicts:
-                    open("%s.tmp.matrix" % name, 'a').write("%s\n" % new_dicts.get('%s' % x))
+                    open("%s.tmp.xyx.matrix" % name, 'a').write("%s\n" % new_dicts.get('%s' % x))
         else:
             print "sample %s had no usable positions!!!" % name
     else:
@@ -1095,7 +1095,7 @@ def create_merged_vcf():
     out_file = open("merged.vcf", "w")
     start_dir = os.getcwd()
     lists = []
-    for infile in glob.glob(os.path.join(start_dir, "*.tmp.matrix")):
+    for infile in glob.glob(os.path.join(start_dir, "*.tmp.xyx.matrix")):
         data = open(infile, "U").read().splitlines()
         lists.append(data)
     test=map(list, zip(*lists))
