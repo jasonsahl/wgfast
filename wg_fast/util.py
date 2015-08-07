@@ -795,8 +795,10 @@ def make_temp_matrix(vcf, matrix, name):
     for line in in_matrix:
         mfields=line.split()
         matrix_ids.append(mfields[0])
+    #parsed dictionary of all calls
     value_dict={}
     new_dicts={}
+    in_matrix.close()
     with open(vcf, "U") as my_file:
         first_char = my_file.read(1)
         #Only reads in if file isn't empty
@@ -806,12 +808,15 @@ def make_temp_matrix(vcf, matrix, name):
                 fields=line.split()
                 value_dict.update({fields[0]:fields[1]})
     if len(value_dict)>=1:
-        for k,v in value_dict.iteritems():
-            new_dicts.update({k:v})
+        value_dict_set = set(value_dict)
+        new_dicts = value_dict
         for x in matrix_ids:
-            if x not in value_dict.keys():new_dicts.update({x:"-"})
+            if x not in value_dict_set:new_dicts.update({x:"-"})
     else:
         print "no usable information in vcf file, did you use the correct reference?"
+    #new_dicts contains all calls, good and bad
+    value_dict = {}
+    value_dict_set = []
     variety = [ ]
     for x in matrix_ids:
         if x in new_dicts:
@@ -826,8 +831,8 @@ def make_temp_matrix(vcf, matrix, name):
         else:
             print "sample %s had no usable positions!!!" % name
     else:
-        pass
-    in_matrix.close()
+        print "sample %s has problems" % name
+    #in_matrix.close()
     return new_dicts
 
 def grab_names():
