@@ -62,15 +62,14 @@ static double getBranch(tree *tr, double *b, double *bb)
   double z = 0.0;
 
   if(!tr->multiBranch)
-    {
-      assert(tr->fracchange != -1.0);
+    {     
       assert(b[0] == bb[0]);
       z = b[0];
       if (z < zmin) 
 	z = zmin;      	 
       if(z > zmax)
 	z = zmax;
-      z = -log(z) * tr->fracchange;
+      z = -log(z);
       return z;	
     }
   else
@@ -81,14 +80,13 @@ static double getBranch(tree *tr, double *b, double *bb)
       for(i = 0; i < tr->numBranches; i++)
 	{
 	  assert(b[i] == bb[i]);
-	  assert(tr->partitionContributions[i] != -1.0);
-	  assert(tr->fracchanges[i] != -1.0);
+	  assert(tr->partitionContributions[i] != -1.0);	
 	  x = b[i];
 	  if (x < zmin) 
 	    x = zmin;      	 
 	  if(x > zmax)
 	    x = zmax;
-	  x = -log(x) * tr->fracchanges[i];
+	  x = -log(x);
 	  
 	  z += x * tr->partitionContributions[i];
 	}	
@@ -103,15 +101,14 @@ static double getBranchPerPartition(tree *tr, double *b, double *bb, int j)
   double z = 0.0;
 
   if(!tr->multiBranch)
-    {
-      assert(tr->fracchange != -1.0);
+    {    
       assert(b[0] == bb[0]);
       z = b[0];
       if (z < zmin) 
 	z = zmin;      	 
       if(z > zmax)
 	z = zmax;
-      z = -log(z) * tr->fracchange;
+      z = -log(z);
       return z;	
     }
   else
@@ -119,14 +116,13 @@ static double getBranchPerPartition(tree *tr, double *b, double *bb, int j)
       int 
 	i = tr->readPartition[j];
     
-      assert(b[i] == bb[i]);
-      assert(tr->fracchanges[i] != -1.0);
+      assert(b[i] == bb[i]);    
       z = b[i];
       if (z < zmin) 
 	z = zmin;      	 
       if(z > zmax)
 	z = zmax;
-      z = -log(z) * tr->fracchanges[i];          	
+      z = -log(z);
       
       return z;
     } 
@@ -1768,58 +1764,55 @@ static void printStandardFormat(tree *tr, char *jointFormatTreeFileName, int roo
 	 my old cutoff was at 0.95 accumulated likelihood weight:
 	 
 	 while(acc <= 0.95)
-      */
+      */            
       
-      /*#define _ALL_ENTRIES*/
-      
-#ifdef _ALL_ENTRIES
-      assert(validEntries == tr->numberOfBranches);
+      assert(tr->numberOfEPAEntries > 0);
+      tr->numberOfEPAEntries = MIN(tr->numberOfEPAEntries, (unsigned int)validEntries);
+
       while(j < validEntries)	  
-#else
-	while(j < validEntries && j < 7)	  
-#endif
 	  { 
-	    
-	    double 
-	      prob = 0.0;
-	    
-	    acc += (prob = (exp(inf[j].lh - lmax) / all));
-	    
-	    if(j == 0)
-	      maxprob = prob;
-#ifndef _ALL_ENTRIES
-	    if(prob >= maxprob * 0.01)
-#endif
+	    if((!tr->useAccumulatedEPACutoff && (unsigned int)j < tr->numberOfEPAEntries) || (tr->useAccumulatedEPACutoff && acc <= tr->accumulatedEPACutoff))
 	      {
-		if(j > 0)
+		double 
+		  prob = 0.0;
+	    
+		acc += (prob = (exp(inf[j].lh - lmax) / all));
+	    
+		if(j == 0)
+		  maxprob = prob;
+
+		if((!tr->useAccumulatedEPACutoff && prob >= maxprob * tr->probThresholdEPA) || (tr->useAccumulatedEPACutoff))
 		  {
-		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
+		    if(j > 0)
 		      {
-			double 
-			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
-			
-			if(inf[j].distalBranch > 0.5 * b)
-			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			if(tr->wasRooted && inf[j].number == tr->rootLabel)
+			  {
+			    double 
+			      b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
+			    
+			    if(inf[j].distalBranch > 0.5 * b)
+			      fprintf(treeFile, ",[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			    else
+			      fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+			  }
 			else
-			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, inf[j].distalBranch, inf[j].pendantBranch);
 		      }
 		    else
-		      fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, inf[j].distalBranch, inf[j].pendantBranch);
-		  }
-		else
-		  {
-		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
 		      {
-			double 
-			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
-			
-			if(inf[j].distalBranch > 0.5 * b)
-			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			if(tr->wasRooted && inf[j].number == tr->rootLabel)
+			  {
+			    double 
+			      b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
+			    
+			    if(inf[j].distalBranch > 0.5 * b)
+			      fprintf(treeFile, "[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			    else
+			      fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+			  }
 			else
-			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob,  inf[j].distalBranch, inf[j].pendantBranch);
 		      }
-		    else
-		      fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob,  inf[j].distalBranch, inf[j].pendantBranch);
 		  }
 	      }
 	    	      
@@ -1910,6 +1903,12 @@ void classifyML(tree *tr, analdef *adef)
 
   if(adef->useBinaryModelFile)
     {      
+      if(tr->ntips != tr->binaryFile_ntips)
+	{
+	  printf("\nError: number of %d tips in reference tree and %d tips in the tree used to estimate\n", tr->ntips, tr->binaryFile_ntips);
+	  printf("the binary model parameter file do not match, RAxML will exit now!\n\n");
+	}
+      assert(tr->ntips == tr->binaryFile_ntips);
       evaluateGenericInitrav(tr, tr->start);
       //treeEvaluate(tr, 2);
     }
@@ -2652,6 +2651,12 @@ void subtreeEPA(tree *tr, analdef *adef)
   //Attention: not tested yet!
   if(adef->useBinaryModelFile)
     {      
+      if(tr->ntips != tr->binaryFile_ntips)
+	{
+	  printf("\nError: number of %d tips in reference tree and %d tips in the tree used to estimate\n", tr->ntips, tr->binaryFile_ntips);
+	  printf("the binary model parameter file do not match, RAxML will exit now!\n\n");
+	}
+      assert(tr->ntips == tr->binaryFile_ntips);
       evaluateGenericInitrav(tr, tr->start);
       //treeEvaluate(tr, 2);
     }

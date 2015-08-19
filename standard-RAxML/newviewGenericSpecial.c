@@ -177,7 +177,7 @@ static void makeP_FlexHet(double z1, double z2, double *rptr, double *EI_1,  dou
 
 #endif
 
-static void makeP_FlexLG4(double z1, double z2, double *rptr, double *EI[4],  double *EIGN[4], int numberOfCategories, double *left, double *right, const int numStates)
+void makeP_FlexLG4(double z1, double z2, double *rptr, double *EI[4],  double *EIGN[4], int numberOfCategories, double *left, double *right, const int numStates)
 {
   int 
     i,
@@ -528,7 +528,7 @@ static void newviewAscCat(int tipCase,
 			  double *x1, double *x2, double *x3, double *extEV, double *tipVector,
 			  int *ex3, 
 			  const int n, double *left, double *right, 			    
-			  const int numStates)
+			  const int numStates, int dataType, const int qNumber, const int rNumber, int *ascMissingVector, int maxtips)
 {
   double
     *le, *ri, *v, *vl, *vr,
@@ -536,24 +536,27 @@ static void newviewAscCat(int tipCase,
   
   int 
     i, l, j, scale;
-
- 
-  unsigned char 
-    tip[32];
-
-  ascertainmentBiasSequence(tip, numStates);
   
   switch(tipCase)
     {
     case TIP_TIP:
       {
+	unsigned char 
+	  tip1[32],
+	  tip2[32];
+	
+	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber, ascMissingVector);
+	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber, ascMissingVector);
+	
+	assert(qNumber <= maxtips && rNumber <= maxtips);
+
 	for (i = 0; i < n; i++)
 	  {
 	    le = &left[0];
 	    ri = &right[0];
 
-	    vl = &(tipVector[numStates * tip[i]]);
-	    vr = &(tipVector[numStates * tip[i]]);
+	    vl = &(tipVector[numStates * tip1[i]]);
+	    vr = &(tipVector[numStates * tip2[i]]);
 	    v  = &x3[numStates * i];
 
 	    for(l = 0; l < numStates; l++)
@@ -580,6 +583,14 @@ static void newviewAscCat(int tipCase,
       break;
     case TIP_INNER:
       {
+	unsigned char 
+	  tip[32];
+
+	if(rNumber <= maxtips)
+	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber, ascMissingVector);
+	else
+	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber, ascMissingVector);
+	
 	for (i = 0; i < n; i++)
 	  {
 	    le = &left[0];
@@ -679,7 +690,7 @@ static void newviewAscGamma(int tipCase,
 			    double *x1, double *x2, double *x3, double *extEV, double *tipVector,
 			    int *ex3, 
 			    const int n, double *left, double *right, 			    
-			    const int numStates)
+			    const int numStates, int dataType, const int qNumber, const int rNumber, int *ascMissingVector, int maxtips)
 {
   
   int  
@@ -692,21 +703,27 @@ static void newviewAscGamma(int tipCase,
   double 
     *vl, *vr, al, ar, *v, x1px2;
 
-  unsigned char 
-    tip[32];
-
-  ascertainmentBiasSequence(tip, numStates);
+  
   
   switch(tipCase)
     {
     case TIP_TIP:
       {
+	unsigned char 
+	  tip1[32],
+	  tip2[32];
+		
+	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber, ascMissingVector);
+	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber, ascMissingVector);
+
+	assert(qNumber <= maxtips && rNumber <= maxtips);
+
 	for(i = 0; i < n; i++)
 	  {
 	    for(k = 0; k < 4; k++)
 	      {
-		vl = &(tipVector[numStates * tip[i]]);
-		vr = &(tipVector[numStates * tip[i]]);
+		vl = &(tipVector[numStates * tip1[i]]);
+		vr = &(tipVector[numStates * tip2[i]]);
 		v =  &(x3[gammaStates * i + numStates * k]);
 
 		for(l = 0; l < numStates; l++)
@@ -732,6 +749,14 @@ static void newviewAscGamma(int tipCase,
       break;
     case TIP_INNER:
       {
+	unsigned char 
+	  tip[32];
+
+	if(rNumber <= maxtips)
+	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber, ascMissingVector);
+	else
+	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber, ascMissingVector);
+
 	for (i = 0; i < n; i++)
 	  {
 	    for(k = 0; k < 4; k++)
@@ -3389,7 +3414,7 @@ static void newviewGTRGAMMA(int tipCase,
 		 if(useFastScaling)
 		   addScale += wgt[i];
 		 else
-		   ex3[i]  += 1;
+		   ex3[i]  += 1;	     
 	       }
 	     else
 	       {
@@ -3569,7 +3594,7 @@ static void newviewGTRGAMMA(int tipCase,
 	     if(useFastScaling)
 	       addScale += wgt[i];
 	     else
-	       ex3[i]  += 1;
+	       ex3[i]  += 1;	     
 	   }
 	 else
 	   {
@@ -8595,9 +8620,9 @@ void newviewIterative (tree *tr)
 			newviewAscCat(tInfo->tipCase,
 				      x1_ascColumn, x2_ascColumn, x3_ascColumn,
 				      tr->partitionData[model].EV,
-				      tr->partitionData[model].tipVector,
-				      ex3_asc,
-				      states, left, right, states);
+				      tr->partitionData[model].tipVector,				      ex3_asc,
+				      states, left, right, states, tr->partitionData[model].dataType, 
+				      tInfo->qNumber, tInfo->rNumber, tr->partitionData[model].ascMissingVector, tr->mxtips);
 		      }
 		      break;
 		    case GAMMA:
@@ -8606,7 +8631,8 @@ void newviewIterative (tree *tr)
 				      tr->partitionData[model].EV,
 				      tr->partitionData[model].tipVector,
 				      ex3_asc,
-				      states, left, right, states);			   
+				      states, left, right, states, tr->partitionData[model].dataType, 
+				      tInfo->qNumber, tInfo->rNumber, tr->partitionData[model].ascMissingVector, tr->mxtips);			   
 		      break;
 		    default:
 		      assert(0);

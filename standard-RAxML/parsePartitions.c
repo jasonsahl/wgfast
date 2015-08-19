@@ -91,6 +91,7 @@ static void skipWhites(char **ch)
 static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 {
   char 
+    *start = *ch,
     ident[2048] = "",
     model[2048] = "",
     thisModel[2048] = "";
@@ -103,11 +104,20 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 
   while(**ch != '=')
     {
+      if(**ch == '\n' || **ch == '\r')
+	{
+	  printf("\nPartition file parsing error!\n");
+	  printf("Each line must contain a \"=\" character\n");
+	  printf("Offending line: %s\n", start);
+	  printf("RAxML will exit now.\n\n");
+	  errorExit(-1);
+	}
+
       if(**ch != ' ' && **ch != '\t')
 	{
 	  ident[i] = **ch;      
 	  i++;
-	}
+	}      
       *ch = *ch + 1;
     }
   
@@ -200,6 +210,7 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	  
 	  while(model[index] != '~')
 	    {
+	      assert(index <= upper);
 	      designator[pos] = model[index];
 	      pos++;
 	      index++;
@@ -321,7 +332,15 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 			  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 			  tr->initialPartitionData[modelNumber].dataType   = AA_DATA;		     
 			  found = TRUE;
+
+			  if(tr->initialPartitionData[modelNumber].protModels == AUTO)
+			    {
+			      printf("\nError: Option AUTOF has been deprecated, exiting\n\n");
+			      errorExit(-1);
+			    }
 			}
+
+		     
 		    }
 		}
 	      
@@ -338,7 +357,15 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 		      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;		     
 		      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
 		      found = TRUE;
-		    }		
+		      
+		      if(tr->initialPartitionData[modelNumber].protModels == AUTO)
+			{
+			  printf("\nError: Option AUTOX has been deprecated, exiting\n\n");
+			  errorExit(-1);
+			}
+		    }			  
+
+		 
 		}
 	      
 
@@ -409,7 +436,7 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	  if(!found)
 	    {		  	  
 	      if(strcasecmp(model, "DNA") == 0 || strcasecmp(model, "DNAX") == 0 || strcasecmp(model, "ASC_DNA") == 0 || strcasecmp(model, "ASC_DNAX") == 0)
-		{	     	      
+		{ 
 		  tr->initialPartitionData[modelNumber].protModels = -1;		  
 		  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 		  tr->initialPartitionData[modelNumber].dataType   = DNA_DATA;
@@ -424,6 +451,7 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 		    }
 		  else
 		    {
+		     
 		      if(strcasecmp(model, "ASC_DNA") == 0)
 			tr->initialPartitionData[modelNumber].ascBias = TRUE;
 		      else

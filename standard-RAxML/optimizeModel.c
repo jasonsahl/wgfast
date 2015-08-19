@@ -80,13 +80,15 @@ extern volatile double          *reductionBuffer;
 #define RATE_F_HET 7
 #endif
 
+static boolean optimizeRatesBFGS(tree *tr);
+static void setRateModel(tree *tr, int model, double rate, int position);
 
 static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double tol, double *xmin, double *result, int numberOfModels, 
 			 int whichFunction, int rateNumber, tree *tr, linkageList *ll, double *lim_inf, double *lim_sup);
 
 static int brakGeneric(double *param, double *ax, double *bx, double *cx, double *fa, double *fb, 
 		       double *fc, double *lim_inf, double *lim_sup, 
-		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll, double modelEpsilon);
+		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll);
 
 static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int rateNumber, double lim_inf, double lim_sup, int whichParameterType);
 
@@ -120,7 +122,7 @@ static void setRateModel(tree *tr, int model, double rate, int position)
        tr->partitionData[model].dataType == SECONDARY_DATA_7))
     assert(rate >= RATE_MIN && rate <= RATE_MAX);
 
-  if(tr->partitionData[model].nonGTR)
+  if(tr->partitionData[model].nonGTR || (tr->partitionData[model].dataType == DNA_DATA && (tr->useK80 || tr->useHKY85)))
     {    
       int 
 	i, 
@@ -128,7 +130,8 @@ static void setRateModel(tree *tr, int model, double rate, int position)
 
       assert(tr->partitionData[model].dataType == SECONDARY_DATA ||
 	     tr->partitionData[model].dataType == SECONDARY_DATA_6 ||
-	     tr->partitionData[model].dataType == SECONDARY_DATA_7);
+	     tr->partitionData[model].dataType == SECONDARY_DATA_7 ||
+	     tr->partitionData[model].dataType == DNA_DATA);
 
       if(k == -1)
 	tr->partitionData[model].substRates[position] = 0.0;
@@ -310,20 +313,23 @@ static void changeModelParameters(int index, int rateNumber, double value, int w
 #endif
     case ALPHA_F:
       tr->partitionData[index].alpha = value;
-      makeGammaCats(tr->partitionData[index].alpha, tr->partitionData[index].gammaRates, 4, tr->useGammaMedian);
+      makeGammaCats(tr->rateHetModel, tr->partitionData[index].alpha, tr->partitionData[index].gammaRates, 4, tr->useGammaMedian, tr->partitionData[index].propInvariant);
       break;
     case INVAR_F:
       tr->partitionData[index].propInvariant = value;
+      makeGammaCats(tr->rateHetModel, tr->partitionData[index].alpha, tr->partitionData[index].gammaRates, 4, tr->useGammaMedian, tr->partitionData[index].propInvariant);
       break;
     case SCALER_F:     
       tr->partitionData[index].brLenScaler = value;
       scaleBranches(tr, FALSE);			        
       break;
     case LXRATE_F:
-      tr->partitionData[index].gammaRates[rateNumber] = value;
+      tr->partitionData[index].gammaRates[rateNumber] = value;         
+      scaleLG4X_EIGN(tr, index);    
       break;
     case LXWEIGHT_F:
-      updateWeights(tr, index, rateNumber, value);
+      updateWeights(tr, index, rateNumber, value);      
+      scaleLG4X_EIGN(tr, index);
       break;	
     case FREQ_F:
       {
@@ -368,6 +374,36 @@ static void freeLinkageList( linkageList* ll)
   rax_free(ll);   
 }
 
+void scaleLG4X_EIGN(tree *tr, int model)
+{
+  double 
+    acc = 0.0;
+
+  int 
+    i, 
+    l;
+          
+  for(i = 0; i < 4; i++)	     
+    acc += tr->partitionData[model].weights[i] *  tr->partitionData[model].gammaRates[i];
+
+  acc = 1.0 / acc;
+
+  /*
+    printf("update %f %f %f %f %f\n", acc, tr->partitionData[model].gammaRates[0], tr->partitionData[model].gammaRates[1], tr->partitionData[model].gammaRates[2], 
+    tr->partitionData[model].gammaRates[3]);
+
+    printf("weigths: %f %f %f %f\n", tr->partitionData[model].weights[0], tr->partitionData[model].weights[1], tr->partitionData[model].weights[2], 
+    tr->partitionData[model].weights[3]);
+  */
+
+  for(i = 0; i < 4; i++)
+    for(l = 0; l < 19; l++)
+	tr->partitionData[model].EIGN_LG4[i][l] = tr->partitionData[model].rawEIGN_LG4[i][l] * acc;
+#ifdef _USE_PTHREADS
+  masterBarrier(THREAD_COPY_LG4X_EIGN, tr);
+#endif
+
+}
 
 static void updateWeights(tree *tr, int model, int rate, double value)
 {
@@ -419,15 +455,12 @@ static void optimizeWeights(tree *tr, double modelEpsilon, linkageList *ll, int 
 
   //printf("%f %f [%f]\n",  tr->perPartitionLH[0], tr->perPartitionLH[1], finalLH);
 }
-static void evaluateChange(tree *tr, int rateNumber, double *value, double *result, boolean* converged, int whichFunction, int numberOfModels, linkageList *ll, double modelEpsilon)
+static void evaluateChange(tree *tr, int rateNumber, double *value, double *result, boolean* converged, int whichFunction, int numberOfModels, linkageList *ll)
 { 
   int 
     i, 
     k, 
-    pos;
-
-  boolean
-    atLeastOnePartition = FALSE;
+    pos;  
    
   for(i = 0, pos = 0; i < ll->entries; i++)
     {
@@ -442,9 +475,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 		tr->executeModel[ll->ld[i].partitionList[k]] = FALSE;
 	    }
 	  else
-	    {
-	      atLeastOnePartition = TRUE;
-
+	    {	      
 	      for(k = 0; k < ll->ld[i].partitions; k++)
 		{
 		  int 
@@ -566,13 +597,10 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
     case ALPHA_F:
     case SCALER_F:
     case LXRATE_F: 
-    case FREQ_F:
-      evaluateGenericInitrav(tr, tr->start);
-      //printf("%f \n", tr->likelihood);
-      break;
+    case FREQ_F: 
     case LXWEIGHT_F:
     case INVAR_F:
-      evaluateGeneric(tr, tr->start);  
+      evaluateGenericInitrav(tr, tr->start);           
       break;
     default:
       assert(0);
@@ -581,34 +609,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 
  
 
-  //nested optimization for LX4 model, now optimize the weights!
-
-  if(whichFunction == LXRATE_F && atLeastOnePartition)
-    {
-      boolean 
-	*buffer = (boolean*)rax_malloc(tr->NumberOfModels * sizeof(boolean));
-	    
-      memcpy(buffer, tr->executeModel, sizeof(boolean) * tr->NumberOfModels);
-	    
-      for(i = 0; i < tr->NumberOfModels; i++)
-	tr->executeModel[i] = FALSE;
-	    
-      for(i = 0, pos = 0; i < ll->entries; i++)	
-	{  
-	  int 
-	    index = ll->ld[i].partitionList[0];	    	      
-	    
-	  if(ll->ld[i].valid)		  	    	      		   	    
-	    tr->executeModel[index] = TRUE;	    
-	}
-
-      optimizeWeights(tr, modelEpsilon, ll, numberOfModels);      
-	    
-      memcpy(tr->executeModel, buffer, sizeof(boolean) * tr->NumberOfModels);
-	    
-      rax_free(buffer);
-    }
-    
+  
   
   for(i = 0, pos = 0; i < ll->entries; i++)	
     {
@@ -787,7 +788,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 	    }
 	}
                  
-      evaluateChange(tr, rateNumber, u, fu, converged, whichFunction, numberOfModels, ll, tol);
+      evaluateChange(tr, rateNumber, u, fu, converged, whichFunction, numberOfModels, ll);
 
       for(i = 0; i < numberOfModels; i++)
 	{
@@ -866,7 +867,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 
 static int brakGeneric(double *param, double *ax, double *bx, double *cx, double *fa, double *fb, 
 		       double *fc, double *lim_inf, double *lim_sup, 
-		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll, double modelEpsilon)
+		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll)
 {
   double 
     *ulim = (double *)rax_malloc(sizeof(double) * numberOfModels),
@@ -907,7 +908,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
     }
    
   
-  evaluateChange(tr, rateNumber, param, fa, converged, whichFunction, numberOfModels, ll, modelEpsilon);
+  evaluateChange(tr, rateNumber, param, fa, converged, whichFunction, numberOfModels, ll);
 
 
   for(i = 0; i < numberOfModels; i++)
@@ -921,7 +922,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
       assert(param[i] >= lim_inf[i] && param[i] <= lim_sup[i]);
     }
   
-  evaluateChange(tr, rateNumber, param, fb, converged, whichFunction, numberOfModels, ll, modelEpsilon);
+  evaluateChange(tr, rateNumber, param, fb, converged, whichFunction, numberOfModels, ll);
 
   for(i = 0; i < numberOfModels; i++)  
     {
@@ -944,7 +945,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
     }
   
  
-  evaluateChange(tr, rateNumber, param, fc, converged, whichFunction, numberOfModels,  ll, modelEpsilon);
+  evaluateChange(tr, rateNumber, param, fc, converged, whichFunction, numberOfModels,  ll);
 
    while(1) 
      {       
@@ -1088,7 +1089,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 	     }
 	 }
              
-       evaluateChange(tr, rateNumber, param, temp, converged, whichFunction, numberOfModels, ll, modelEpsilon);
+       evaluateChange(tr, rateNumber, param, temp, converged, whichFunction, numberOfModels, ll);
 
        for(i = 0; i < numberOfModels; i++)
 	 {
@@ -1297,6 +1298,7 @@ static double maxFreq(int index, int whichFreq, tree *tr, double absoluteMax)
   return MIN(max, absoluteMax);
 }
 
+//#define _DEBUG_MODEL_OPTIMIZATION
 
 static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int rateNumber, double _lim_inf, double _lim_sup, int whichParameterType)
 {
@@ -1324,21 +1326,9 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
     *lim_inf    = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *lim_sup    = (double *)rax_malloc(sizeof(double) * numberOfModels);
 
+  evaluateGenericInitrav(tr, tr->start);
+
   
-  if(whichParameterType == LXWEIGHT_F)
-    evaluateGeneric(tr, tr->start);
-  else
-    {
-      evaluateGenericInitrav(tr, tr->start);
-
-      if(whichParameterType == LXRATE_F)
-	{
-	  int j;
-
-	  for(j = 0; j < tr->NumberOfModels; j++)
-	    tr->partitionData[j].weightLikelihood = tr->perPartitionLH[j];
-	}
-    }
   
 #ifdef  _DEBUG_MODEL_OPTIMIZATION
   double
@@ -1451,7 +1441,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 
   assert(pos == numberOfModels);
 
-  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, rateNumber, whichParameterType, tr, ll, modelEpsilon);
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, rateNumber, whichParameterType, tr, ll);
       
   for(k = 0; k < numberOfModels; k++)
     {
@@ -1475,15 +1465,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 	      for(j = 0; j < ll->ld[k].partitions; j++)
 		{
 		  int 
-		    index = ll->ld[k].partitionList[j];
-		  		 
-
-		  if(whichParameterType == LXRATE_F)
-		    {
-		      memcpy(tr->partitionData[index].weights,         &startWeights[pos * 4], sizeof(double) * 4);
-		      memcpy(tr->partitionData[index].gammaRates,      &startRates[pos * 4], sizeof(double) * 4);
-		      memcpy(tr->partitionData[index].weightExponents, &startExponents[pos * 4], 4 * sizeof(double));
-		    }
+		    index = ll->ld[k].partitionList[j];		  		 		  
 		  		 
 		  changeModelParameters(index, rateNumber, startValues[pos], whichParameterType, tr);		 
 		}
@@ -1501,23 +1483,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  int 
 		    index = ll->ld[k].partitionList[j];
 
-		  changeModelParameters(index, rateNumber, _x[pos], whichParameterType, tr);
-
-		  if(whichParameterType == LXWEIGHT_F)
-		    {
-		      if(endLH[pos] > tr->partitionData[index].weightLikelihood)
-			{
-			  memcpy(tr->partitionData[index].weightsBuffer,         tr->partitionData[index].weights, sizeof(double) * 4);
-			  memcpy(tr->partitionData[index].weightExponentsBuffer, tr->partitionData[index].weightExponents, sizeof(double) * 4);
-			  tr->partitionData[index].weightLikelihood = endLH[pos];
-			}
-		    }
-
-		   if(whichParameterType == LXRATE_F)
-		    {
-		      memcpy(tr->partitionData[index].weights,         tr->partitionData[index].weightsBuffer, sizeof(double) * 4);		 
-		      memcpy(tr->partitionData[index].weightExponents, tr->partitionData[index].weightExponentsBuffer, sizeof(double) * 4);
-		    }		  		  
+		  changeModelParameters(index, rateNumber, _x[pos], whichParameterType, tr);		  		   
 		}
 	    }
 	  pos++;
@@ -1570,7 +1536,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
       evaluateGenericInitrav(tr, tr->start);
       break;
     case LXRATE_F:
-    case LXWEIGHT_F: 
+    case LXWEIGHT_F:       
     case FREQ_F:  
       break;
     default:
@@ -1880,8 +1846,13 @@ static void optRatesGeneric(tree *tr, double modelEpsilon, linkageList *ll)
 	{
 	case DNA_DATA:	
 	  states = tr->partitionData[ll->ld[i].partitionList[0]].states;
-	  ll->ld[i].valid = TRUE;
-	  dnaPartitions++;  
+	  if(tr->useJC69)
+	    ll->ld[i].valid = FALSE;
+	  else
+	    {
+	      ll->ld[i].valid = TRUE;
+	      dnaPartitions++;  
+	    }
 	  break;
 	case BINARY_DATA:
 	case AA_DATA:
@@ -2068,9 +2039,7 @@ static void optRatesGeneric(tree *tr, double modelEpsilon, linkageList *ll)
 
 
 
-/*** WARNING: the re-scaling of the branch lengths will only work if 
-     it is done after the rate optimization that modifies fracchange 
-***/
+
 
 
 static void optLG4X(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels)
@@ -2078,66 +2047,11 @@ static void optLG4X(tree *tr, double modelEpsilon, linkageList *ll, int numberOf
   int 
     i;
 
-  double
-    lg4xScaler,
-    *lg4xScalers = (double *)rax_calloc(tr->NumberOfModels, sizeof(double)),
-    *modelWeights = (double *)rax_calloc(tr->NumberOfModels, sizeof(double)),
-    wgtsum = 0.0;
-
   for(i = 0; i < 4; i++)
-    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, i, LG4X_RATE_MIN, LG4X_RATE_MAX, LXRATE_F);
-    
-  for(i = 0; i < tr->NumberOfModels; i++)
-    lg4xScalers[i] = 1.0;
-
-  for(i = 0; i < ll->entries; i++)
     {
-      if(ll->ld[i].valid)
-	{
-	  int
-	    j,
-	    index = ll->ld[i].partitionList[0];
-	  
-	  double
-	    averageRate = 0.0;
-	  
-	  assert(ll->ld[i].partitions == 1);
-	  
-	  for(j = 0; j < 4; j++)
-	    averageRate += tr->partitionData[index].gammaRates[j];	  
-	  
-	  averageRate /= 4.0;
-	  
-	  lg4xScalers[index] = averageRate;
-	}
+      optParamGeneric(tr, modelEpsilon, ll, numberOfModels, i, LG4X_RATE_MIN, LG4X_RATE_MAX, LXRATE_F);
+      optimizeWeights(tr, modelEpsilon, ll, numberOfModels);   
     }
-
-  if(tr->NumberOfModels > 1)
-    {
-      for(i = 0; i < tr->NumberOfModels; i++)
-	tr->fracchanges[i] = tr->rawFracchanges[i] * (1.0 / lg4xScalers[i]);
-    }
-
-  for(i = 0; i < tr->cdta->endsite; i++)
-    {
-      modelWeights[tr->model[i]]  += (double)tr->cdta->aliaswgt[i];
-      wgtsum                      += (double)tr->cdta->aliaswgt[i];
-    }
-
-  lg4xScaler = 0.0;
-
-  for(i = 0; i < tr->NumberOfModels; i++)
-    {
-      double 
-	fraction = modelWeights[i] / wgtsum; 
-      
-      lg4xScaler += (fraction * lg4xScalers[i]); 
-    }
-
-  tr->fracchange = tr->rawFracchange * (1.0 / lg4xScaler);
-
-  rax_free(lg4xScalers);
-  rax_free(modelWeights);
 }
 
 static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
@@ -2241,15 +2155,10 @@ static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
 	  assert(0);
 	}      
     }   
-  
-  
-
+    
   if(LG4X_Partitions > 0)
     optLG4X(tr, modelEpsilon, ll, LG4X_Partitions);
-
-
-  
-
+ 
   for(i = 0; i < ll->entries; i++)
     ll->ld[i].valid = TRUE;
 }
@@ -2888,13 +2797,7 @@ static double fixZ(double z)
   return z;
 }
 
-static double getFracChange(tree *tr, int model)
-{
-  if(tr->NumberOfModels == 1)
-    return tr->fracchange;
-  else
-    return tr->fracchanges[model];
-}
+
 void scaleBranches(tree *tr, boolean fromFile)
 {
   nodeptr  
@@ -2927,7 +2830,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	  
 	  for(model = 0; model < tr->NumberOfModels; model++)
 	    {
-	      z = exp(-p->z[0] / getFracChange(tr, model));
+	      z = exp(-p->z[0]);
 
 	      z = fixZ(z);	     
 
@@ -2940,7 +2843,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	    {
 	      z = tr->partitionData[model].brLenScaler * tr->storedBrLens[count];
 	     
-	      z = exp(-z / getFracChange(tr, model));
+	      z = exp(-z);
 	      
 	      z = fixZ(z);
 
@@ -2958,7 +2861,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	      
 	      for(model = 0; model < tr->NumberOfModels; model++)
 		{
-		  z = exp(-p->next->z[0] / getFracChange(tr, model));
+		  z = exp(-p->next->z[0]);
 		  
 		  z = fixZ(z);
 
@@ -2971,7 +2874,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	      for(model = 0; model < tr->NumberOfModels; model++)
 		{
 		  z = tr->partitionData[model].brLenScaler * tr->storedBrLens[count];
-		  z = exp(-z / getFracChange(tr, model));		  		 
+		  z = exp(-z);	  		 
 
 		  z = fixZ(z);
 
@@ -2986,7 +2889,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	      
 	      for(model = 0; model < tr->NumberOfModels; model++)
 		{
-		  z = exp(-p->next->next->z[0] / getFracChange(tr, model));
+		  z = exp(-p->next->next->z[0]);
 		  
 		  z = fixZ(z);		  
 		  
@@ -2999,7 +2902,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 		{
 		  z = tr->partitionData[model].brLenScaler * tr->storedBrLens[count];
 		  
-		  z = exp(-z / getFracChange(tr, model));		 
+		  z = exp(-z);	 
 
 		  z = fixZ(z);
 
@@ -3110,30 +3013,94 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
   optParamGeneric(tr, modelEpsilon, ll, ll->entries, -1, 0.01, 100.0, SCALER_F);
 }
 
+static void optModel(tree *tr, int numProteinModels, int *bestIndex, double *bestScores, boolean empiricalFreqs)
+{
+  int
+    i,
+    model;
+    
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {      
+      bestIndex[model] = -1;
+      bestScores[model] = unlikely;
+    }
+      
+  for(i = 0; i < numProteinModels; i++)
+    {
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{	   
+	  if(tr->partitionData[model].protModels == AUTO)
+	    { 
+	      if(empiricalFreqs)
+		tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+	      else
+		tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+	      tr->partitionData[model].autoProtModels = i;
+	      initReversibleGTR(tr, model);  
+	    }
+	}
+      
+#ifdef _USE_PTHREADS	
+      masterBarrier(THREAD_COPY_RATES, tr);	   
+#endif
+      
+      resetBranches(tr);
+      evaluateGenericInitrav(tr, tr->start);  
+      treeEvaluate(tr, 0.5);    
+
+      //printf("Subst Model %d Freqs: %s like %f %f\n", i, (empiricalFreqs == TRUE)?"empirical":"fixed", tr->likelihood, tr->perPartitionLH[0]);
+      
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  if(tr->partitionData[model].protModels == AUTO)
+	    {	
+	      /*int k;
+	      for(k = 0; k < 20; k++)
+		printf("%f ", tr->partitionData[model].frequencies[k]);
+		printf("\n");*/
+
+ 
+	      if(tr->perPartitionLH[model] > bestScores[model])
+		{
+		  bestScores[model] = tr->perPartitionLH[model];
+		  bestIndex[model] = i;		      
+		}
+	    }	      
+	}       
+    }             
+}
+
 static void autoProtein(tree *tr)
 {
   int 
     countAutos = 0,   
     model;  
-  
+
   for(model = 0; model < tr->NumberOfModels; model++)	      
     if(tr->partitionData[model].protModels == AUTO)
       countAutos++;
 
   if(countAutos > 0)
     {
-      int 
-	i,
+      int        
 	numProteinModels = AUTO,
 	*bestIndex = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels),
-	*oldIndex  = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels);
+	*oldIndex  = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels),
+	*bestIndexEmpFreqs = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels);
+
+      boolean
+	*oldFreqs =  (boolean*)rax_malloc(sizeof(boolean) * tr->NumberOfModels);
 
       double
 	startLH,
-	*bestScores = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels);    
+	*bestScores         = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels),
+	*bestScoresEmpFreqs = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels);
 
       topolRELL_LIST 
 	*rl = (topolRELL_LIST *)rax_malloc(sizeof(topolRELL_LIST));
+
+      char
+	*autoModels[4] = {"ML", "BIC", "AIC", "AICc"};
 
       initTL(rl, tr, 1);
       saveTL(rl, tr, 0);
@@ -3141,55 +3108,171 @@ static void autoProtein(tree *tr)
       evaluateGenericInitrav(tr, tr->start); 
 
       startLH = tr->likelihood;
-
+      
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
 	  oldIndex[model] = tr->partitionData[model].autoProtModels;
-	  bestIndex[model] = -1;
-	  bestScores[model] = unlikely;
+	  oldFreqs[model] = tr->partitionData[model].usePredefinedProtFreqs;
 	}
-      
-      for(i = 0; i < numProteinModels; i++)
-	{
-	  for(model = 0; model < tr->NumberOfModels; model++)
-	    {	   
-	      if(tr->partitionData[model].protModels == AUTO)
-		{
-		  tr->partitionData[model].autoProtModels = i;
-		  initReversibleGTR(tr, model);  
-		}
-	    }
 
-#ifdef _USE_PTHREADS	
-	  masterBarrier(THREAD_COPY_RATES, tr);	   
-#endif
       
-	  resetBranches(tr);
-	  evaluateGenericInitrav(tr, tr->start);  
-	  treeEvaluate(tr, 0.5);     
-	  
-	  for(model = 0; model < tr->NumberOfModels; model++)
-	    {
-	      if(tr->partitionData[model].protModels == AUTO)
-		{		  
-		  if(tr->perPartitionLH[model] > bestScores[model])
-		    {
-		      bestScores[model] = tr->perPartitionLH[model];
-		      bestIndex[model] = i;		      
-		    }
-		}	      
-	    }       
-	}           
       
-      printBothOpen("Automatic protein model assignment algorithm:\n\n");
+      optModel(tr, numProteinModels, bestIndex, bestScores, FALSE);
+      
+      optModel(tr, numProteinModels, bestIndexEmpFreqs, bestScoresEmpFreqs, TRUE);      
+     
+      printBothOpen("Automatic protein model assignment algorithm using %s criterion:\n\n", autoModels[tr->autoProteinSelectionType]);
 
       for(model = 0; model < tr->NumberOfModels; model++)
 	{	   
 	  if(tr->partitionData[model].protModels == AUTO)
-	    {
-	      tr->partitionData[model].autoProtModels = bestIndex[model];
+	    {	  
+	      size_t
+		k;
+
+	      int 	       
+		bestIndexFixed = bestIndex[model],
+		bestIndexEmp = bestIndexEmpFreqs[model];
+	      
+	      double
+		bestLhFixed = bestScores[model],
+		bestLhEmp   = bestScoresEmpFreqs[model],
+		samples = 0.0,		
+		freeParamsFixed = 0.0,
+		freeParamsEmp = 0.0;
+	      
+	      //actually get the number of sites, not the number of patterns!
+	      for(k = tr->partitionData[model].lower; k < tr->partitionData[model].upper; k++)
+		samples += (double)tr->cdta->aliaswgt[k];
+
+	      //printf("sample %f\n", samples);
+
+	      //include branches in parameter count
+	      //catch case where tree contains less taxa than tr->mxtips e.g. in the EPA 
+	      assert(tr->ntips <= tr->mxtips);
+	      freeParamsFixed = freeParamsEmp = (2 * tr->ntips - 3);
+	      freeParamsEmp += 19.0;
+
+	      //printf("%f %f\n", bestLhFixed, bestLhEmp);
+	      
+	      /* AIC: 2 * (k - lnL)
+		 AICc: AIC + (2 * k * (k + 1))/(n - k - 1)
+		 BIC: -2 * lnL + k * ln(n) */
+	      
+	      switch(tr->rateHetModel)
+		{
+		case CAT:
+		  freeParamsFixed += (double)tr->partitionData[model].numberOfCategories;
+		  freeParamsEmp += (double)tr->partitionData[model].numberOfCategories;
+		  break;
+		case GAMMA: 
+		  freeParamsFixed += 1.0;
+		  freeParamsEmp += 1.0;
+		  break;
+		case GAMMA_I:
+		  freeParamsFixed += 2.0;
+		  freeParamsEmp += 2.0;
+		  break;
+		default:
+		  assert(0);
+		}
+		    
+
+	      switch(tr->autoProteinSelectionType)
+		{
+		case AUTO_ML:	
+		  if(bestLhFixed > bestLhEmp)
+		    {
+		      tr->partitionData[model].autoProtModels = bestIndexFixed;
+		      tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+		    }
+		  else
+		    {
+		      tr->partitionData[model].autoProtModels = bestIndexEmp;
+		      tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+		    }
+		  break;
+		case AUTO_BIC:
+		  { 
+		    //BIC: -2 * lnL + k * ln(n)
+		    double
+		      bicFixed = -2.0 * bestLhFixed + freeParamsFixed * log(samples),
+		      bicEmp   = -2.0 * bestLhEmp   + freeParamsEmp   * log(samples);
+
+		    if(bicFixed < bicEmp)
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexFixed;
+			tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+		      }
+		    else
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexEmp;
+			tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+		      }		   
+		  }
+		  break;
+		case AUTO_AIC:
+		  {
+		    //AIC: 2 * (k - lnL)
+		    double
+		      aicFixed = 2.0 * (freeParamsFixed - bestLhFixed),
+		      aicEmp   = 2.0 * (freeParamsEmp   - bestLhEmp);
+		    
+		    if(aicFixed < aicEmp)
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexFixed;
+			tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+		      }
+		    else
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexEmp;
+			tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+		      }	
+		  }
+		  break;
+		case AUTO_AICC:
+		  { 
+		    //AICc: AIC + (2 * k * (k + 1))/(n - k - 1)
+		    double
+		      aiccFixed,
+		      aiccEmp;
+
+		    /* 
+		     * Even though samples and freeParamsFixed are fp variables, they are actually integers.
+		     * That's why we are comparing with a 0.5 threshold.
+		     */
+		    
+		    if(fabs(samples - freeParamsFixed - 1.0) < 0.5) 		      
+		      aiccFixed = 0.0;
+		    else 
+		      aiccFixed = (2.0 * (freeParamsFixed - bestLhFixed)) + ((2.0 * freeParamsFixed * (freeParamsFixed + 1.0)) / (samples - freeParamsFixed - 1.0));
+
+		    if(fabs(samples - freeParamsEmp - 1.0) < 0.5)
+		      aiccEmp = 0.0;
+		    else 
+		      aiccEmp   = (2.0 * (freeParamsEmp   - bestLhEmp))   + ((2.0 * freeParamsEmp   * (freeParamsEmp + 1.0))   / (samples - freeParamsEmp   - 1.0));
+
+		    if(aiccFixed < aiccEmp)
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexFixed;
+			tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+		      }
+		    else
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexEmp;
+			tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+		      }	
+		  }
+		  break;
+		default:
+		  assert(0);
+		}
+
 	      initReversibleGTR(tr, model);  
-	      printBothOpen("\tPartition: %d best-scoring AA model: %s likelihood %f\n", model, protModels[tr->partitionData[model].autoProtModels], bestScores[model]);
+	      printBothOpen("\tPartition: %d best-scoring AA model: %s likelihood %f with %s base frequencies\n", 
+			    model, protModels[tr->partitionData[model].autoProtModels], 
+			    (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?bestLhFixed:bestLhEmp, (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?"fixed":"empirical");
+		  
 	    }	 
 	}
 
@@ -3202,6 +3285,8 @@ static void autoProtein(tree *tr)
       resetBranches(tr);
       evaluateGenericInitrav(tr, tr->start); 
       treeEvaluate(tr, 2.0);    
+
+      //printf("exit %f\n", tr->likelihood);
       
       if(tr->likelihood < startLH)
 	{	
@@ -3210,6 +3295,7 @@ static void autoProtein(tree *tr)
 	      if(tr->partitionData[model].protModels == AUTO)
 		{
 		  tr->partitionData[model].autoProtModels = oldIndex[model];
+		  tr->partitionData[model].usePredefinedProtFreqs = oldFreqs[model];
 		  initReversibleGTR(tr, model);
 		}
 	    }
@@ -3229,6 +3315,9 @@ static void autoProtein(tree *tr)
       rax_free(oldIndex);
       rax_free(bestIndex);
       rax_free(bestScores);
+      rax_free(bestIndexEmpFreqs);
+      rax_free(bestScoresEmpFreqs);
+      rax_free(oldFreqs);
     }
 }
 
@@ -3242,6 +3331,7 @@ static void checkTolerance(double l1, double l2)
   if(l1 < l2)
     {   
       double 
+	
 	tolerance = fabs(MAX(l1, l2) * 0.000000000001);      
 
       if(fabs(l1 - l2) > MIN(0.1, tolerance))
@@ -3252,7 +3342,8 @@ static void checkTolerance(double l1, double l2)
     }
 }
 
-static void optimizeRatesBFGS(tree *tr);
+
+//#define  _DEBUG_MOD_OPT
 
 void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon)
 { 
@@ -3296,12 +3387,14 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   scalerList = initLinkageList(unlinked, tr);
   freqList = initLinkageList(unlinked, tr);
     
+#ifndef __BLACKRIM
   if(!(adef->mode == CLASSIFY_ML))
     {
       if(tr->start != tr->nodep[1])
 	changedRoot = TRUE;      
       tr->start = tr->nodep[1];
     }
+#endif
   
   if(resetModel)
     {
@@ -3334,7 +3427,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  
 	  initReversibleGTR(tr, model);      
 	  
-	  makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian); 
+	  makeGammaCats(tr->rateHetModel, tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian, tr->partitionData[model].propInvariant); 
 	}
 #ifdef _USE_PTHREADS     
       masterBarrier(THREAD_RESET_MODEL ,tr);    
@@ -3366,9 +3459,13 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       printf("start: %1.40f\n", currentLikelihood);
 #endif
 
-      if(tr->NumberOfModels == 1 && tr->partitionData[0].dataType == DNA_DATA && adef->useBFGS)
-	{	  
-	  optimizeRatesBFGS(tr);
+      if(tr->NumberOfModels == 1 && tr->partitionData[0].dataType == DNA_DATA && adef->useBFGS && !(tr->useJC69 || tr->useK80 || tr->useHKY85))
+	{	  	 
+	  if(optimizeRatesBFGS(tr) == FALSE)
+	    {
+	      adef->useBFGS = FALSE;
+	      optRatesGeneric(tr, modelEpsilon, rateList);
+	    }
 	}
       else
 	optRatesGeneric(tr, modelEpsilon, rateList);         
@@ -3531,16 +3628,14 @@ static double branchLength(int model, double *z, tree *tr)
   if (x < zmin) 
     x = zmin;  
   
- 
   assert(x <= zmax);
   
   if(!tr->multiBranch)             
-    x = -log(x) * tr->fracchange;       
+    x = -log(x);       
   else
-    x = -log(x) * tr->fracchanges[model];
+    x = -log(x);
 
   return x;
-
 }
 
 
@@ -3549,14 +3644,17 @@ static double treeLengthRec(nodeptr p, tree *tr, int model)
   double 
     x = branchLength(model, p->z, tr);
 
+  
+
   if(isTip(p->number, tr->rdta->numsp))  
     return x;    
   else
     {
-      double acc = 0;
-      nodeptr q;                
-     
-      q = p->next;      
+      double 
+	acc = 0.0;
+      
+      nodeptr 
+	q = p->next;      
 
       while(q != p)
 	{
@@ -3564,7 +3662,7 @@ static double treeLengthRec(nodeptr p, tree *tr, int model)
 	  q = q->next;
 	}
 
-      return acc + x;
+      return (acc + x);
     }
 }
 
@@ -3588,38 +3686,34 @@ static double targetFunk(double *x, int n, tree *tr)
 {
   int
     model,
-    i = 1;
-
- 
+    i = 1;  
+  
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       int 
 	k;
       
-      for(k = 0; k < 5; k++, i++)
-	{
-	  //printf("model %d rate %d i %d value %f\n", model, k, i, x[i]);
-	  setRateModel(tr, model, x[i], k);  
-	}
+      for(k = 0; k < 5; k++, i++)       
+	setRateModel(tr, model, x[i], k);         
       
       initReversibleGTR(tr, model); 
-#ifdef _USE_PTHREADS
-      masterBarrier(THREAD_COPY_RATES, tr);	
-#endif
     }
 
   assert(i == n + 1);
   
+#ifdef _USE_PTHREADS
+  masterBarrier(THREAD_COPY_RATES, tr);	
+#endif
   
+     
   //TODO when optimizing some quantities we actually need to 
   //only evaluate at the root without re-traversing the entire tree 
   
-  evaluateGenericInitrav(tr, tr->start);
+  evaluateGenericInitrav(tr, tr->start);    
   
   //minh confirm that we are actually really trying to minimize, hence 
   //reverting the sign of the lnl is correct below?
-  ////MINH: Yes correct, this is minization, returning negative logl does the job
-  
+  ////MINH: Yes correct, this is minization, returning negative logl does the job 
 
   return (-1.0 * tr->likelihood);
 }
@@ -3634,7 +3728,7 @@ static void fixBound(double *x, double *lower, double *upper, int n)
 {
   int 
     i;
-  
+
   for (i = 1; i <= n; i++) 
     {
       if(x[i] < lower[i])
@@ -3660,8 +3754,8 @@ static void lnsrch(int n, double *xold, double fold, double *g, double *p, doubl
   boolean 
     first_time = TRUE;
   
-  *check=0;
-  
+  *check=0;   
+
   for (sum=0.0,i=1;i<=n;i++) 
     sum += p[i]*p[i];
   
@@ -3700,16 +3794,17 @@ static void lnsrch(int n, double *xold, double fold, double *g, double *p, doubl
  
   
   for (;;) 
-    {
-      for(i = 1;i <= n; i++) 
-	x[i] = xold[i] + alam * p[i];
+    {      
+      for(i = 1;i <= n; i++) 		 
+	x[i] = xold[i] + alam * p[i]; 	         
       
       fixBound(x, lower, upper, n);
 
       //minh is the commented code below needed?
       ////MINH: this is indeed not needed
       //checkRange(x);
-            
+      
+      
       *f=targetFunk(x, n, tr);
       
       if(alam < alamin) 
@@ -3766,15 +3861,16 @@ static void lnsrch(int n, double *xold, double fold, double *g, double *p, doubl
 
 const int MAX_ITER = 3;
 
-static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr);
+static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr,  boolean *bfgsConverged);
 static double derivativeFunk(double *x, double *dfx, int n, tree *tr);
 
 //minh is guess over-written by this function?
-////MINH: yes, guess will be overwritten by the optimized values. IMPORTANT: all arrays guess,lower,upper,bound_check are indexed from 1 to ndim (not starting from 0!). I don't know why, ask Numerical Recipes guys ;-)
+////MINH: yes, guess will be overwritten by the optimized values. IMPORTANT: all arrays guess,lower,upper,bound_check are indexed from 1 to ndim (not starting from 0!). 
+// I don't know why, ask Numerical Recipes guys ;-)
 //minh what is the exact meaining of gtol, does it refer to x or f(x)?
 ////MINH: gtol is the tolerance for the first derivative f'(x). It stops when |f'(x)| < gtol, because optimization means to find the root of f'(x)
 
-static double minimizeMultiDimen(double *guess, int ndim, double *lower, double *upper, boolean *bound_check, double gtol, tree *tr) 
+static double minimizeMultiDimen(double *guess, int ndim, double *lower, double *upper, boolean *bound_check, double gtol, tree *tr, boolean *bfgsConverged) 
 {
   int 
     i, 
@@ -3797,7 +3893,7 @@ static double minimizeMultiDimen(double *guess, int ndim, double *lower, double 
   
   do 
     {
-      dfpmin(guess, ndim, lower, upper, gtol, &iter, &fret, tr);
+      dfpmin(guess, ndim, lower, upper, gtol, &iter, &fret, tr, bfgsConverged);
       
       if (fret < minf) 
 	{
@@ -3882,7 +3978,7 @@ static void freeAll(double *xi, double *pnew, double **hessin, double *hdg, doub
 
 
 
-static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr) 
+static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr, boolean *bfgsConverged) 
 {
   int 
     check,
@@ -3928,11 +4024,11 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
   stpmax = STPMX * FMAX(sqrt(sum),(double)n);
   
   for(its = 1; its <= ITMAX_BFGS; its++) 
-    {
+    {     
       *iter = its;
-      
+     
       lnsrch(n, p, fp, g, xi, pnew, fret, stpmax, &check, lower, upper, tr);
-      
+        
       fp = *fret;
       
       for (i=1;i<=n;i++) 
@@ -3940,7 +4036,7 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	  xi[i]=pnew[i]-p[i];
 	  p[i]=pnew[i];
 	}
-      
+     
       test=0.0;
       
       for (i=1;i<=n;i++) 
@@ -3958,7 +4054,8 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
       for (i=1;i<=n;i++) 
 	dg[i]=g[i];
       
-      derivativeFunk(p, g, n, tr);
+      derivativeFunk(p, g, n, tr);            
+
       test=0.0;
       
       den = FMAX(fabs(*fret),1.0);
@@ -3989,8 +4086,8 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	  for (j=1;j<=n;j++) 
 	    hdg[i] += hessin[i][j]*dg[j];
 	}
-      
-      fac=fae=sumdg=sumxi=0.0;
+     
+      fac=fae=sumdg=sumxi=0.0;      
       
       for (i=1;i<=n;i++) 
 	{
@@ -3998,8 +4095,8 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	  fae += dg[i]*hdg[i];
 	  sumdg += SQR(dg[i]);
 	  sumxi += SQR(xi[i]);
-	}
-      
+	}      
+
       if(fac*fac > EPS*sumdg*sumxi)
 	{
 	  fac=1.0/fac;
@@ -4021,12 +4118,14 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	{
 	  xi[i]=0.0;
 	  for (j=1;j<=n;j++) xi[i] -= hessin[i][j]*g[j];
-	}
-      
-      
+	}           
     }
-  printf("too many iterations in dfpmin\n");
-  assert(0);
+
+  //printf("too many iterations in dfpmin\n");
+  //assert(0);
+  
+  printBothOpen("\n\n BFGS required too many iterations, reverting to Brent-based optimizer\n\n");
+  *bfgsConverged = FALSE;
   
   freeAll(xi, pnew, hessin, hdg, g, dg, n);
 }
@@ -4038,7 +4137,7 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 #undef STPMX
 #undef FREEALL
 #undef FMAX
-
+#define ERROR_X 1.0e-4
 
 /**
 	the approximated derivative function
@@ -4047,29 +4146,27 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	@return the function value at x
 */
 static double derivativeFunk(double *x, double *dfx, int n, tree *tr) 
-{
-  
-  
+{ 
   double  
     h, 
     temp,
     fx = targetFunk(x, n, tr);
 
-  const double 
-    ERROR_X = 1.0e-4;
-
   int 
-    dim;
-   
+    dim;   
+
   for(dim = 1; dim <= n; dim++)
     {
       temp = x[dim];
+      
       h = ERROR_X * fabs(temp);
       if (h == 0.0) 
 	h = ERROR_X;
-      x[dim] = temp + h;
+      x[dim] = temp + h;      
       h = x[dim] - temp;
-      dfx[dim] = (targetFunk(x, n, tr) - fx) / h;
+      double t = targetFunk(x, n, tr);
+      dfx[dim] = (t - fx) / h;
+           	           
       x[dim] = temp;
     }
   
@@ -4081,12 +4178,14 @@ static double derivativeFunk(double *x, double *dfx, int n, tree *tr)
 
 
 
-static void optimizeRatesBFGS(tree *tr)
+static boolean optimizeRatesBFGS(tree *tr)
 {
   int 
     model,
     i = 0,
     nGTR = 5 * tr->NumberOfModels;
+
+
 
   double  
     startLH,
@@ -4097,6 +4196,7 @@ static void optimizeRatesBFGS(tree *tr)
     *rateBuffer = (double*)rax_malloc(sizeof(double) * 6);
 
   boolean
+    bfgsConverged = TRUE,
     *bound_check_GTR = (boolean*)rax_malloc(sizeof(boolean) * (nGTR + 1));
   
   assert(tr->NumberOfModels == 1);
@@ -4106,8 +4206,6 @@ static void optimizeRatesBFGS(tree *tr)
 
   evaluateGenericInitrav(tr, tr->start);
   startLH = tr->likelihood;
-  
-  //printf("Enter Rates %f\n", tr->likelihood);
 
   for(model = 0, i = 1; model < tr->NumberOfModels; model++)
     {
@@ -4117,21 +4215,31 @@ static void optimizeRatesBFGS(tree *tr)
       for(k = 0; k < 5; k++, i++)
 	{
 	  guessGTR[i] = tr->partitionData[model].substRates[k];	
-	  bound_check_GTR[i] = TRUE;
-	  lowerGTR[i] = RATE_MIN;
+	  bound_check_GTR[i] = FALSE;
+	  //added this max here to prevent num problems when the boundary value is set lower than 
+	  //the error margin!
+	  lowerGTR[i] = MAX(RATE_MIN, ERROR_X);
 	  upperGTR[i] = RATE_MAX;
 	}
     }
 
   assert(i == nGTR + 1);
  
-  minimizeMultiDimen(guessGTR, nGTR, lowerGTR, upperGTR, bound_check_GTR, 0.0001, tr);  
+  minimizeMultiDimen(guessGTR, nGTR, lowerGTR, upperGTR, bound_check_GTR, 0.0001, tr,  &bfgsConverged);  
+  
+  memcpy(tr->partitionData[0].substRates, &guessGTR[1], sizeof(double) * 5);   
+  
+  initReversibleGTR(tr, 0);
+  
+#ifdef _USE_PTHREADS
+  masterBarrier(THREAD_COPY_RATES, tr);	
+
+  
+#endif
 
   evaluateGenericInitrav(tr, tr->start);
-  endLH = tr->likelihood;
-
-  //printf("Exit: %f\n", tr->likelihood);
-
+  endLH = tr->likelihood; 
+  
   if(endLH < startLH)
     {
       printBothOpen("Reverting BFGS ... \n");
@@ -4144,11 +4252,11 @@ static void optimizeRatesBFGS(tree *tr)
       assert(startLH == tr->likelihood);
     }
 
-  //assert(endLH >= startLH);
-
   rax_free(guessGTR);
   rax_free(lowerGTR);
   rax_free(upperGTR);
   rax_free(bound_check_GTR);
   rax_free(rateBuffer);
+
+  return bfgsConverged;
 }

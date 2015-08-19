@@ -56,34 +56,72 @@ extern volatile int NumberOfThreads;
 extern const unsigned int mask32[32];
 
 
-void ascertainmentBiasSequence(unsigned char tip[32], int numStates)
+
+
+void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType, int nodeNumber, int *ascMissingVector)
 { 
   assert(numStates <= 32 && numStates > 1);
 
-  switch(numStates)
+  assert(nodeNumber > 0);
+  
+  switch(dataType)
     {
-    case 2:     
-      tip[0] = 1;
-      tip[1] = 2;
+    case BINARY_DATA:     
+      if(ascMissingVector[nodeNumber] == 1)
+	{
+	  tip[0] = 3;
+	  tip[1] = 3;
+	}
+      else
+	{
+	  tip[0] = 1;
+	  tip[1] = 2;
+	}
       break;
-    case 4:
-      tip[0] = 1;
-      tip[1] = 2;
-      tip[2] = 4;
-      tip[3] = 8;
+    case DNA_DATA:
+      if(ascMissingVector[nodeNumber] == 1)
+	{
+	  //printf("M %d\n", nodeNumber);
+	  tip[0] = 15;
+	  tip[1] = 15;
+	  tip[2] = 15;
+	  tip[3] = 15;
+	}
+      else
+	{
+	  //printf("D %d\n", nodeNumber);
+	  tip[0] = 1;
+	  tip[1] = 2;
+	  tip[2] = 4;
+	  tip[3] = 8;
+	}
+      break;
+    case AA_DATA:
+      if(ascMissingVector[nodeNumber] == 1)
+	assert(0);
+      else
+	{
+	  int 
+	    i;
+	  
+	  for(i = 0; i < numStates; i++)	  
+	    tip[i] = i;	  
+	}    
+      break;
+    case GENERIC_32:
+       if(ascMissingVector[nodeNumber] == 1)
+	assert(0);
+      else	
+	{
+	  int 
+	    i;
+	  
+	  for(i = 0; i < numStates; i++)	  
+	    tip[i] = i;
+	}
       break;
     default:
-      {
-	int 
-	  i;
-	for(i = 0; i < numStates; i++)
-	  {
-	    tip[i] = i;
-	    //printf("%c ", inverseMeaningPROT[i]);
-	  }
-	//printf("\n");
-      }
-      break;
+      assert(0);
     }
 }
 
@@ -254,11 +292,12 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
 static double evaluateCatAsc(int *ex1, int *ex2,
 			     double *x1, double *x2,  
 			     double *tipVector, 
-			     unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector)
+			     unsigned char *tipX1, int n, double *diagptable, const int numStates, 
+			     double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector, 
+			     double *goldmanAccumulator)
 {
   double
     exponent,
-    logMin = LOG(twotothe256),
     sum = 0.0, 
     unobserved,
     term,
@@ -269,13 +308,15 @@ static double evaluateCatAsc(int *ex1, int *ex2,
     i,    
     l;   
          
-  unsigned char 
-    tip[32];
-
-  ascertainmentBiasSequence(tip, numStates);
+ 
    
   if(tipX1)
-    {               
+    {            
+      unsigned char 
+	tip[32];
+
+      ascertainmentBiasSequence(tip, numStates, dataType, nodeNumber, ascMissingVector);  
+      
       for (i = 0; i < n; i++) 
 	{
 	  left = &(tipVector[numStates * tip[i]]);	  	  
@@ -286,11 +327,16 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	  for(l = 0; l < numStates; l++)
 	    term += left[l] * right[l] * diagptable[l];	      	 	 	  	 
 
-	  exponent = ((double)ex2[i] * logMin);	  
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page: 
+	     If  result  underflows, and is not representable, a range error occurs,
+	     and 0.0 is returned.
+	  */
 
-	  assert(exponent < 700.0);
 
-	  unobserved = FABS(term) * exp(exponent);	    
+	  exponent = pow(minlikelihood, (double)ex2[i]);
+
+	  unobserved = FABS(term) * exponent;	    
 	  
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0)
@@ -303,25 +349,32 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	  if(weightVector)
 	    *accumulator += weightVector[i] * (LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood)));
 
+	  *goldmanAccumulator += ((LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood))) * FABS(term) * exponent);
+	  
 	  sum += unobserved;
 	}              
-    }              
+    }      
   else
     {           
       for (i = 0; i < n; i++) 
 	{	  	 
 	  term = 0.0;
-	  	 
+	  
 	  left  = &(x1[i * numStates]);
 	  right = &(x2[i * numStates]);	    
-	      
+	  
 	  for(l = 0; l < numStates; l++)
 	    term += left[l] * right[l] * diagptable[l];		  
 	  
-	  //because of the way we scale for sites that only consist of a single character
-	  //ex1 and ex2 will mostly be zero, so there is no re-scaling that needs to be done
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page: 
+	     If  result  underflows, and is not representable, a range error occurs,
+	     and 0.0 is returned.
+	  */
 
-	  exponent = ((double)(ex1[i] + ex2[i]) * logMin);
+	  exponent = pow(minlikelihood, (double)(ex1[i] + ex2[i]));
+	  
+	  unobserved = FABS(term) * exponent;
 	  
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0 || ex1[i] > 0)
@@ -330,51 +383,52 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	      assert(0);
 	    }
 #endif
-
-	  assert(exponent < 700.0);
 	  
-	  unobserved = FABS(term) * exp(exponent);	  	  
-
 	  if(weightVector)
 	    *accumulator += weightVector[i] * (LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood)));
-					       
-	  sum += unobserved;
-	}             
-    }        
 
+	  *goldmanAccumulator += ((LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood))) * FABS(term) * exponent);
+	  
+	  sum += unobserved;
+	}          
+    }
+  
   return  sum;
 }
 
 
 static double evaluateGammaAsc(int *ex1, int *ex2,
-				double *x1, double *x2,  
-				double *tipVector, 
-			       unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector)
+			       double *x1, double *x2,  
+			       double *tipVector, 
+			       unsigned char *tipX1, int n, double *diagptable, const int numStates, 
+			       double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector, 
+			       double *goldmanAccumulator)
 {
   double
     exponent,
-    logMin = LOG(twotothe256),
     sum = 0.0, 
     unobserved,
     term,
     *left, 
     *right;
-  
+
   int     
     i, 
     j, 
     l;   
-  
+
   const int 
     gammaStates = numStates * 4;
          
-  unsigned char 
-    tip[32];
-
-  ascertainmentBiasSequence(tip, numStates);
+  
    
   if(tipX1)
-    {               
+    {   
+      unsigned char 
+	tip[32];
+
+      ascertainmentBiasSequence(tip, numStates, dataType, nodeNumber, ascMissingVector);            
+
       for (i = 0; i < n; i++) 
 	{
 	  left = &(tipVector[numStates * tip[i]]);	  	  
@@ -387,13 +441,18 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 		term += left[l] * right[l] * diagptable[j * numStates + l];	      
 	    }	 	  	 
 
-	  exponent = ((double)ex2[i] * logMin);	  
 
-	  assert(exponent < 700.0);
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page: 
+	     If  result  underflows, and is not representable, a range error occurs,
+	     and 0.0 is returned.
+	  */
 
-	  unobserved = 0.25 * FABS(term) * exp(exponent);	    
+	  exponent = pow(minlikelihood, (double)ex2[i]);	  
+
+	  unobserved = 0.25 * FABS(term) * exponent;	    
 	  
-#ifdef _DEBUG_ASC
+#ifdef _DEBUG_ASC	 	  
 	  if(ex2[i] > 0)
 	    {
 	      printf("s %d\n", ex2[i]);
@@ -403,6 +462,9 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 	  if(weightVector)
 	    *accumulator += weightVector[i] * (LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood)));
 	  
+
+	  *goldmanAccumulator += ((LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood))) * 0.25 * FABS(term) * exponent);
+
 	  sum += unobserved;
 	}              
     }              
@@ -420,10 +482,15 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 		term += left[l] * right[l] * diagptable[j * numStates + l];	
 	    }
 	  
-	  //because of the way we scale for sites that only consist of a single character
-	  //ex1 and ex2 will mostly be zero, so there is no re-scaling that needs to be done
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page: 
+	     If  result  underflows, and is not representable, a range error occurs,
+	     and 0.0 is returned.
+	  */
 
-	  exponent = ((double)(ex1[i] + ex2[i]) * logMin);
+	  exponent = pow(minlikelihood, (double)(ex1[i] + ex2[i]));
+	  
+	  unobserved = 0.25 * FABS(term) * exponent;
 	  
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0 || ex1[i] > 0)
@@ -432,14 +499,12 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 	      assert(0);
 	    }
 #endif
-
-	  assert(exponent < 700.0);
-	  
-	  unobserved = 0.25 * FABS(term) * exp(exponent);	  	  
-	  
+	 	  	  	  
 	   if(weightVector)
 	     *accumulator += weightVector[i] * (LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood)));
 
+	   *goldmanAccumulator += ((LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood))) * 0.25 * FABS(term) * exponent);
+	   
 	  sum += unobserved;
 	}             
     }        
@@ -582,7 +647,7 @@ static double evaluateGammaFlex_LG4(int *ex1, int *ex2, int *wptr,
 
   const int 
     gammaStates = numStates * 4;
-            
+
   if(tipX1)
     {          
       if(writeVector)
@@ -646,17 +711,22 @@ static double evaluateGammaFlex_LG4(int *ex1, int *ex2, int *wptr,
       
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    {
+	      double 
+		t = 0.0;
+	      
 	      left  = &(x1[gammaStates * i + numStates * j]);
 	      right = &(x2[gammaStates * i + numStates * j]);	    
 	      
 	      for(l = 0; l < numStates; l++)
-		term += left[l] * right[l] * diagptable[j * numStates + l];	
+		t += left[l] * right[l] * diagptable[j * numStates + l];	
+
+	      term +=  weights[j] * t;
 	    }
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	
 	  vector[i] = term;
   
@@ -668,17 +738,22 @@ static double evaluateGammaFlex_LG4(int *ex1, int *ex2, int *wptr,
 	    
 	    for(j = 0, term = 0.0; j < 4; j++)
 	      {
+		double 
+		  t = 0.0;
+		
 		left  = &(x1[gammaStates * i + numStates * j]);
 		right = &(x2[gammaStates * i + numStates * j]);	    
 		
 		for(l = 0; l < numStates; l++)
-		  term += left[l] * right[l] * diagptable[j * numStates + l];	
+		  t += left[l] * right[l] * diagptable[j * numStates + l];	
+
+		term +=  weights[j] * t;
 	      }
 	    
 	    if(fastScaling)
-	      term = LOG(0.25 * FABS(term));
+	      term = LOG(FABS(term));
 	    else
-	      term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	      term = LOG(FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	    
 	    sum += wptr[i] * term;
 	  }         
@@ -2934,7 +3009,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    partitionLikelihood = 0.0, 
 	    *_vector;
 	  
-	  int    
+	  int
+	    tipNodeNumber = -1,
 	    *ex1 = (int*)NULL, 
 	    *ex2 = (int*)NULL,
 	    *ex1_asc = (int*)NULL, 
@@ -2971,7 +3047,9 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	  if(isTip(pNumber, tr->mxtips) || isTip(qNumber, tr->mxtips))
 	    {	        	    
 	      if(isTip(qNumber, tr->mxtips))
-		{			  		  
+		{
+		  tipNodeNumber = qNumber;
+			  		  
 		  x2_start = tr->partitionData[model].xVector[pNumber - tr->mxtips -1];
 		  
 		  if(!tr->useFastScaling)
@@ -2997,6 +3075,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		}           
 	      else
 		{
+		  tipNodeNumber = pNumber;
 		  
 		  x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
 		  
@@ -3450,9 +3529,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    }
 	   
 	  if(width > 0)
-	    {	      
-	      //printf("%d %f\n", model, partitionLikelihood);
-	      	  
+	    {	      	      	      	  
 	      if(tr->useFastScaling)		    	      		      
 		partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);		    
 	      
@@ -3472,11 +3549,15 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    double 	
 		      *weightVector = (double*)NULL,
 		      accumulator = 0.0,
+		      goldmanAccumulator = 0.0,
 		      correction;
 
 		    if(tr->ascertainmentCorrectionType == STAMATAKIS_CORRECTION)		     
 		      weightVector = tr->partitionData[model].invariableFrequencies;		      
 		    //		      invariableWeight;
+
+		    for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
+		      w += tr->cdta->aliaswgt[i];	
 
 		    switch(tr->rateHetModel)
 		      {
@@ -3490,39 +3571,48 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 			  
 			  
 			  correction = evaluateCatAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector);			 		 	       
+						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType, 
+						      tipNodeNumber, tr->partitionData[model].ascMissingVector, &goldmanAccumulator);     		  	 	       
 			}
 			break;
 		      case GAMMA:			
 			correction = evaluateGammaAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector);			 		 	       
+						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType,
+						      tipNodeNumber, tr->partitionData[model].ascMissingVector, &goldmanAccumulator);			
 			break;
 		      default:
 			assert(0);
 		      }
 		    
+		   
 		    switch(tr->ascertainmentCorrectionType)
 		      {
-		      case LEWIS_CORRECTION:		    
-			for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-			  w += tr->cdta->aliaswgt[i];		  		  	      	     	     		   
-			partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);		    
+		      case LEWIS_CORRECTION:		    			  		  	      	     	     		   
+			partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);			
 			break;
-		      case STAMATAKIS_CORRECTION:
-			//printf("accumulator %f\n", accumulator);
-			//exit(1);
+		      case STAMATAKIS_CORRECTION:		       
 			partitionLikelihood += accumulator;
 			break;
 		      case FELSENSTEIN_CORRECTION:
-			partitionLikelihood += tr->partitionData[model].invariableWeight * LOG(correction);
-			//	printf("correction %f %f\n", partitionLikelihood, tr->partitionData[model].invariableWeight * LOG(correction));
+			partitionLikelihood += tr->partitionData[model].invariableWeight * LOG(correction);		       
+			break;
+		      case GOLDMAN_CORRECTION_1:			
+			partitionLikelihood += ((correction * (double)w * LOG(correction)) / (1.0 - correction));					       	  
+			break;
+		      case GOLDMAN_CORRECTION_2:
+			//printf("Goldman acc: %f\n", goldmanAccumulator);
+			partitionLikelihood += (((double)w / (1.0 - correction)) * goldmanAccumulator);
+			break;
+		      case GOLDMAN_CORRECTION_3:
+			partitionLikelihood += ((tr->partitionData[model].invariableWeight / correction) * goldmanAccumulator);
 			break;
 		      default:
 			assert(0);
 		      }
 	      
 #ifdef _DEBUG_ASC 	      
-		    printf("E w: %f %f ARG %f ragu %f\n", partitionLikelihood, (double)w, 1.0 - correction, (double)w * LOG(1.0 - correction));
+		    printf("E w: %f %f ARG %f ragu %f\n", partitionLikelihood, (double)w, 1.0 - correction, (((double)w / (1.0 - correction)) * goldmanAccumulator));	
+		    
 #endif	      		    
 		  }
 	      
@@ -3540,6 +3630,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 #endif
 	    }
 	  result += partitionLikelihood;	  
+	 
 	  tr->perPartitionLH[model] = partitionLikelihood; 	       
 	}
     }
@@ -3660,9 +3751,10 @@ double evaluateGenericInitrav (tree *tr, nodeptr p)
       }      
     }
 #else
-  result = evaluateIterative(tr, FALSE);
+  result = evaluateIterative(tr, FALSE);     
 #endif
 
+  
   assert(result <= 0.0);
 
   tr->likelihood = result;         

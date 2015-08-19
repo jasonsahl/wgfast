@@ -51,6 +51,8 @@
 
 #define NUM_RELL_BOOTSTRAPS 1000
 
+#define NUM_ASC_CORRECTIONS 6
+
 #define MAX_TIP_EV     0.999999999 /* max tip vector value, sum of EVs needs to be smaller than 1.0, otherwise the numerics break down */
 #define smoothings     32          /* maximum smoothing passes through tree */
 #define iterations     10          /* maximum iterations of iterations per insert */
@@ -83,7 +85,7 @@
 
 #define NUM_BRANCHES   128
 
-#define TRUE             1
+#define TRUE            1
 #define FALSE            0
 
 
@@ -116,7 +118,7 @@
 #define ALPHA_MIN    0.02
 #define ALPHA_MAX    1000.0
 
-#define RATE_MIN     0.0000001
+#define RATE_MIN     0.0001
 #define RATE_MAX     1000000.0
 
 #define INVAR_MIN    0.0001
@@ -166,9 +168,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.7"
-#define programVersionInt   817
-#define programDate        "November 28 2014"
+#define programVersion     "8.2.3"
+#define programVersionInt   8230
+#define programDate        "August 12 2015"
 
 
 #define  TREE_EVALUATION                 0
@@ -200,8 +202,13 @@
 #define  PLAUSIBILITY_CHECKER            26
 #define  CALC_BIPARTITIONS_IC            27
 #define  ROOT_TREE                       28
-#define  MISSING_SEQUENCE_PREDICTION     29
+#define  STEAL_BRANCH_LENGTHS            29
 #define  SUBTREE_EPA                     30
+
+#define AUTO_ML   0
+#define AUTO_BIC  1
+#define AUTO_AIC  2
+#define AUTO_AICC 3
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
@@ -232,16 +239,17 @@
 #define HIVW         15
 #define JTTDCMUT     16
 #define FLU          17 
-#define DUMMY        18
-#define DUMMY2       19
-#define AUTO         20
-#define LG4          21
-#define LG4X         22
-#define PROT_FILE    23
-#define GTR_UNLINKED 24
-#define GTR          25  /* GTR always needs to be the last one */
+#define STMTREV      18
+#define DUMMY        19
+#define DUMMY2       20
+#define AUTO         21
+#define LG4          22
+#define LG4X         23
+#define PROT_FILE    24
+#define GTR_UNLINKED 25
+#define GTR          26  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 26
+#define NUM_PROT_MODELS 27
 
 
 
@@ -358,8 +366,12 @@ struct ent
   
   //added by Kassian for TC/IC correction on partial gene trees
   unsigned int *taxonMask;
-  boolean wasFound;
-  unsigned int bLink;
+  unsigned int   bLink;
+  double         adjustedSupport;
+  double         tempSupport;
+  int            tempSupportFrom;
+  unsigned int   coveredNumber;
+  boolean        covered;
   //Kassian modif end 
 
   struct ent *next;
@@ -592,8 +604,10 @@ typedef struct {
   boolean ascBias;  
   int     ascOffset;
   int     *ascExpVector;
+  int     *ascMissingVector;
   double  *ascSumBuffer;
   double  *ascVector;
+  double ascScaler[64];
   //asc bias end
 
 
@@ -630,6 +644,7 @@ typedef struct {
   /* LG4 */
 
   double *EIGN_LG4[4];
+  double *rawEIGN_LG4[4];
   double *EV_LG4[4];
   double *EI_LG4[4];  
 
@@ -646,8 +661,6 @@ typedef struct {
 
   double weightsBuffer[4];
   double weightExponentsBuffer[4];
-
-  double weightLikelihood;
 
   /* LG4 */
 
@@ -778,7 +791,9 @@ typedef  struct
 #define LEWIS_CORRECTION         1
 #define FELSENSTEIN_CORRECTION   2
 #define STAMATAKIS_CORRECTION    3
-
+#define GOLDMAN_CORRECTION_1     4
+#define GOLDMAN_CORRECTION_2     5
+#define GOLDMAN_CORRECTION_3     6
 
 /**************************************************************/
 
@@ -864,14 +879,9 @@ typedef  struct  {
      not change depending on datatype */
 
   double           *invariants;
-  double           *fracchanges;
  
-  double           *rawFracchanges;
 
-#ifdef _HET
-  double *fracchanges_TIP;
-  double *rawFracchanges_TIP;
-#endif
+
 
   /* model stuff end */
 
@@ -886,22 +896,22 @@ typedef  struct  {
   int              *secondaryStructurePairs;
 
 
-  double            *partitionContributions;
-
-  double            fracchange;
-  double            rawFracchange;
+  double            *partitionContributions; 
 
   int               ascertainmentCorrectionType;
+  int               autoProteinSelectionType;
+
+  unsigned int      numberOfEPAEntries;
+  double            accumulatedEPACutoff;
+  boolean           useAccumulatedEPACutoff;
+  double            probThresholdEPA;
 
 #ifdef _BASTIEN
   double           secondDerivative[NUM_BRANCHES];
   boolean          doBastienStuff;
 #endif
 
-#ifdef _HET
-  double            fracchange_TIP;
-  double            rawFracchange_TIP;
-#endif
+
 
   double            lhCutoff;
   double            lhAVG;
@@ -927,6 +937,7 @@ typedef  struct  {
   boolean          searchConvergenceCriterion;
   int              branchLabelCounter;
   int              ntips;
+  int              binaryFile_ntips;
   int              nextnode;
   int              NumberOfModels;
   int              parsimonyLength;
@@ -981,6 +992,10 @@ typedef  struct  {
   boolean noRateHet;
 
   boolean corrected_IC_Score;
+
+  boolean useK80;
+  boolean useHKY85;
+  boolean useJC69;
 
 #ifdef _USE_PTHREADS
 
@@ -1048,9 +1063,11 @@ typedef  struct  {
   pthread_mutex_t** mutexesForHashing; 
 
 #endif
-  
-  int *origNumSitePerModel;
+    
   boolean doSubtreeEPA;
+
+  double ascMissing;
+  boolean useAscMissing;
 
 } tree;
 
@@ -1158,6 +1175,7 @@ typedef  struct {
   boolean       silent;
   boolean       noSequenceCheck;
   boolean       useBFGS;
+  boolean       setThreadAffinity;
 } analdef;
 
 
@@ -1190,7 +1208,9 @@ typedef struct
 
 /****************************** FUNCTIONS ****************************************************/
 
-extern void ascertainmentBiasSequence(unsigned char tip[32], int numStates);
+
+
+extern void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType, int nodeNumber, int *ascMissingVector);
 
 extern void computePlacementBias(tree *tr, analdef *adef);
 
@@ -1242,7 +1262,7 @@ extern double LnGamma ( double alpha );
 extern double IncompleteGamma ( double x, double alpha, double ln_gamma_alpha );
 extern double PointNormal ( double prob );
 extern double PointChi2 ( double prob, double v );
-extern void makeGammaCats (double alpha, double *gammaRates, int K,  boolean useMedian);
+extern void makeGammaCats (int rateHetModel, double alpha, double *gammaRates, int K,  boolean useMedian, double propInvariant);
 extern void initModel ( tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef );
 extern void doAllInOne ( tree *tr, analdef *adef );
 
@@ -1479,7 +1499,8 @@ extern void newviewIterativeAncestral(tree *tr);
 extern void newviewGenericAncestral(tree *tr, nodeptr p, boolean atRoot);
 extern void computeAncestralStates(tree *tr, double referenceLikelihood);
 extern void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, const int numStates);
-
+extern void makeP_FlexLG4(double z1, double z2, double *rptr, double *EI[4],  double *EIGN[4], int numberOfCategories, double *left, double *right, const int numStates);
+extern void scaleLG4X_EIGN(tree *tr, int model);
 extern void *rax_malloc( size_t size );
 extern void *rax_realloc(void *p, size_t size, boolean needsMemoryAlignment);
 extern void rax_free(void *p);
@@ -1563,6 +1584,7 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_OPT_LG4X_RATES               45
 #define THREAD_FREE_VECTORS                 46
 #define THREAD_SETUP_PRESENCE_MAP           47
+#define THREAD_COPY_LG4X_EIGN               48
 
 
 /*
