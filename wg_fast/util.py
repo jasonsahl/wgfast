@@ -807,7 +807,9 @@ def make_temp_matrix(vcf, matrix, name):
             for line in my_file:
                 fields=line.split()
                 value_dict.update({fields[0]:fields[1]})
+    """value_dict could only contain dashes"""
     if len(value_dict)>=1:
+        """here is where value_dict_set is populated"""
         value_dict_set = set(value_dict)
         new_dicts = value_dict
         for x in matrix_ids:
@@ -816,14 +818,16 @@ def make_temp_matrix(vcf, matrix, name):
         print "no usable information in vcf file, did you use the correct reference?"
     #new_dicts contains all calls, good and bad
     value_dict = {}
-    value_dict_set = []
+    #value_dict_set = []
+    """variety will contain a complete set of SNPs"""
     variety = [ ]
     for x in matrix_ids:
         if x in new_dicts:
             variety.append(new_dicts.get('%s' % x))
     variety_set = set(variety)
     if len(variety)>=1:
-        if "A" or "T" or "G" or "C" in variety_set:
+        if "A" or "T" or "G" or "C" in value_dict_set:
+        #if "A" or "T" or "G" or "C" in variety_set:
             open("%s.tmp.xyx.matrix" % name, 'a').write('%s\n' % name)
             for x in matrix_ids:
                 if x in new_dicts:
@@ -833,6 +837,7 @@ def make_temp_matrix(vcf, matrix, name):
     else:
         print "sample %s has problems" % name
     #in_matrix.close()
+    value_dict_set = []
     return new_dicts
 
 def grab_names():
