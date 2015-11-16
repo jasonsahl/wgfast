@@ -38,7 +38,8 @@ ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
 TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
 
 
-def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model,trim):
+def main(matrix,tree,reference,directory,parameters,processors,coverage,proportion,keep,subsample,
+    subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model,trim,gatk_method):
     ref_path=os.path.abspath("%s" % reference)
     dir_path=os.path.abspath("%s" % directory)
     #check for binary dependencies
@@ -95,7 +96,8 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     print "-f %s \\" % fudge
     print "-y %s \\" % only_subs
     print "-j %s \\" % model
-    print "-i %s" % trim
+    print "-i %s \\" % trim
+    print "-q %s" % gatk_method
     try:
         os.makedirs('%s/scratch' % ap)
     except OSError, e:
@@ -126,7 +128,8 @@ def main(matrix,tree,reference,directory,parameters,processors,coverage,proporti
     else:
         fileSets=read_file_sets(dir_path)
         ref_coords = get_all_snps(matrix)
-        run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords, coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim)
+        run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords,
+        coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim,gatk_method)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
     #Outnames is required for the sub-sampling routine, even with -y T
@@ -318,6 +321,9 @@ if __name__ == "__main__":
     parser.add_option("-i", "--trim", dest="trim",
                       help="trim sequences with trimmomatic? Defaults to T",
                       action="callback", callback=test_filter, type="string", default="T")
+    parser.add_option("-q", "--gatk_method", dest="gatk_method",
+                      help="How to call GATK? Defaults to EMIT_ALL_CONFIDENT_SITES, can be EMIT_ALL_SITES",
+                      action="callback", callback=test_gatk, type="string", default="EMIT_ALL_CONFIDENT_SITES")
 
     options, args = parser.parse_args()
 
@@ -331,4 +337,4 @@ if __name__ == "__main__":
     main(options.matrix,options.tree,options.reference,options.directory,options.parameters,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
          options.subnums,options.doc,options.tmp_dir,options.insertion_method,options.fudge,
-         options.only_subs,options.model,options.trim)
+         options.only_subs,options.model,options.trim,options.gatk_method)

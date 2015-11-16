@@ -61,6 +61,15 @@ def test_methods(option, opt_str, value, parser):
         print "option not supported.  Only select from MP or ML"
         sys.exit()
 
+def test_gatk(option, opt_str, value, parser):
+    if "EMIT_ALL_SITES" in value:
+        setattr(parser.values, option.dest, value)
+    elif "EMIT_ALL_CONFIDENT_SITES" in value:
+        setattr(parser.values, option.dest, value)
+    else:
+        print "option not supported.  Only select from EMIT_ALL_SITES or EMIT_ALL_CONFIDENT_SITES"
+        sys.exit()
+
 def test_models(option, opt_str, value, parser):
     if "GTRGAMMA" in value:
         setattr(parser.values, option.dest, value)
@@ -175,7 +184,8 @@ def get_sequence_length(fastq_in):
         head = list(islice(file, 2))
     return len(head[1])
 
-def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion, matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path,trim):
+def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion,
+    matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path,trim,gatk_method):
     files_and_temp_names = [(str(idx), list(f)) for idx, f in fileSets.iteritems()]
     lock = threading.Lock()
     def _perform_workflow(data):
@@ -249,7 +259,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                 """inserts read group information, required by new versions of GATK"""
                 os.system("java -jar %s INPUT=%s.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
                 os.system("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx)
-            run_gatk(reference, processors, idx, gatk, tmp_dir)
+            run_gatk(reference, processors, idx, gatk, tmp_dir, gatk_method)
             if "T" == doc:
                 lock.acquire()
                 os.system("echo %s_renamed_header.bam > %s.bam.list" % (idx,idx))
@@ -300,11 +310,11 @@ def process_sam(in_sam, name):
     subprocess.check_call("samtools index %s.bam > /dev/null 2>&1" % name, shell=True)
     subprocess.check_call("rm %s.1.bam %s.2.bam %s.3.bam %s" % (name, name, name, in_sam), shell=True)
 
-def run_gatk(reference, processors, name, gatk, tmp_dir):
+def run_gatk(reference, processors, name, gatk, tmp_dir, gatk_method):
     """gatk controller, mbq used to be set to 17, but was recently changed - untested, system call"""
     args = ['java', '-Djava.io.tmpdir=%s' % tmp_dir, '-jar', '%s' % gatk, '-T', 'UnifiedGenotyper',
             '-R', '%s' % reference, '-nt', '%s' % processors, '-S', 'silent',
-            '-ploidy', '1', '-out_mode', 'EMIT_ALL_CONFIDENT_SITES',
+            '-ploidy', '1', '-out_mode', '%s' % gatk_method,
             '-stand_call_conf', '30', '-stand_emit_conf', '30', '-I', '%s_renamed_header.bam' % name,
             '-rf', 'BadCigar']
     try:
