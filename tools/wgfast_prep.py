@@ -75,6 +75,7 @@ def main(matrix, model, processors):
     subprocess.check_call("mv RAxML_bestTree.nasp nasp_raxml.tree", shell=True)
     subprocess.check_call("mv RAxML_binaryModelParameters.PARAMS nasp.PARAMS", shell=True)
     subprocess.check_call("rm RAxML_* out.fasta all.fasta", shell=True)
+    print "Model used: %s" % model
 
 if __name__ == "__main__":
     usage="usage: %prog [options]"
