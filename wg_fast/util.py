@@ -199,7 +199,7 @@ def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, covera
                     """paired end sequences - Hardcoded the number of processors per job to 2"""
                     args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
                           '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
-	                  '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
+	                  '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:4:30:10:1:true' % wgfast_path,
 	                  'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
                     try:
                         vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
