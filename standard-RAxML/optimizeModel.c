@@ -432,7 +432,7 @@ static void optimizeWeights(tree *tr, double modelEpsilon, linkageList *ll, int 
     initialLH = 0.0,
     finalLH   = 0.0;
 
-  evaluateGeneric(tr, tr->start);
+  evaluateGenericInitrav(tr, tr->start);
  
   initialLH = tr->likelihood;
   //printf("W: %f %f [%f] ->", tr->perPartitionLH[0], tr->perPartitionLH[1], initialLH);
@@ -4218,8 +4218,9 @@ static boolean optimizeRatesBFGS(tree *tr)
 	  bound_check_GTR[i] = FALSE;
 	  //added this max here to prevent num problems when the boundary value is set lower than 
 	  //the error margin!
-	  lowerGTR[i] = MAX(RATE_MIN, ERROR_X);
-	  upperGTR[i] = RATE_MAX;
+	  lowerGTR[i] = MAX(RATE_MIN + RATE_MIN * ERROR_X, ERROR_X);
+	  upperGTR[i] = RATE_MAX - RATE_MAX * ERROR_X;
+	  //printf("%1.20f %1.20f %1.20f %1.20f\n", lowerGTR[i], upperGTR[i], RATE_MIN, RATE_MAX);
 	}
     }
 
