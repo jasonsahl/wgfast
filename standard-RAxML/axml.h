@@ -168,9 +168,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.2.4"
-#define programVersionInt   8240
-#define programDate        "October 02 2015"
+#define programVersion     "8.2.9"
+#define programVersionInt   8290
+#define programDate        "July 20 2016"
 
 
 #define  TREE_EVALUATION                 0
@@ -268,10 +268,10 @@
 
 /* bootstopping stuff */
 
-#define BOOTSTOP_PERMUTATIONS 100
+//#define BOOTSTOP_PERMUTATIONS 100
 #define START_BSTOP_TEST      10
 
-#define FC_THRESHOLD          99
+//#define FC_THRESHOLD          99
 #define FC_SPACING            50
 #define FC_LOWER              0.99
 #define FC_INIT               20
@@ -1173,6 +1173,10 @@ typedef  struct {
   boolean       noSequenceCheck;
   boolean       useBFGS;
   boolean       setThreadAffinity;
+  int           bootstopPermutations;
+  int           fcThreshold; 
+  boolean       sampleQuartetsWithoutReplacement;
+  boolean       printIdenticalSequences;
 } analdef;
 
 
