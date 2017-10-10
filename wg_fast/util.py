@@ -19,17 +19,18 @@ except:
     print("dendropy is not installed, but needs to be")
     sys.exit()
 import glob
-try:
-    """I would like to remove this dependency if possible"""
-    from igs.threading import functional as p_func
-    from igs.utils import logging as log_isg
-except:
-    print("your PYTHONPATH needs to include the wg-fast repository")
-    sys.exit()
+import igs_logging as log_isg
 from operator import itemgetter
 import threading
 import collections
 import random
+
+def mp_shell(func, params, numProc):
+    from multiprocessing import Pool
+    p = Pool(numProc)
+    out = p.map(func, params)
+    p.terminate()
+    return out
 
 def test_file(option, opt_str, value, parser):
     try:
@@ -199,106 +200,118 @@ def bwa_dev(reference,read_1,read_2,processors,my_opts,name):
     arg_string = " ".join(mem_arguments)
     subprocess.call("%s" % arg_string, stdout=open(os.devnull, "wb"), stderr=open(os.devnull, "wb"),shell=True)
 
-
-#def run_loop_workflow(data):
-#
-
-"""Need to implement mpshell here"""
-def run_loop(fileSets, dir_path, reference, processors, gatk, ref_coords, coverage, proportion,
-    matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path,trim,gatk_method):
-    files_and_temp_names = [(str(idx), list(f)) for idx, f in fileSets.iteritems()]
+def _perform_workflow_run_loop(data):
     lock = threading.Lock()
-    def _perform_workflow(data):
-        """idx is the sample name, f is the file dictionary"""
-        idx, f = data
-        if os.path.isfile("%s.tmp.xyx.matrix" % idx):
-            pass
-        else:
-            if len(f)>1:
-                if "T" in trim:
-                    """paired end sequences - Hardcoded the number of processors per job to 2"""
-                    args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
-                          '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
-	                  '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:4:30:10:1:true' % wgfast_path,
-	                  'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
-                    try:
-                        vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
-                    except:
-                        log_isg.logPrint('could not open trimmomatic file')
-                    try:
-                        log_fh = open('%s.trimmomatic.log' % idx, 'w')
-                    except:
-                        log_isg.logPrint('could not open log file')
-                    if os.path.isfile("%s.F.paired.fastq.gz" % idx):
-                        pass
-                    else:
-                        try:
-                            trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                            trim_cmd.wait()
-                        except:
-                            log_isg.logPrint('problem enountered trying to run trimmomatic')
-                else:
-                    os.link(f[0], "%s.F.paired.fastq.gz" % idx)
-                    os.link(f[1], "%s.R.paired.fastq.gz" % idx)
-                """"trimmomatic seems to be running ok"""
-                if os.path.isfile("%s_renamed_header.bam" % idx):
+    idx = data[0]
+    f = data[1]
+    dir_path = data[2]
+    reference = data[3]
+    gatk = data[4]
+    ref_coords = data[5]
+    coverage = data[6]
+    proportion = data[7]
+    matrix = data[8]
+    ap = data[9]
+    doc = data[10]
+    tmp_dir = data[11]
+    picard = data[12]
+    trim_path = data[13]
+    wgfast_path = data[14]
+    trim = data[15]
+    gatk_method = data[16]
+    processors = data[17]
+    if os.path.isfile("%s.tmp.xyx.matrix" % idx):
+        pass
+    else:
+        if len(f)>1:
+            if "T" in trim:
+                """paired end sequences - Hardcoded the number of processors per job to 2"""
+                args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
+                      '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
+                  '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:4:30:10:1:true' % wgfast_path,
+                  'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
+                try:
+                    vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
+                except:
+                    log_isg.logPrint('could not open trimmomatic file')
+                try:
+                    log_fh = open('%s.trimmomatic.log' % idx, 'w')
+                except:
+                    log_isg.logPrint('could not open log file')
+                if os.path.isfile("%s.F.paired.fastq.gz" % idx):
                     pass
                 else:
-                    run_bwa_dev("%s.F.paired.fastq.gz" % idx, "%s.R.paired.fastq.gz" % idx, processors, idx, reference)
+                    try:
+                        trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                        trim_cmd.wait()
+                    except:
+                        log_isg.logPrint('problem enountered trying to run trimmomatic')
             else:
-                if "T" in trim:
-                    """single end support"""
-                    args=['java','-jar','%s' % trim_path,'SE', '-threads', '2',
-                          '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-	                  'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
-                    try:
-                        vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
-                    except:
-                        log_isg.logPrint('could not open trimmomatic file')
-                    try:
-                        log_fh = open('%s.trimmomatic.log' % idx, 'w')
-                    except:
-                        log_isg.logPrint('could not open log file')
-                    if os.path.isfile("%s.single.fastq.gz" % idx):
-                        pass
-                    else:
-                        try:
-                            trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                            trim_cmd.wait()
-                        except:
-                            log_isg.logPrint("problem encountered with trimmomatic")
-                else:
-                    os.link(f[0], "%s.single.fastq.gz" % idx)
-                if os.path.isfile("%s_renamed_header.bam" % idx):
-                    pass
-                else:
-                    run_bwa_dev(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
+                os.link(f[0], "%s.F.paired.fastq.gz" % idx)
+                os.link(f[1], "%s.R.paired.fastq.gz" % idx)
+            """"trimmomatic seems to be running ok"""
             if os.path.isfile("%s_renamed_header.bam" % idx):
                 pass
             else:
-                """inserts read group information, required by new versions of GATK"""
+                run_bwa_dev("%s.F.paired.fastq.gz" % idx, "%s.R.paired.fastq.gz" % idx, processors, idx, reference)
+        else:
+            if "T" in trim:
+                """single end support"""
+                args=['java','-jar','%s' % trim_path,'SE', '-threads', '2',
+                      '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
+                  'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
                 try:
-                    os.system("java -jar %s INPUT=%s_renamed.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
-                    os.system("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx)
+                    vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
                 except:
-                    print("problem running picard tools")
-                    sys.exit()
-            run_gatk(reference,processors,idx,gatk,tmp_dir,gatk_method)
-            if "T" == doc:
-                lock.acquire()
-                """Need to replace this with samtools depth method?"""
-                os.system("echo %s_renamed_header.bam > %s.bam.list" % (idx,idx))
-                """Why do I need bam.list?"""
-                os.system("java -Djava.io.tmpdir=%s -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (tmp_dir,gatk,ap,idx,idx))
-                lock.release()
-                process_coverage(idx)
+                    log_isg.logPrint('could not open trimmomatic file')
+                try:
+                    log_fh = open('%s.trimmomatic.log' % idx, 'w')
+                except:
+                    log_isg.logPrint('could not open log file')
+                if os.path.isfile("%s.single.fastq.gz" % idx):
+                    pass
+                else:
+                    try:
+                        trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
+                        trim_cmd.wait()
+                    except:
+                        log_isg.logPrint("problem encountered with trimmomatic")
             else:
+                os.link(f[0], "%s.single.fastq.gz" % idx)
+            if os.path.isfile("%s_renamed_header.bam" % idx):
                 pass
-            process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
-            make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
-    results = set(p_func.pmap(_perform_workflow,
-                              files_and_temp_names,
-                              num_workers=processors))
+            else:
+                run_bwa_dev(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
+        if os.path.isfile("%s_renamed_header.bam" % idx):
+            pass
+        else:
+            """inserts read group information, required by new versions of GATK"""
+            try:
+                os.system("java -jar %s INPUT=%s_renamed.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
+                os.system("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx)
+            except:
+                print("problem running picard tools")
+                sys.exit()
+        run_gatk(reference,processors,idx,gatk,tmp_dir,gatk_method)
+        if "T" == doc:
+            lock.acquire()
+            """Need to replace this with samtools depth method?"""
+            os.system("echo %s_renamed_header.bam > %s.bam.list" % (idx,idx))
+            os.system("java -Djava.io.tmpdir=%s -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (tmp_dir,gatk,ap,idx,idx))
+            lock.release()
+            process_coverage(idx)
+        else:
+            pass
+        process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
+        make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
+
+def run_loop_dev(fileSets,dir_path,reference,processors,gatk,ref_coords,coverage,proportion,
+    matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path,trim,gatk_method):
+    files_and_temp_names = []
+    for idx, f in fileSets.iteritems():
+        files_and_temp_names.append([idx,f,dir_path,reference,gatk,ref_coords,coverage,proportion,
+                                     matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path,trim,gatk_method,processors])
+    mp_shell(_perform_workflow_run_loop, files_and_temp_names, processors)
 
 def run_gatk(reference, processors, name, gatk, tmp_dir, gatk_method):
     """gatk controller, mbq used to be set to 17, but was recently changed - untested, system call"""
@@ -392,7 +405,6 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                     pass
             except:
                 pass
-    #print("-------------------------")
     print("number of SNPs in genome %s = " % name, len(good_snps))
     print("number of discarded SNPs in genome %s = " % name, len(mixed_snps))
     print("number of discarded Reference positions in genome %s = " % name, len(mixed_refs))
@@ -933,6 +945,51 @@ def find_two_new(infile,outnames):
             output_tuples=((result),)+output_tuples
     return output_tuples,distances
 
+def _perform_workflow_subsample_snps_dev(data):
+    final_set = data[0]
+    """final_set is a tuple of sample, NN, value"""
+    used_snps = data[1]
+    """used_snps is a dictionary"""
+    subnums = data[2]
+    """subnums is an integer"""
+    allsnps = data[3]
+    """allsnps is a list of all SNPs used"""
+    matrix = data[4]
+    for k,v in used_snps.iteritems():
+        if final_set[0]==k:
+            for x in range(1,int(subnums)+1):
+                kept_snps=random.sample(set(allsnps), int(v))
+                solids = set(kept_snps)
+                if os.path.isfile("%s.%s.%s.tmp.matrix" % (k,x,final_set[1])):
+                    pass
+                else:
+                    outfile = open("%s.%s.%s.tmp.matrix" % (k,x,final_set[1]), "w")
+                    in_matrix=open(matrix,"U")
+                    firstLine = in_matrix.readline()
+                    outfile.write(firstLine)
+                    first_fields = firstLine.split()
+                    fixed_fields = []
+                    for y in first_fields:
+                        fixed_fields.append(re.sub('[:,]', '', y))
+                    gindex=fixed_fields.index(final_set[1])
+                    for line in in_matrix:
+                        matrix_fields=line.split()
+                        if matrix_fields[0] in solids:
+                            outfile.write(line)
+                        else:
+                            outfile.write("\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n")
+                    in_matrix.close()
+                    outfile.close()
+        else:
+            pass
+
+def subsample_snps_2(final_sets,used_snps,subnums,allsnps,processors,matrix):
+    files_and_temp_names = []
+    for f in final_sets:
+        files_and_temp_names.append([f,used_snps,subnums,allsnps,matrix])
+    mp_shell(_perform_workflow_subsample_snps_dev, files_and_temp_names, processors)
+
+
 def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
     """needs testing"""
     for k,v in used_snps.iteritems():
@@ -1129,3 +1186,153 @@ def create_merged_vcf():
         out_file.write("\t".join(x))
         out_file.write("\n")
     out_file.close()
+
+def _perform_workflow_create_params(data):
+    id = data[0]
+    to_prune_set = data[1]
+    full_tree = data[2]
+    full_matrix = data[3]
+    dist_sets = data[4]
+    processors = data[5]
+
+    if int(processors)<=2:
+        my_processors = 2
+    else:
+        my_processors = int(int(processors)/2)
+    for item in to_prune_set:
+        new_name = str(id)+str(item)
+        if os.path.isfile("%s-PARAMS" % new_name):
+            continue
+        else:
+            tmptree = open("%s.tmp.tree" % new_name, "w")
+            to_prune = []
+            for x in dist_sets:
+                if x[0] == id:
+                    if x[1] == item or x[2] == item:
+                        to_prune.append(x[1])
+            to_prune_fixed=[]
+            for x in to_prune:
+                to_prune_fixed.append(re.sub('[:,]', '', x))
+            tree_full = dendropy.Tree.get_from_path(full_tree,schema="newick",preserve_underscores=True)
+            tree_full.prune_taxa_with_labels(to_prune_fixed)
+            final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+            tmptree.write(final_tree)
+            tmptree.close()
+            tmptree2 = open("%s.tree" % new_name, "w")
+            for line in open("%s.tmp.tree" % new_name, "U"):
+                if line.startswith("[&U]"):
+                    fields = line.split()
+                    fixed_fields = [ ]
+                    for x in fields:
+                        fixed_fields.append(x.replace("'",""))
+                    tmptree2.write(fixed_fields[1])
+                else:
+                    pass
+            tmptree2.close()
+            """result is a pruned tree that is ready for RAxML"""
+            matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
+            os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (new_name, new_name))
+            prune_fasta(to_prune, "%s_in.fasta" % new_name, "%s_pruned.fasta" % new_name)
+            try:
+                subprocess.check_call("rm RAxML*%s-PARAMS" % new_name, shell=True, stderr=open(os.devnull, 'w'))
+            except:
+                pass
+            #forcing GTRGAMMA
+            try:
+                subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
+                os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
+            except:
+                continue
+
+
+def create_params_files_dev(new_sample_dicts,tree,matrix,final_sets,processors):
+    to_run = []
+    for k,v in new_sample_dicts.iteritems():
+        to_run.append([k,v,tree,matrix,final_sets,processors])
+    mp_shell(_perform_workflow_create_params, to_run, processors)
+
+def process_temp_matrices_2(final_sets,final_matrices,tree,processors,patristic_distances, V, parameters, model):
+    to_run = []
+    for matrix in final_matrices:
+        to_run.append([final_sets,matrix,tree,processors,patristic_distances,V,parameters,model])
+    mp_shell(_perform_workflow_temp_matrices, to_run, processors)
+
+def _perform_workflow_temp_matrices(data):
+    dist_sets = data[0]
+    sample = data[1]
+    tree = data[2]
+    processors = data[3]
+    patristics = data[4]
+    insertion_method = data[5]
+    parameters = data[6]
+    model = data[7]
+    name=get_seq_name(sample)
+    split_fields=name.split(".")
+    outfile=open("%s.%s.subsample.distances.txt" % (split_fields[0],split_fields[2]), "a")
+    name_fixed = []
+    name_fixed.append(re.sub('[:,]', '', split_fields[2]))
+    to_prune = []
+    for x in dist_sets:
+        if x[0] == split_fields[0]:
+            if x[1] == split_fields[2] or x[2] == split_fields[2]:
+                to_prune.append(x[1])
+    to_prune_fixed=[]
+    for x in to_prune:
+        to_prune_fixed.append(re.sub('[:,]', '', x))
+    #full_context includes sample, near neighbor, and replicate
+    full_context = split_fields[0]+split_fields[1]+split_fields[2]
+    new_name = split_fields[0]+split_fields[2]
+    if os.path.isfile("%s.tree_including_unknowns_noedges.tree" % full_context):
+        print("tree already present, skipping")
+        pass
+    else:
+        tree_full = dendropy.Tree.get_from_path(tree,schema="newick",preserve_underscores=True)
+        tree_full.prune_taxa_with_labels(to_prune_fixed)
+        tmptree = open("%s.tmp.tree" % full_context, "w")
+        final_tree = branch_lengths_2_decimals(tree_full.as_string("newick"))
+        tmptree.write(final_tree)
+        tmptree.close()
+        tmptree2 = open("%s.tree" % full_context, "w")
+        for line in open("%s.tmp.tree" % full_context, "U"):
+            if line.startswith("[&U]"):
+                fields = line.split()
+                fixed_fields = [ ]
+                for x in fields:
+                    fixed_fields.append(x.replace("'",""))
+                tmptree2.write(fixed_fields[1])
+            else:
+                pass
+        tmptree2.close()
+        matrix_to_fasta(sample, "%s.fasta" % full_context)
+        os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
+        if os.path.isfile("%s-PARAMS" % new_name):
+            try:
+                run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % new_name, "GTRGAMMA", "%s" % full_context)
+            except:
+                pass
+        else:
+            try:
+                subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
+                os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
+                run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
+            except:
+                pass
+    if os.path.isfile("%s.resampling_distances.txt" % full_context):
+        pass
+    else:
+        try:
+            calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % full_context, "%s.resampling_distances.txt" % full_context)
+            for line in open("%s.resampling_distances.txt" % full_context,"U"):
+                resample_fields = line.split()
+                myid = re.sub("[:']", "",resample_fields[4])
+                fixedid = myid.replace("QUERY___","")
+                newid = re.sub("[:']","",resample_fields[2])
+                fixedid2 = newid.replace("QUERY___","")
+                if resample_fields[2] == "'Reference'" and fixedid in name_fixed:
+                    outfile.write("resampled distance between Reference and %s = %s\n" % (fixedid, resample_fields[5]))
+                elif resample_fields[4] == "'Reference':" and fixedid2 in name_fixed:
+                    outfile.write("resampled distance between Reference and %s = %s\n" % (fixedid2, resample_fields[5]))
+                else:
+                    pass
+        except:
+            pass

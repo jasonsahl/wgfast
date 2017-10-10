@@ -136,11 +136,8 @@ def main(reference_dir,directory,processors,coverage,proportion,keep,subsample,
     else:
         fileSets=read_file_sets(dir_path)
         ref_coords = get_all_snps(matrix)
-        run_loop(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords,
-        coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim,gatk_method)
-        """Loop function needs mpshell"""
-        #run_loop_dev(fileSets, dir_path,"%s/scratch/reference.fasta" % ap , processors, GATK_PATH, ref_coords,
-        #coverage, proportion, matrix, ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim,gatk_method)
+        run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap, processors, GATK_PATH,
+        ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim,gatk_method)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
     #Outnames is required for the sub-sampling routine, even with -y T
@@ -207,15 +204,9 @@ def main(reference_dir,directory,processors,coverage,proportion,keep,subsample,
             final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
             results = get_closest_dists_new(final_sets,outnames)
             log_isg.logPrint("running subsample routine, forcing GTRGAMMA model")
-            files_and_temp_names = [(list(f)) for f in final_sets]
+            """mpshell on this function"""
             allsnps = get_all_snps(matrix)
-            def _perform_workflow(data):
-                f = data
-                #If you already have tmp.matrices created, they won't be made again
-                subsample_snps_dev("temp.matrix", f, used_snps, subnums, allsnps)
-            results = set(p_func.pmap(_perform_workflow,
-                              files_and_temp_names,
-                              num_workers=processors))
+            subsample_snps_2(final_sets,used_snps,subnums,allsnps,processors,"temp.matrix")
             temp_matrices = glob.glob(os.path.join(ap, "*tmp.matrix"))
             final_matrices = []
             for matrix in temp_matrices:
@@ -236,13 +227,7 @@ def main(reference_dir,directory,processors,coverage,proportion,keep,subsample,
             if os.path.isfile("*PARAMS"):
                 pass
             else:
-                for k,v in new_sample_dicts.iteritems():
-                    def _perform_workflow(data):
-                        #If you already have PARAMS files in your analysis directory, they won't be made again
-                        create_params_files(k, v, tree, "temp.matrix", final_sets, processors)
-                    set(p_func.pmap(_perform_workflow,
-                                    new_sample_dicts,
-                                    num_workers=4))
+                create_params_files_dev(new_sample_dicts,tree,"temp.matrix",final_sets,processors)
             try:
                 """Must make sure that remove previous RAxML files"""
                 subprocess.check_call("rm RAxML*", shell=True, stderr=open(os.devnull, 'w'))
@@ -250,12 +235,7 @@ def main(reference_dir,directory,processors,coverage,proportion,keep,subsample,
                 pass
             """final_matrices does indeed have all of the temp matrices loaded"""
             log_isg.logPrint('adding unknowns to tree')
-            def _perform_workflow_2(data):
-                z = data
-                process_temp_matrices_dev(final_sets, z, tree, processors, "all_patristic_distances.txt", "V", parameters, model)
-            set(p_func.pmap(_perform_workflow_2,
-                                      final_matrices,
-                                      num_workers=processors))
+            process_temp_matrices_2(final_sets,final_matrices,tree,processors,"all_patristic_distances.txt", "V", parameters, model)
             print("-------------------------")
             compare_subsample_results(outnames,distances,fudge)
     else:
