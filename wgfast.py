@@ -26,11 +26,9 @@ else:
     sys.exit()
 try:
     from wg_fast.util import *
-    from igs.utils import logging as log_isg
 except:
     print("wgfast path needs to be modified in the wgfast.py file")
     sys.exit()
-
 
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
