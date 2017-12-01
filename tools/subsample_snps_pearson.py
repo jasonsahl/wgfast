@@ -5,6 +5,7 @@ SNPs at a given level, calculates
 distance matrices, and performs a Mantel
 test with the Pearson correlation"""
 
+from __future__ import print_function
 import optparse
 import sys
 import subprocess
@@ -16,7 +17,7 @@ def test_file(option, opt_str, value, parser):
     try:
         with open(value): setattr(parser.values, option.dest, value)
     except IOError:
-        print '%s file cannot be opened' % option
+        print('%s file cannot be opened' % option)
         sys.exit()
 
 def subsample_snps(matrix, snps, iterations):
@@ -34,13 +35,17 @@ def subsample_snps(matrix, snps, iterations):
         outfile = open("%s.%s.tmp.matrix" % (snps, x), "w")
         in_matrix=open(matrix,"U")
         firstLine = in_matrix.readline()
-        print >> outfile, firstLine,
+        outfile.write(firstLine)
+        #outfile.write("\n")
+        #print >> outfile, firstLine,
         for line in in_matrix:
              matrix_fields=line.split()
              if matrix_fields[0] in kept_snps:
-                  print >> outfile, line,
-    outfile.close()
-                    
+                 outfile.write(line)
+                 #outfile.write("\n")
+                 #print >> outfile, line,
+        outfile.close()
+
 def matrix_to_fasta(matrix, prefix):
     """converts a NASP matrix to fasta format.  Includes
     SNP call field, which is different than the function
@@ -55,17 +60,20 @@ def matrix_to_fasta(matrix, prefix):
         reduced.append(fields[1:last])
     test=map(list, zip(*reduced))
     for x in test:
-        print >> out_fasta, ">"+str(x[0])
-        print >> out_fasta, "".join(x[1:])
+        #print >> out_fasta, ">"+str(x[0])
+        out_fasta.write(">"+str(x[0])+"\n")
+        #print >> out_fasta, "".join(x[1:])
+        out_fasta.write("".join(x[1:]))
+        out_fasta.write("\n")
     out_fasta.close()
 
 def compare_matrices(start_dir, ref_matrix, processors):
     for infile in glob.glob(os.path.join(start_dir, "*.tmp.matrix.xyzzy")):
-        subprocess.check_call(['mothur',
-                               '#dist.seqs(fasta=%s, output=lt, processors=%s)' % (infile,processors),'>/dev/null 2>&1'])
+        subprocess.call(['mothur',
+                               '#dist.seqs(fasta=%s, output=lt, processors=%s)' % (infile,processors)], stdout=subprocess.PIPE)
     for distfile in glob.glob(os.path.join(start_dir, "*.tmp.matrix.phylip.dist")):
-        subprocess.check_call(['mothur',
-        '#mantel(phylip1=%s, phylip2=%s, method=pearson)' % (distfile, ref_matrix), '>/dev/null 2>&1'])
+        subprocess.call(['mothur',
+        '#mantel(phylip1=%s, phylip2=%s, method=pearson)' % (distfile, ref_matrix)],stdout=subprocess.PIPE)
 
 def process_results(start_dir):
     """un-tested function"""
@@ -76,29 +84,31 @@ def process_results(start_dir):
                 pass
             else:
                 fields = line.split()
-                print >> outfile, fields[0]
+                outfile.write(fields[0])
+                outfile.write("\n")
+                #print >> outfile, fields[0]
     outfile.close()
-            
+
 def main(matrix,snps,iterations,processors):
     start_dir = os.getcwd()
     ac = subprocess.call(['which', 'mothur'])
     if ac == 0:
         pass
     else:
-        print "mothur must be in your path"
+        print("mothur must be in your path")
         sys.exit()
-    print "citation: Schloss PD, Westcott SL, Ryabin T, Hall JR, Hartmann M, Hollister EB, Lesniewski RA, Oakley BB, Parks DH, Robinson CJ, Sahl JW, Stres B, Thallinger GG, Van Horn DJ, Weber CF. Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Appl Environ Microbiol. 2009;75(23):7537-41"
+    print("citation: Schloss PD, Westcott SL, Ryabin T, Hall JR, Hartmann M, Hollister EB, Lesniewski RA, Oakley BB, Parks DH, Robinson CJ, Sahl JW, Stres B, Thallinger GG, Van Horn DJ, Weber CF. Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Appl Environ Microbiol. 2009;75(23):7537-41")
     matrix_to_fasta(matrix, "reference_matrix.fasta")
-    subprocess.check_call(['mothur',
-                           '#dist.seqs(fasta=reference_matrix.fasta, output=lt, processors=%s)' % processors,'>','/dev/null 2>&1'])
+    subprocess.call(['mothur',
+                           '#dist.seqs(fasta=reference_matrix.fasta, output=lt, processors=%s)' % processors], stdout=subprocess.PIPE)
     ref_matrix = "reference_matrix.phylip.dist"
-    subsample_snps(matrix, snps, iterations)
+    subsample_snps(matrix,snps,iterations)
     for infile in glob.glob(os.path.join(start_dir, '*.tmp.matrix')):
         matrix_to_fasta(infile, "%s.xyzzy" % infile)
     compare_matrices(start_dir, ref_matrix, processors)
     process_results(start_dir)
     os.system("rm *.tmp.matrix* mothur.* reference_matrix*")
-    
+
 if __name__ == "__main__":
     usage="usage: %prog [options]"
     parser = optparse.OptionParser(usage=usage)
@@ -115,13 +125,12 @@ if __name__ == "__main__":
                       help="number of processors to use, defaults to 4",
                       type="int", default="4",action="store")
     options, args = parser.parse_args()
-    
+
     mandatories = ["matrix", "snps"]
     for m in mandatories:
         if not getattr(options, m, None):
-            print "\nMust provide %s.\n" %m
+            print("\nMust provide %s.\n" %m)
             parser.print_help()
             exit(-1)
 
     main(options.matrix,options.snps,options.iterations,options.processors)
-    
