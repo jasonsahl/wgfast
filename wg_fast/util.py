@@ -467,8 +467,7 @@ def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, mode
         log_fh = open('%s.raxml.log' % suffix, 'w')
     except:
         log_isg.logPrint('could not open log file')
-
-    log_isg.logPrint("inserting sequence into tree")
+    #log_isg.logPrint("inserting sequence into tree")
     try:
         raxml_run = Popen(args, stderr=log_fh, stdout=vcf_fh)
         raxml_run.wait()

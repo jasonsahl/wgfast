@@ -38,15 +38,45 @@ ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
 TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
 
 
-def main(reference_dir,directory,processors,coverage,proportion,keep,subsample,
+def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsample,
     subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model,trim,gatk_method):
     ref_path=os.path.abspath("%s" % reference_dir)
-    dir_path=os.path.abspath("%s" % directory)
+    dir_path=os.path.abspath("%s" % read_directory)
+    """Test to make sure all required files are present"""
     tree = "".join(glob.glob(os.path.join(ref_path, "*.tree")))
+    tree_list = glob.glob(os.path.join(ref_path, "*.tree"))
+    if len(tree_list) == 0:
+        print("You need to provide a tree in your reference directory ending in '.tree'")
+        sys.exit()
+    elif len(tree_list) == 1:
+        pass
+    elif len(tree_list) > 1:
+        print("More than one tree ending in '.tree' found in your reference directory...exiting")
+        sys.exit()
     matrix = "".join(glob.glob(os.path.join(ref_path, "*.tsv")))
+    matrix_list = glob.glob(os.path.join(ref_path, "*.tsv"))
+    if len(matrix_list) == 0:
+        print("You need to provide a NASP formatted matrix ending in '.tsv'")
+        sys.exit()
+    elif len(matrix_list) > 1:
+        print("More than one file in your reference directory ending in '.tsv'...exiting")
+        sys.exit()
     reference = "".join(glob.glob(os.path.join(ref_path, "*.fasta")))
+    reference_list = glob.glob(os.path.join(ref_path, "*.fasta"))
+    if len(reference_list) == 0:
+        print("You need to provide a reference FASTA file in your reference directory, ending in 'fasta'")
+        sys.exit()
+    elif len(reference_list) > 1:
+        print("Multiple files found in your reference directory ending in 'fasta'...exiting")
+        sys.exit()
     try:
         parameters = "".join(glob.glob(os.path.join(ref_path, "*.PARAMS")))
+        parameters_list = glob.glob(os.path.join(ref_path, "*.PARAMS"))
+        if len(parameters_list)>1:
+            print("More than one RAxML parameters file found in your reference directory...exiting")
+            sys.exit()
+        elif len(parameters_list) == 0:
+            parameters = "NULL"
     except:
         parameters = "NULL"
     #check for binary dependencies
@@ -89,7 +119,7 @@ def main(reference_dir,directory,processors,coverage,proportion,keep,subsample,
     print("-m %s \\" % "".join(matrix))
     print("-t %s \\" % "".join(tree))
     print("-r %s \\" % "".join(reference))
-    print("-d %s \\" % directory)
+    print("-d %s \\" % read_directory)
     print("-x %s \\" % "".join(parameters))
     print("-p %s \\" % processors)
     print("-c %s \\" % coverage)
@@ -262,7 +292,7 @@ if __name__ == "__main__":
     parser.add_option("-r", "--reference_directory", dest="reference_dir",
                       help="path to reference file directory [REQUIRED]",
                       action="callback", callback=test_dir, type="string")
-    parser.add_option("-d", "--directory", dest="directory",
+    parser.add_option("-d", "--read_directory", dest="read_directory",
                       help="path to directory of fastq files [REQUIRED]",
                       action="callback", callback=test_dir, type="string")
     parser.add_option("-p", "--processors", dest="processors",
@@ -310,14 +340,14 @@ if __name__ == "__main__":
 
     options, args = parser.parse_args()
 
-    mandatories = ["reference_dir","directory"]
+    mandatories = ["reference_dir","read_directory"]
     for m in mandatories:
         if not options.__dict__[m]:
             print("\nMust provide %s.\n" %m)
             parser.print_help()
             exit(-1)
 
-    main(options.reference_dir,options.directory,
+    main(options.reference_dir,options.read_directory,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
          options.subnums,options.doc,options.tmp_dir,options.insertion_method,options.fudge,
          options.only_subs,options.model,options.trim,options.gatk_method)
