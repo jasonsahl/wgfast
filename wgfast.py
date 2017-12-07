@@ -163,9 +163,17 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         pass
     else:
         fileSets=read_file_sets(dir_path)
-        ref_coords = get_all_snps(matrix)
-        run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap, processors, GATK_PATH,
-        ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim,gatk_method)
+        if len(fileSets) == 0:
+            print("No usable file sets found...exiting")
+            try:
+                os.system("rm temp.matrix")
+            except:
+                pass
+            sys.exit()
+        else:
+            ref_coords = get_all_snps(matrix)
+            run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap, processors, GATK_PATH,
+            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim,gatk_method)
     """will subsample based on the number of SNPs reported by the following function"""
     used_snps=find_used_snps()
     #Outnames is required for the sub-sampling routine, even with -y T
