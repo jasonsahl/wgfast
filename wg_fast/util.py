@@ -32,6 +32,69 @@ def mp_shell(func, params, numProc):
     p.terminate()
     return out
 
+def report_stats(results,name):
+    outfile = open("%s_breadth.txt" % name, "w")
+    total_size = []
+    mapped_size = []
+    with open(results) as infile:
+        for line in infile:
+            newline = line.strip()
+            fields = newline.split()
+            if len(fields)==3:
+                total_size.append(float(fields[1]))
+                mapped_size.append(float(fields[2]))
+            else:
+                print("coverage file is malformed")
+    try:
+        total_summed = sum(total_size)
+        total_mapped = sum(mapped_size)
+        mapped_value = total_mapped/total_summed
+        outfile.write(str(name)+"\t"+str.format('{0:.4f}',mapped_value)+"\n")
+        outfile.close()
+    except:
+        pass
+
+def merge_files_by_column(column, file_1, file_2, out_file):
+    """Takes 2 file and merge their columns based on the column. It is assumed
+    that line ordering in the files do not match, so we read both files into memory
+    and join them"""
+    join_map = {}
+    for line in open(file_1):
+        line.strip()
+        row = line.split()
+        column_value = row.pop(column)
+        join_map[column_value] = row
+    for line in open(file_2):
+        line.strip()
+        row = line.split()
+        column_value = row.pop(column)
+        if column_value in join_map:
+            join_map[column_value].extend(row)
+    fout = open(out_file, 'w')
+    for k, v in join_map.items():
+        fout.write('\t'.join([k] + v) + '\n')
+    fout.close()
+
+def sum_coverage(coverage,cov,name):
+    outfile = open("%s.amount_covered.txt" % name, "w")
+    all = []
+    dict = {}
+    for line in open(coverage):
+        fields=line.split()
+        fields = map(lambda s: s.strip(), fields)
+        all.append(fields)
+    for x, y in all:
+        if int(y)>int(cov):
+           try:
+               dict[x].append(y)
+           except KeyError:
+               dict[x] = [y]
+        else:
+               pass
+    for k,v in dict.items():
+        outfile.write(str(k)+"\t"+str(len(v))+"\n")
+    outfile.close()
+
 def test_file(option, opt_str, value, parser):
     try:
         with open(value): setattr(parser.values, option.dest, value)
@@ -85,6 +148,28 @@ def test_models(option, opt_str, value, parser):
     else:
         print("substitution model is not supported")
         sys.exit()
+
+def get_seq_length(ref, name):
+    """uses BioPython in order to calculated the length of
+    each fasta entry in the reference fasta"""
+    outfile = open("%s.tmp.txt" % name, "w")
+    for record in SeqIO.parse(open(ref), "fasta"):
+        outfile.write(str(record.id)+"\t"+str(len(record.seq))+"\n")
+    #infile.close()
+    outfile.close()
+
+def remove_column(temp_file, name):
+    #infile = open(temp_file, "rU")
+    outfile = open("%s.coverage.out" % name, "w")
+    my_fields = [ ]
+    for line in open(temp_file):
+        fields=line.split()
+        del fields[1]
+        my_fields.append(fields)
+    for x in my_fields:
+        outfile.write("\t".join(x))
+        outfile.write("\n")
+    outfile.close()
 
 def get_seq_name(in_fasta):
     """used for renaming the sequences - tested"""
@@ -157,26 +242,29 @@ def read_file_sets(dir_path):
     return fileSets
 
 def process_coverage(name):
+    print(name)
     """function required in loop - tested"""
     outfile = open("coverage_out.txt", "a")
     coverage_dict = {}
     try:
-        infile = open("%s_coverage.sample_summary" % name, "rU")
+        #infile = open("%s_coverage.sample_summary" % name)
+        infile = open("%s.coverage" % name)
     except:
-        print("infile cannot be used")
+        print("%s_coverage file does not exist or cannot be used" % name)
         sys.exit()
     for line in infile:
         fields = line.split()
-        if fields[0] == name:
-            coverage_dict.update({fields[0]:fields[2]})
+        #if fields[0] == name:
+        coverage_dict.update({fields[0]:fields[2]})
+    print(coverage_dict)
     if len(coverage_dict)>=1:
         for k,v in coverage_dict.iteritems():
             outfile.write(str(k)+"\t"+str(v)+"\n")
     else:
         raise TypeError("dictionary is empty")
-    return coverage_dict
     infile.close()
     outfile.close()
+    return coverage_dict
 
 def get_sequence_length(fastq_in):
     from itertools import islice
@@ -201,7 +289,6 @@ def bwa_dev(reference,read_1,read_2,processors,my_opts,name):
     subprocess.call("%s" % arg_string, stdout=open(os.devnull, "wb"), stderr=open(os.devnull, "wb"),shell=True)
 
 def _perform_workflow_run_loop(data):
-    lock = threading.Lock()
     idx = data[0]
     f = data[1]
     dir_path = data[2]
@@ -215,37 +302,21 @@ def _perform_workflow_run_loop(data):
     doc = data[10]
     tmp_dir = data[11]
     picard = data[12]
-    trim_path = data[13]
-    wgfast_path = data[14]
-    trim = data[15]
-    gatk_method = data[16]
-    processors = data[17]
+    """This is now the PATH to bbduk.sh"""
+    wgfast_path = data[13]
+    trim = data[14]
+    gatk_method = data[15]
+    processors = data[16]
     if os.path.isfile("%s.tmp.xyx.matrix" % idx):
         pass
     else:
         if len(f)>1:
             if "T" in trim:
-                """paired end sequences - Hardcoded the number of processors per job to 2"""
-                args=['java','-jar','%s' % trim_path,'PE', '-threads', '2',
-                      '%s' % f[0], '%s' % f[1], '%s.F.paired.fastq.gz' % idx, 'F.unpaired.fastq.gz',
-                  '%s.R.paired.fastq.gz' % idx, 'R.unpaired.fastq.gz', 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:4:30:10:1:true' % wgfast_path,
-                  'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
-                try:
-                    vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
-                except:
-                    log_isg.logPrint('could not open trimmomatic file')
-                try:
-                    log_fh = open('%s.trimmomatic.log' % idx, 'w')
-                except:
-                    log_isg.logPrint('could not open log file')
                 if os.path.isfile("%s.F.paired.fastq.gz" % idx):
                     pass
                 else:
-                    try:
-                        trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                        trim_cmd.wait()
-                    except:
-                        log_isg.logPrint('problem enountered trying to run trimmomatic')
+                    length = int(get_sequence_length(f[0])/2)
+                    subprocess.check_call("bbduk.sh in=%s in2=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.F.paired.fastq.gz out2=%s.R.paired.fastq.gz minlen=%s overwrite=true > /dev/null 2>&1" % (f[0],f[1],wgfast_path,idx,idx,length), shell=True)
             else:
                 os.link(f[0], "%s.F.paired.fastq.gz" % idx)
                 os.link(f[1], "%s.R.paired.fastq.gz" % idx)
@@ -257,25 +328,8 @@ def _perform_workflow_run_loop(data):
         else:
             if "T" in trim:
                 """single end support"""
-                args=['java','-jar','%s' % trim_path,'SE', '-threads', '2',
-                      '%s' % f[0], '%s.single.fastq.gz' % idx, 'ILLUMINACLIP:%s/bin/illumina_adapters_all.fasta:2:30:10' % wgfast_path,
-                  'MINLEN:%s' % int(get_sequence_length(f[0])/2)]
-                try:
-                    vcf_fh = open('%s.trimmomatic.out' % idx, 'w')
-                except:
-                    log_isg.logPrint('could not open trimmomatic file')
-                try:
-                    log_fh = open('%s.trimmomatic.log' % idx, 'w')
-                except:
-                    log_isg.logPrint('could not open log file')
-                if os.path.isfile("%s.single.fastq.gz" % idx):
-                    pass
-                else:
-                    try:
-                        trim_cmd = Popen(args, stderr=vcf_fh, stdout=log_fh)
-                        trim_cmd.wait()
-                    except:
-                        log_isg.logPrint("problem encountered with trimmomatic")
+                length = int(get_sequence_length(f[0])/2)
+                subprocess.check_call("bbduk.sh in=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.single.fastq.gz minlen=%s overwrite=true > /dev/null 2>&1" % (f[0],wgfast_path,idx,length), shell=True)
             else:
                 os.link(f[0], "%s.single.fastq.gz" % idx)
             if os.path.isfile("%s_renamed_header.bam" % idx):
@@ -294,23 +348,26 @@ def _perform_workflow_run_loop(data):
                 sys.exit()
         run_gatk(reference,processors,idx,gatk,tmp_dir,gatk_method)
         if "T" == doc:
-            lock.acquire()
             """Need to replace this with samtools depth method?"""
-            os.system("echo %s_renamed_header.bam > %s.bam.list" % (idx,idx))
-            os.system("java -Djava.io.tmpdir=%s -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (tmp_dir,gatk,ap,idx,idx))
-            lock.release()
-            process_coverage(idx)
+            #os.system("echo %s_renamed_header.bam > %s.bam.list" % (idx,idx))
+            subprocess.check_call("samtools depth %s_renamed_header.bam > %s.coverage" % (idx,idx), shell=True)
+            #os.system("java -Djava.io.tmpdir=%s -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (tmp_dir,gatk,ap,idx,idx))
+            #process_coverage(idx)
+            remove_column("%s.coverage" % idx, idx)
+            sum_coverage("%s.coverage.out" % idx, coverage, idx)
+            merge_files_by_column(0,"ref.genome_size.txt", "%s.amount_covered.txt" % idx, "%s.results.txt" % idx)
+            report_stats("%s.results.txt" % idx, idx)
         else:
             pass
         process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
         make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
 
 def run_loop_dev(fileSets,dir_path,reference,processors,gatk,ref_coords,coverage,proportion,
-    matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path,trim,gatk_method):
+    matrix,ap,doc,tmp_dir,picard,wgfast_path,trim,gatk_method):
     files_and_temp_names = []
     for idx, f in fileSets.iteritems():
         files_and_temp_names.append([idx,f,dir_path,reference,gatk,ref_coords,coverage,proportion,
-                                     matrix,ap,doc,tmp_dir,picard,trim_path,wgfast_path,trim,gatk_method,processors])
+                                     matrix,ap,doc,tmp_dir,picard,wgfast_path,trim,gatk_method,processors])
     mp_shell(_perform_workflow_run_loop, files_and_temp_names, processors)
 
 def run_gatk(reference, processors, name, gatk, tmp_dir, gatk_method):
@@ -337,7 +394,7 @@ def run_gatk(reference, processors, name, gatk, tmp_dir, gatk_method):
 def process_vcf(vcf, ref_coords, coverage, proportion, name):
     """finds SNPs that pass user-defined thresholds
     for coverage and proportion - needs to look at tests"""
-    vcf_in = open(vcf, "U")
+    vcf_in = open(vcf)
     vcf_out = open("%s.filtered.vcf" % name, "w")
     outdata = []
     good_snps = [ ]
@@ -426,7 +483,7 @@ def matrix_to_fasta(matrix_in, outfile):
     reduced = [ ]
     out_fasta = open(outfile, "w")
     redux = [ ]
-    for line in open(matrix_in,"U"):
+    for line in open(matrix_in):
         newline = line.strip()
         fields = newline.split()
         reduced.append(fields[1:])
@@ -502,7 +559,7 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
                     for x in range(1,int(subnums)+1):
                         kept_snps=random.sample(set(allSNPs), int(v))
                         outfile = open("%s.%s.%s.tmp.matrix" % (k,x,z[1]), "w")
-                        in_matrix=open(matrix,"U")
+                        in_matrix=open(matrix)
                         firstLine = in_matrix.readline()
                         outfile.write(firstLine)
                         outfile.write("\n")
@@ -518,6 +575,7 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
                                 outfile.write("\n")
                             else:
                                 outfile.write("\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n")
+                        in_matrix.close()
                         outfile.close()
     return allSNPs
 
@@ -530,7 +588,7 @@ def find_used_snps():
         name=get_seq_name(infile)
         reduced=name.replace('.filtered.vcf', '')
         good_snps=[]
-        for line in open(infile, "U"):
+        for line in open(infile):
             fields=line.split()
             try:
                 if fields[1] != "-":
@@ -1000,7 +1058,7 @@ def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
                     pass
                 else:
                     outfile = open("%s.%s.%s.tmp.matrix" % (k,x,final_set[1]), "w")
-                    in_matrix=open(matrix,"U")
+                    in_matrix=open(matrix)
                     firstLine = in_matrix.readline()
                     outfile.write(firstLine)
                     first_fields = firstLine.split()
@@ -1335,3 +1393,4 @@ def _perform_workflow_temp_matrices(data):
                     pass
         except:
             pass
+    outfile.close()

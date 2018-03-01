@@ -33,7 +33,7 @@ except:
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
-TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
+#TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
 
 
 def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsample,
@@ -61,6 +61,9 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         sys.exit()
     reference = "".join(glob.glob(os.path.join(ref_path, "*.fasta")))
     reference_list = glob.glob(os.path.join(ref_path, "*.fasta"))
+    """Get the reference information. Outfile is named $name.tmp.txt"""
+    get_seq_length(reference, "ref")
+    subprocess.check_call("tr ' ' '\t' < ref.tmp.txt > ref.genome_size.txt", shell=True)
     if len(reference_list) == 0:
         print("You need to provide a reference FASTA file in your reference directory, ending in 'fasta'")
         sys.exit()
@@ -101,13 +104,20 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     else:
         print("bwa must be in your path")
         sys.exit()
+    """This is the new test for bbduk.sh"""
+    ac = subprocess.call(['which', 'bbduk.sh'])
+    if ac == 0:
+        pass
+    else:
+        print("bbduk need to be in your path as bbduk.sh")
+        sys.exit()
     print("*citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'")
     print("Patristic distances calculated with DendroPy")
     print("*citation: 'Sukumaran J, Holder MT. DendroPy: a Python library for phylogenetic computing. Bioinformatics. 2010;26(12):1569-71. Epub 2010/04/28. doi: 10.1093/bioinformatics/btq228. PubMed PMID: 20421198'")
     print("Also uses GATK for variant calling")
     print("*citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'")
-    print("Uses trimmomatic for read trimming")
-    print("*citation: Bolger A.M., Lohse M., Usadel B. Trimmomatic: A flexible trimmer for Illumina Sequence Data.  Bioinformatics. 2014.  Doi:10.1093/bioinformatics/btu170")
+    #print("Uses trimmomatic for read trimming")
+    #print("*citation: Bolger A.M., Lohse M., Usadel B. Trimmomatic: A flexible trimmer for Illumina Sequence Data.  Bioinformatics. 2014.  Doi:10.1093/bioinformatics/btu170")
     print("Uses BioPython for FASTA parsing")
     print("*citation :Cock PJ, Antao T, Chang JT, Chapman BA, Cox CJ, Dalke A, Friedberg I, Hamelryck T, Kauff F, Wilczynski B, de Hoon MJ. Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics. 2009;25(11):1422-3")
     print("")
@@ -139,6 +149,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     except OSError, e:
         if e.errno != errno.EEXIST:raise
     check_input_files(matrix, reference)
+    ########Real work starts here############
     #copy reference into the scratch directory, where all of the work will take place
     if only_subs == "T":
         pass
@@ -172,9 +183,17 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
             sys.exit()
         else:
             ref_coords = get_all_snps(matrix)
+            """Maybe I should replace trimmomatic with bbduk"""
+            #run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap, processors, GATK_PATH,
+            #ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim,gatk_method)
             run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap, processors, GATK_PATH,
-            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim,gatk_method)
+            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,WGFAST_PATH,trim,gatk_method)
     """will subsample based on the number of SNPs reported by the following function"""
+
+    if "T" in doc:
+        os.system("cat *breadth.txt > coverage_out.txt")
+    else:
+        pass
     used_snps=find_used_snps()
     #Outnames is required for the sub-sampling routine, even with -y T
     outnames=grab_names()
@@ -280,7 +299,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         pass
     else:
         try:
-            subprocess.check_call("rm all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist tmp.tree temp.matrix tmp_patristic_distances.txt out* RAxML_portableTree*jplace *.unpaired.fastq.gz", shell=True, stderr=open(os.devnull, 'w'))
+            subprocess.check_call("rm ref.tmp.txt ref.genome_size.txt all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist tmp.tree temp.matrix tmp_patristic_distances.txt out* RAxML_portableTree*jplace *.unpaired.fastq.gz", shell=True, stderr=open(os.devnull, 'w'))
         except:
             pass
         for outname in outnames:

@@ -80,7 +80,7 @@ class Test4(unittest.TestCase):
         fp.close()
         self.assertEqual(process_vcf(fpath, ["ADK1::460"], 5, 0.9, "tmp"), ["ADK1::460::-"])
         shutil.rmtree(tdir)
-        
+
 class Test5(unittest.TestCase):
     def test_sort_information_basic_function(self):
         self.assertEqual(sort_information("ADK1::460"), 460)
@@ -88,7 +88,7 @@ class Test5(unittest.TestCase):
         self.assertRaises(TypeError, sort_information, "ADK1__460")
     def test_sort_information_no_input(self):
         self.assertRaises(TypeError, sort_information, None)
-        
+
 class Test6(unittest.TestCase):
     def test_matrix_to_fasta_basic_function(self):
         tdir = tempfile.mkdtemp(prefix="filetest_",)
@@ -120,7 +120,7 @@ class Test6(unittest.TestCase):
         fp.close()
         self.assertEqual(matrix_to_fasta(fpath, "%s/outfile.txt" % tdir), [">ReferenceAT", ">genome1TT", ">genome2TTT"])
         shutil.rmtree(tdir)
-        
+
 class Test7(unittest.TestCase):
     def test_write_reduced_matrix_basic_function(self):
         tdir = tempfile.mkdtemp(prefix="filetest_",)
@@ -142,7 +142,7 @@ class Test7(unittest.TestCase):
         fp.close()
         self.assertEqual(write_reduced_matrix(fpath), [4, 3])
         shutil.rmtree(tdir)
-        
+
 class Test8(unittest.TestCase):
     def test_make_temp_matrix_basic_function(self):
         tdir = tempfile.mkdtemp(prefix="filetest_",)
@@ -189,31 +189,31 @@ class Test9(unittest.TestCase):
         os.chdir("%s" % curr_dir)
         shutil.rmtree(tdir)
 
-class Test10(unittest.TestCase):
-    def test_process_coverage_basic_function(self):
-        tdir = tempfile.mkdtemp(prefix="filetest_",)
-        fpath = os.path.join(tdir,"ECOLI_coverage.sample_summary")
-        os.chdir("%s" % tdir)
-        fp = open(fpath,"w")
-        fp.write("sample_id       total   mean    granular_third_quartile granular_median granular_first_quartile %_bases_above_15\n")
-        fp.write("ECOLI    2050    3.82    6       5       4       0.0\n")
-        fp.write("Total    2050    3.82    N/A     N/A     N/A")
-        fp.close()
-        self.assertEqual(process_coverage("ECOLI"), {'ECOLI':'3.82'})
-        os.chdir("%s" % curr_dir)
-        shutil.rmtree(tdir)
-    def test_process_coverage_missing_match(self):
-        tdir = tempfile.mkdtemp(prefix="filetest_",)
-        fpath = os.path.join(tdir,"ECOLI_coverage.sample_summary")
-        os.chdir("%s" % tdir)
-        fp = open(fpath,"w")
-        fp.write("sample_id       total   mean    granular_third_quartile granular_median granular_first_quartile %_bases_above_15\n")
-        fp.write("EOLI    2050    3.82    6       5       4       0.0\n")
-        fp.write("Total    2050    3.82    N/A     N/A     N/A")
-        fp.close()
-        self.assertRaises(TypeError, process_coverage, "ECOLI")
-        os.chdir("%s" % curr_dir)
-        shutil.rmtree(tdir)
+#class Test10(unittest.TestCase):
+#    def test_process_coverage_basic_function(self):
+#        tdir = tempfile.mkdtemp(prefix="filetest_",)
+#        fpath = os.path.join(tdir,"ECOLI_coverage.sample_summary")
+#        os.chdir("%s" % tdir)
+#        fp = open(fpath,"w")
+#        fp.write("sample_id       total   mean    granular_third_quartile granular_median granular_first_quartile %_bases_above_15\n")
+#        fp.write("ECOLI    2050    3.82    6       5       4       0.0\n")
+#        fp.write("Total    2050    3.82    N/A     N/A     N/A")
+#        fp.close()
+#        self.assertEqual(process_coverage("ECOLI"), {'ECOLI':'3.82'})
+#        os.chdir("%s" % curr_dir)
+#        shutil.rmtree(tdir)
+#    def test_process_coverage_missing_match(self):
+#        tdir = tempfile.mkdtemp(prefix="filetest_",)
+#        fpath = os.path.join(tdir,"ECOLI_coverage.sample_summary")
+#        os.chdir("%s" % tdir)
+#        fp = open(fpath,"w")
+#        fp.write("sample_id       total   mean    granular_third_quartile granular_median granular_first_quartile %_bases_above_15\n")
+#        fp.write("EOLI    2050    3.82    6       5       4       0.0\n")
+#        fp.write("Total    2050    3.82    N/A     N/A     N/A")
+#        fp.close()
+#        self.assertRaises(TypeError, process_coverage, "ECOLI")
+#        os.chdir("%s" % curr_dir)
+#        shutil.rmtree(tdir)
 
 class Test11(unittest.TestCase):
     def test_find_two_report_error(self):
@@ -253,7 +253,7 @@ class Test11(unittest.TestCase):
 class Test12(unittest.TestCase):
     def test_get_closest_dists_basic_function(self):
         self.assertEqual(get_closest_dists_new((('ECOLI_ISO2', 'SSON_046_allexternalnucmer', '0.08198920048'), ('ECOLI_ISO2', 'H10407_allexternalnucmer', '1.3087194675e-06')),['ECOLI', 'ECOLI_IS03_L007', 'ECOLI_ISO2']),(['SSON_046_allexternalnucmer0.08198920048', 'H10407_allexternalnucmer1.3087194675e-06']))
-        
+
 class Test13(unittest.TestCase):
     def test_calculate_pairwise_tree_dists_basic_function(self):
         """distances were taken directly from Dendropy, run outside of the pipeline"""
@@ -457,7 +457,7 @@ class Test25(unittest.TestCase):
         os.chdir("%s" % curr_dir)
         shutil.rmtree(tdir)
         os.system("rm tmp.filtered.vcf test.tmp.matrix temp.matrix tab_matrix tab.filtered out.tab out.fasta")
-                
+
 if __name__ == "__main__":
     unittest.main()
     main()
