@@ -32,14 +32,15 @@ def mp_shell(func, params, numProc):
     p.terminate()
     return out
 
-def report_stats(results,name):
-    outfile = open("%s_breadth.txt" % name, "w")
+def report_stats(results,name,output):
+    outfile = open(output, "w")
     total_size = []
     mapped_size = []
     with open(results) as infile:
         for line in infile:
             newline = line.strip()
             fields = newline.split()
+            """this just makes sure that the file looks correct"""
             if len(fields)==3:
                 total_size.append(float(fields[1]))
                 mapped_size.append(float(fields[2]))
@@ -77,23 +78,33 @@ def merge_files_by_column(column, file_1, file_2, out_file):
 
 def sum_coverage(coverage,cov,name):
     outfile = open("%s.amount_covered.txt" % name, "w")
+    another_outfile = open("%s.sum_covered.txt" % name, "w")
     all = []
-    dict = {}
+    my_dict = {}
+    cov_dict = {}
     for line in open(coverage):
         fields=line.split()
         fields = map(lambda s: s.strip(), fields)
         all.append(fields)
     for x, y in all:
-        if int(y)>int(cov):
+        """Here we're only counting it if it is above the given coverage threshold"""
+        try:
+            cov_dict[x].append(int(y))
+        except KeyError:
+            cov_dict[x] = [int(y)]
+        if int(y)>=int(cov):
            try:
-               dict[x].append(y)
+               my_dict[x].append(y)
            except KeyError:
-               dict[x] = [y]
+               my_dict[x] = [y]
         else:
                pass
-    for k,v in dict.items():
+    for k,v in my_dict.items():
         outfile.write(str(k)+"\t"+str(len(v))+"\n")
+    for k,v in cov_dict.items():
+        another_outfile.write(str(k)+"\t"+str(sum(v))+"\n")
     outfile.close()
+    another_outfile.close()
 
 def test_file(option, opt_str, value, parser):
     try:
@@ -244,17 +255,15 @@ def read_file_sets(dir_path):
 def process_coverage(name):
     print(name)
     """function required in loop - tested"""
-    outfile = open("coverage_out.txt", "a")
+    outfile = open("breadth_over_%sx_out.txt", "a")
     coverage_dict = {}
     try:
-        #infile = open("%s_coverage.sample_summary" % name)
         infile = open("%s.coverage" % name)
     except:
         print("%s_coverage file does not exist or cannot be used" % name)
         sys.exit()
     for line in infile:
         fields = line.split()
-        #if fields[0] == name:
         coverage_dict.update({fields[0]:fields[2]})
     print(coverage_dict)
     if len(coverage_dict)>=1:
@@ -280,7 +289,7 @@ def run_bwa_dev(read_1, read_2, processors, name, reference):
 
 def bwa_dev(reference,read_1,read_2,processors,my_opts,name):
     mem_arguments = ['bwa','mem','-v','2','-M','-t','%s' % processors]
-    if "null" in read_2:
+    if "NULL" in read_2:
         mem_arguments.extend([reference,read_1])
     else:
         mem_arguments.extend([reference,read_1,read_2])
@@ -310,6 +319,7 @@ def _perform_workflow_run_loop(data):
     if os.path.isfile("%s.tmp.xyx.matrix" % idx):
         pass
     else:
+        """This means that the data is paired end"""
         if len(f)>1:
             if "T" in trim:
                 if os.path.isfile("%s.F.paired.fastq.gz" % idx):
@@ -326,6 +336,7 @@ def _perform_workflow_run_loop(data):
             else:
                 run_bwa_dev("%s.F.paired.fastq.gz" % idx, "%s.R.paired.fastq.gz" % idx, processors, idx, reference)
         else:
+            """Single end read support"""
             if "T" in trim:
                 """single end support"""
                 length = int(get_sequence_length(f[0])/2)
@@ -335,7 +346,8 @@ def _perform_workflow_run_loop(data):
             if os.path.isfile("%s_renamed_header.bam" % idx):
                 pass
             else:
-                run_bwa_dev(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
+                #run_bwa_dev(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
+                run_bwa_dev("%s.single.fastq.gz" % idx, "NULL", processors, idx, reference)
         if os.path.isfile("%s_renamed_header.bam" % idx):
             pass
         else:
@@ -348,15 +360,14 @@ def _perform_workflow_run_loop(data):
                 sys.exit()
         run_gatk(reference,processors,idx,gatk,tmp_dir,gatk_method)
         if "T" == doc:
-            """Need to replace this with samtools depth method?"""
-            #os.system("echo %s_renamed_header.bam > %s.bam.list" % (idx,idx))
             subprocess.check_call("samtools depth %s_renamed_header.bam > %s.coverage" % (idx,idx), shell=True)
-            #os.system("java -Djava.io.tmpdir=%s -jar %s -R %s/scratch/reference.fasta -T DepthOfCoverage -o %s_coverage -I %s.bam.list -rf BadCigar > /dev/null 2>&1" % (tmp_dir,gatk,ap,idx,idx))
-            #process_coverage(idx)
             remove_column("%s.coverage" % idx, idx)
             sum_coverage("%s.coverage.out" % idx, coverage, idx)
             merge_files_by_column(0,"ref.genome_size.txt", "%s.amount_covered.txt" % idx, "%s.results.txt" % idx)
-            report_stats("%s.results.txt" % idx, idx)
+            merge_files_by_column(0,"ref.genome_size.txt", "%s.sum_covered.txt" % idx, "%s.cov.results.txt" % idx)
+            #report_stats("%s.results.txt" % idx, idx)
+            report_stats("%s.results.txt" % idx, idx, "%s_breadth.txt" % idx)
+            report_stats("%s.cov.results.txt" % idx, idx, "%s_sum_cov.txt" % idx)
         else:
             pass
         process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
@@ -524,7 +535,6 @@ def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, mode
         log_fh = open('%s.raxml.log' % suffix, 'w')
     except:
         log_isg.logPrint('could not open log file')
-    #log_isg.logPrint("inserting sequence into tree")
     try:
         raxml_run = Popen(args, stderr=log_fh, stdout=vcf_fh)
         raxml_run.wait()

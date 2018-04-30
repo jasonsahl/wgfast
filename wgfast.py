@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
 """
-
 WG-FAST
 written by Jason Sahl
 correspondence: jasonsahl@gmail.com
-
 """
 from __future__ import print_function
 from optparse import OptionParser
@@ -14,7 +12,6 @@ import os
 import sys
 import errno
 import glob
-
 
 """modify line below to reflect your installation directory"""
 WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
@@ -183,15 +180,13 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
             sys.exit()
         else:
             ref_coords = get_all_snps(matrix)
-            """Maybe I should replace trimmomatic with bbduk"""
-            #run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap, processors, GATK_PATH,
-            #ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,TRIM_PATH,WGFAST_PATH,trim,gatk_method)
+            log_isg.logPrint("Loop starting")
             run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap, processors, GATK_PATH,
             ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,WGFAST_PATH,trim,gatk_method)
     """will subsample based on the number of SNPs reported by the following function"""
-
     if "T" in doc:
-        os.system("cat *breadth.txt > coverage_out.txt")
+        os.system("cat *breadth.txt > breadth_over_%sx_out.txt" % coverage)
+        os.system("cat *sum_cov.txt> coverage_out.txt")
     else:
         pass
     used_snps=find_used_snps()
