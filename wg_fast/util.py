@@ -298,7 +298,10 @@ def bwa_dev(reference,read_1,read_2,processors,my_opts,name):
     subprocess.call("%s" % arg_string, stdout=open(os.devnull, "wb"), stderr=open(os.devnull, "wb"),shell=True)
 
 def _perform_workflow_run_loop(data):
+    """sample ID"""
+    print("here!")
     idx = data[0]
+    """path to data"""
     f = data[1]
     dir_path = data[2]
     reference = data[3]
@@ -316,6 +319,7 @@ def _perform_workflow_run_loop(data):
     trim = data[14]
     gatk_method = data[15]
     processors = data[16]
+    #print(f)
     if os.path.isfile("%s.tmp.xyx.matrix" % idx):
         pass
     else:
@@ -337,6 +341,7 @@ def _perform_workflow_run_loop(data):
                 run_bwa_dev("%s.F.paired.fastq.gz" % idx, "%s.R.paired.fastq.gz" % idx, processors, idx, reference)
         else:
             """Single end read support"""
+
             if "T" in trim:
                 """single end support"""
                 length = int(get_sequence_length(f[0])/2)
@@ -376,10 +381,11 @@ def _perform_workflow_run_loop(data):
 def run_loop_dev(fileSets,dir_path,reference,processors,gatk,ref_coords,coverage,proportion,
     matrix,ap,doc,tmp_dir,picard,wgfast_path,trim,gatk_method):
     files_and_temp_names = []
-    for idx, f in fileSets.iteritems():
+    for idx, f in fileSets.items():
         files_and_temp_names.append([idx,f,dir_path,reference,gatk,ref_coords,coverage,proportion,
                                      matrix,ap,doc,tmp_dir,picard,wgfast_path,trim,gatk_method,processors])
-    mp_shell(_perform_workflow_run_loop, files_and_temp_names, processors)
+    #print(files_and_temp_names)
+    mp_shell(_perform_workflow_run_loop,files_and_temp_names,processors)
 
 def run_gatk(reference, processors, name, gatk, tmp_dir, gatk_method):
     """gatk controller, mbq used to be set to 17, but was recently changed - untested, system call"""
