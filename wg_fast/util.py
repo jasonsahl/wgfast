@@ -299,7 +299,6 @@ def bwa_dev(reference,read_1,read_2,processors,my_opts,name):
 
 def _perform_workflow_run_loop(data):
     """sample ID"""
-    print("here!")
     idx = data[0]
     """path to data"""
     f = data[1]
@@ -319,7 +318,6 @@ def _perform_workflow_run_loop(data):
     trim = data[14]
     gatk_method = data[15]
     processors = data[16]
-    #print(f)
     if os.path.isfile("%s.tmp.xyx.matrix" % idx):
         pass
     else:
@@ -341,17 +339,15 @@ def _perform_workflow_run_loop(data):
                 run_bwa_dev("%s.F.paired.fastq.gz" % idx, "%s.R.paired.fastq.gz" % idx, processors, idx, reference)
         else:
             """Single end read support"""
-
             if "T" in trim:
                 """single end support"""
                 length = int(get_sequence_length(f[0])/2)
-                subprocess.check_call("bbduk.sh in=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.single.fastq.gz minlen=%s overwrite=true > /dev/null 2>&1" % (f[0],wgfast_path,idx,length), shell=True)
+                subprocess.check_call("bbduk.sh in=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.single.fastq.gz minlen=%s overwrite=true ignorebadquality> /dev/null 2>&1" % (f[0],wgfast_path,idx,length), shell=True)
             else:
                 os.link(f[0], "%s.single.fastq.gz" % idx)
             if os.path.isfile("%s_renamed_header.bam" % idx):
                 pass
             else:
-                #run_bwa_dev(reference, '%s.single.fastq.gz' % idx, "NULL", processors, idx)
                 run_bwa_dev("%s.single.fastq.gz" % idx, "NULL", processors, idx, reference)
         if os.path.isfile("%s_renamed_header.bam" % idx):
             pass
