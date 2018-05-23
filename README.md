@@ -1,17 +1,17 @@
-####WG-FAST####
+#### WG-FAST ####
 The whole genome focused array SNP typing (WG-FAST) pipeline
 written by: Jason Sahl
 Email: jasonsahl at gmail dot com
 
 for a more comprehensive overview, look at the Manual
 
-####overview####
+#### overview ####
 The goal of WG-FAST is to phylogenetically genotype an unknown
 sample in the context of a well studied pathogen.  This sample
 can either be a metagenomics dataset, a metatranscriptomics dataset,
 or a single isolate sequencing dataset
 
-####Installation####
+#### Installation ####
 1.  To install, enter the wgfast directory and type the command below.  If you don't have sudo
 privileges, install to base directory using --prefix:
 sudo python setup.py install
