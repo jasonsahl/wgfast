@@ -27,14 +27,14 @@ except:
     print("wgfast path needs to be modified in the wgfast.py file")
     sys.exit()
 
+#Need to update with new GATK4
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
+#TODO: See if I can remove this
 PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
-#TRIM_PATH=WGFAST_PATH+"/bin/trimmomatic-0.30.jar"
-
 
 def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsample,
-    subnums,doc,tmp_dir,insertion_method,fudge,only_subs,model,trim,gatk_method):
+    subnums,doc,tmp_dir,fudge,only_subs,model,gatk_method):
     ref_path=os.path.abspath("%s" % reference_dir)
     dir_path=os.path.abspath("%s" % read_directory)
     """Test to make sure all required files are present"""
@@ -58,6 +58,12 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         sys.exit()
     reference = "".join(glob.glob(os.path.join(ref_path, "*.fasta")))
     reference_list = glob.glob(os.path.join(ref_path, "*.fasta"))
+    if len(reference_list) == 0:
+        print("You must provide a REFERENCE FASTA file")
+        sys.exit()
+    elif len(reference_list) > 1:
+        print("More than one file in your reference directory ending in '.fasta'...exiting")
+        sys.exit()
     """Get the reference information. Outfile is named $name.tmp.txt"""
     get_seq_length(reference, "ref")
     subprocess.check_call("tr ' ' '\t' < ref.tmp.txt > ref.genome_size.txt", shell=True)
@@ -113,8 +119,6 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     print("*citation: 'Sukumaran J, Holder MT. DendroPy: a Python library for phylogenetic computing. Bioinformatics. 2010;26(12):1569-71. Epub 2010/04/28. doi: 10.1093/bioinformatics/btq228. PubMed PMID: 20421198'")
     print("Also uses GATK for variant calling")
     print("*citation: 'McKenna A, Hanna M, Banks E, Sivachenko A, Cibulskis K, Kernytsky A, Garimella K, Altshuler D, Gabriel S, Daly M, DePristo MA. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome research. 2010;20(9):1297-303'")
-    #print("Uses trimmomatic for read trimming")
-    #print("*citation: Bolger A.M., Lohse M., Usadel B. Trimmomatic: A flexible trimmer for Illumina Sequence Data.  Bioinformatics. 2014.  Doi:10.1093/bioinformatics/btu170")
     print("Uses BioPython for FASTA parsing")
     print("*citation :Cock PJ, Antao T, Chang JT, Chapman BA, Cox CJ, Dalke A, Friedberg I, Hamelryck T, Kauff F, Wilczynski B, de Hoon MJ. Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics. 2009;25(11):1422-3")
     print("")
@@ -134,17 +138,16 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     print("-n %s \\" % subnums)
     print("-g %s \\" % doc)
     print("-e %s \\" % tmp_dir)
-    print("-z %s \\" % insertion_method)
     print("-f %s \\" % fudge)
     print("-y %s \\" % only_subs)
     print("-j %s \\" % model)
-    print("-i %s \\" % trim)
     print("-q %s" % gatk_method)
     print("-------------------------")
     try:
         os.makedirs('%s/scratch' % ap)
-    except OSError, e:
-        if e.errno != errno.EEXIST:raise
+    except:
+        os.system("rm -rf %s/scratch" % ap)
+        os.makedirs('%s/scratch' % ap)
     check_input_files(matrix, reference)
     ########Real work starts here############
     #copy reference into the scratch directory, where all of the work will take place
@@ -154,10 +157,12 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         subprocess.check_call("cp %s %s/scratch/reference.fasta" % (reference, ap), shell=True)
         #index reference file.  GATK appears to do this incorrectly"""
         subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % ap, shell=True)
+        #TODO: replace with minimap2
         subprocess.check_call("bwa index %s/scratch/reference.fasta > /dev/null 2>&1" % ap, shell=True)
-        #write reduced matrix with only the SNP data"""
+
         """creates dict file with picard tools.  In testing, GATK does this incorrectly"""
         try:
+            #TODO: Check to see if I can remove this step
             os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
         except:
             print("dict wasn't created")
@@ -165,13 +170,13 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     if os.path.isfile("temp.matrix"):
         pass
     else:
+        #write reduced matrix with only the SNP data"""
         write_reduced_matrix(matrix)
     ref_name=get_seq_name(reference)
     if only_subs == "T":
         pass
     else:
         fileSets=read_file_sets(dir_path)
-        #print(fileSets)
         if len(fileSets) == 0:
             print("No usable file sets found...exiting")
             try:
@@ -183,7 +188,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
             ref_coords = get_all_snps(matrix)
             log_isg.logPrint("Loop starting")
             run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap,processors,GATK_PATH,
-            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,WGFAST_PATH,trim,gatk_method)
+            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,WGFAST_PATH,gatk_method)
     """will subsample based on the number of SNPs reported by the following function"""
     if "T" in doc:
         os.system("cat *breadth.txt > breadth_over_%sx_out.txt" % coverage)
@@ -194,11 +199,12 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     #Outnames is required for the sub-sampling routine, even with -y T
     outnames=grab_names()
     for name in outnames:
-        for k,v in used_snps.iteritems():
-            if name==k:
+        for k,v in used_snps.items():
+            if name == k:
                 log_isg.logPrint("number of callable positions in genome %s = %s" % (k,v))
     if only_subs == "T":
         try:
+            #Starts with a clean slate, to replace with new EPA algorithm
             os.system("rm RAxML*")
         except:
             pass
@@ -210,28 +216,13 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
         """this fixes the SNP output to conform with RAxML"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
-        if insertion_method == "ML":
-            suffix = run_raxml("out.fasta", tree,"out.classification_results.txt", "V", parameters, model, "out")
-        elif insertion_method == "MP":
-            try:
-                suffix = run_raxml("out.fasta", tree,"out.classification_results.txt", "y", parameters, model, "out")
-            except:
-                print("problem with MP, moving to ML")
-                suffix = run_raxml("out.fasta", tree, "out.classification_results.txt", "V", parameters, model, "out")
-        else:
-            pass
+        suffix = run_raxml("out.fasta", tree,"out.classification_results.txt", "V", parameters, model, "out")
         transform_tree("%s.tree_including_unknowns_noedges.tree" % suffix)
         print("")
-        if insertion_method == "ML":
-            log_isg.logPrint("Insertion likelihood values:")
-            parse_likelihoods("out.classification_results.txt")
-            print("")
-        else:
-            pass
-        if insertion_method == "ML":
-            calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % suffix,"all_patristic_distances.txt")
-        else:
-            print("patrisitic distances can't always be calculated with parsimony")
+        log_isg.logPrint("Insertion likelihood values:")
+        parse_likelihoods("out.classification_results.txt")
+        print("")
+        calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % suffix,"all_patristic_distances.txt")
     if subsample=="T":
         aa = subprocess.call(['which', 'raxmlHPC-PTHREADS-SSE3'])
         if aa == 0:
@@ -240,57 +231,55 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
             print("for sub-sample routine, RAxML must be in your path as raxmlHPC-PTHREADS-SSE3")
             sys.exit()
         print("*citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'")
-        if insertion_method == "MP":
-            print("subsample method is not compatible with MP")
-            pass
-        else:
-            try:
-                if os.path.isfile("tmp_patristic_distances.txt"):
-                    pass
-                else:
-                    os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
-            except:
-                print("all_patrisitic_distances.txt must be in your analysis directory!")
-                sys.exit()
-            final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
-            results = get_closest_dists_new(final_sets,outnames)
-            log_isg.logPrint("running subsample routine, forcing GTRGAMMA model")
-            """mpshell on this function"""
-            allsnps = get_all_snps(matrix)
-            subsample_snps_2(final_sets,used_snps,subnums,allsnps,processors,"temp.matrix")
-            temp_matrices = glob.glob(os.path.join(ap, "*tmp.matrix"))
-            final_matrices = []
-            for matrix in temp_matrices:
-                final_matrices.append(matrix.replace("%s/" % ap,""))
-            sample_sets = {}
-            for matrix in final_matrices:
-                entries = matrix.split(".")
-                if entries[0] in sample_sets:
-                    sample_sets[entries[0]].append(entries[2])
-                else:
-                    sample_sets[entries[0]]=[entries[2]]
-            new_sample_dicts = {}
-            for k,v in sample_sets.iteritems():
-                uniques = []
-                [uniques.append(item) for item in v if item not in uniques]
-                new_sample_dicts.update({k:uniques})
-            log_isg.logPrint('creating PARAMS file')
-            if os.path.isfile("*PARAMS"):
+        try:
+            if os.path.isfile("tmp_patristic_distances.txt"):
                 pass
             else:
-                create_params_files_dev(new_sample_dicts,tree,"temp.matrix",final_sets,processors)
-            try:
-                """Must make sure that remove previous RAxML files"""
-                subprocess.check_call("rm RAxML*", shell=True, stderr=open(os.devnull, 'w'))
-            except:
-                pass
-            """final_matrices does indeed have all of the temp matrices loaded"""
-            log_isg.logPrint('adding unknowns to tree')
-            process_temp_matrices_2(final_sets,final_matrices,tree,processors,"all_patristic_distances.txt", "V", parameters, model)
-            print("-------------------------")
-            compare_subsample_results(outnames,distances,fudge)
+                os.system("sort -g -k 6 all_patristic_distances.txt | sed 's/://g' > tmp_patristic_distances.txt")
+        except:
+            print("all_patrisitic_distances.txt must be in your analysis directory!")
+            sys.exit()
+        final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
+        results = get_closest_dists_new(final_sets,outnames)
+        log_isg.logPrint("running subsample routine, forcing GTRGAMMA model")
+        """mpshell on this function"""
+        allsnps = get_all_snps(matrix)
+        subsample_snps_2(final_sets,used_snps,subnums,allsnps,processors,"temp.matrix")
+        temp_matrices = glob.glob(os.path.join(ap, "*tmp.matrix"))
+        final_matrices = []
+        for matrix in temp_matrices:
+            final_matrices.append(matrix.replace("%s/" % ap,""))
+        sample_sets = {}
+        for matrix in final_matrices:
+            entries = matrix.split(".")
+            if entries[0] in sample_sets:
+                sample_sets[entries[0]].append(entries[2])
+            else:
+                sample_sets[entries[0]]=[entries[2]]
+        new_sample_dicts = {}
+        for k,v in sample_sets.iteritems():
+            uniques = []
+            [uniques.append(item) for item in v if item not in uniques]
+            new_sample_dicts.update({k:uniques})
+        log_isg.logPrint('creating PARAMS file')
+        if os.path.isfile("*PARAMS"):
+            pass
+        else:
+            create_params_files_dev(new_sample_dicts,tree,"temp.matrix",final_sets,processors)
+        try:
+            """Must make sure that remove previous RAxML files"""
+            subprocess.check_call("rm RAxML*", shell=True, stderr=open(os.devnull, 'w'))
+        except:
+            pass
+        """final_matrices does indeed have all of the temp matrices loaded"""
+        log_isg.logPrint('adding unknowns to tree')
+        #TODO: enter progress bar instead of printing out lots of text
+        process_temp_matrices_2(final_sets,final_matrices,tree,processors,"all_patristic_distances.txt", "V", parameters, model)
+        print("-------------------------")
+        compare_subsample_results(outnames,distances,fudge)
     else:
         pass
+    #Clean up temporary files
     if keep == "T":
         pass
     else:
@@ -337,12 +326,10 @@ if __name__ == "__main__":
     parser.add_option("-g", "--doc", dest="doc",
                       help="run depth of coverage on all files?  Defaults to T",
                       action="callback", callback=test_filter, type="string", default="T")
+    #TODO: think about removing this argument
     parser.add_option("-e", "--temp", dest="tmp_dir",
                       help="temporary directory for GATK analysis, defaults to /tmp",
                       action="store", type="string", default="/tmp")
-    parser.add_option("-z", "--method", dest="insertion_method",
-                      help="method to insert unknown genomes (MP or ML), defaults to ML",
-                      action="callback", type="string", callback=test_methods, default="ML")
     parser.add_option("-f", "--fudge_factor", dest="fudge",
                       help="How close does a subsample have to be from true placement?  Defaults to 0.1",
                       action="store", type="float", default="0.1")
@@ -352,9 +339,6 @@ if __name__ == "__main__":
     parser.add_option("-j", "--model", dest="model",
                       help="which model to run with raxml, GTRGAMMA, ASC_GTRGAMMA, GTRCAT, ASC_GTRCAT",
                       action="callback", callback=test_models, type="string", default="ASC_GTRGAMMA")
-    parser.add_option("-i", "--trim", dest="trim",
-                      help="trim sequences with trimmomatic? Defaults to T",
-                      action="callback", callback=test_filter, type="string", default="T")
     parser.add_option("-q", "--gatk_method", dest="gatk_method",
                       help="How to call GATK? Defaults to EMIT_ALL_CONFIDENT_SITES, can be EMIT_ALL_SITES",
                       action="callback", callback=test_gatk, type="string", default="EMIT_ALL_CONFIDENT_SITES")
@@ -370,5 +354,5 @@ if __name__ == "__main__":
 
     main(options.reference_dir,options.read_directory,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
-         options.subnums,options.doc,options.tmp_dir,options.insertion_method,options.fudge,
-         options.only_subs,options.model,options.trim,options.gatk_method)
+         options.subnums,options.doc,options.tmp_dir,options.fudge,
+         options.only_subs,options.model,options.gatk_method)

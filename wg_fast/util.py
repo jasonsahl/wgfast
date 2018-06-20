@@ -49,7 +49,7 @@ def report_stats(results,name,output):
     try:
         total_summed = sum(total_size)
         total_mapped = sum(mapped_size)
-        mapped_value = total_mapped/total_summed
+        mapped_value = (total_mapped/total_summed)*100
         outfile.write(str(name)+"\t"+str.format('{0:.4f}',mapped_value)+"\n")
         outfile.close()
     except:
@@ -60,17 +60,19 @@ def merge_files_by_column(column, file_1, file_2, out_file):
     that line ordering in the files do not match, so we read both files into memory
     and join them"""
     join_map = {}
-    for line in open(file_1):
-        line.strip()
-        row = line.split()
-        column_value = row.pop(column)
-        join_map[column_value] = row
-    for line in open(file_2):
-        line.strip()
-        row = line.split()
-        column_value = row.pop(column)
-        if column_value in join_map:
-            join_map[column_value].extend(row)
+    with open(file_1) as my_file_1:
+        for line in my_file_1:
+            line.strip()
+            row = line.split()
+            column_value = row.pop(column)
+            join_map[column_value] = row
+    with open(file_2) as my_file_2:
+        for line in my_file_2:
+            line.strip()
+            row = line.split()
+            column_value = row.pop(column)
+            if column_value in join_map:
+                join_map[column_value].extend(row)
     fout = open(out_file, 'w')
     for k, v in join_map.items():
         fout.write('\t'.join([k] + v) + '\n')
@@ -82,10 +84,11 @@ def sum_coverage(coverage,cov,name):
     all = []
     my_dict = {}
     cov_dict = {}
-    for line in open(coverage):
-        fields=line.split()
-        fields = map(lambda s: s.strip(), fields)
-        all.append(fields)
+    with open(coverage) as my_file:
+        for line in my_file:
+            fields=line.split()
+            fields = map(lambda s: s.strip(), fields)
+            all.append(fields)
     for x, y in all:
         """Here we're only counting it if it is above the given coverage threshold"""
         try:
@@ -166,17 +169,16 @@ def get_seq_length(ref, name):
     outfile = open("%s.tmp.txt" % name, "w")
     for record in SeqIO.parse(open(ref), "fasta"):
         outfile.write(str(record.id)+"\t"+str(len(record.seq))+"\n")
-    #infile.close()
     outfile.close()
 
 def remove_column(temp_file, name):
-    #infile = open(temp_file, "rU")
     outfile = open("%s.coverage.out" % name, "w")
-    my_fields = [ ]
-    for line in open(temp_file):
-        fields=line.split()
-        del fields[1]
-        my_fields.append(fields)
+    my_fields = []
+    with open(temp_file) as my_file:
+        for line in my_file:
+            fields=line.split()
+            del fields[1]
+            my_fields.append(fields)
     for x in my_fields:
         outfile.write("\t".join(x))
         outfile.write("\n")
@@ -252,29 +254,6 @@ def read_file_sets(dir_path):
         logging.info('Total single reads found:' + str(num_single_readsets))
     return fileSets
 
-def process_coverage(name):
-    print(name)
-    """function required in loop - tested"""
-    outfile = open("breadth_over_%sx_out.txt", "a")
-    coverage_dict = {}
-    try:
-        infile = open("%s.coverage" % name)
-    except:
-        print("%s_coverage file does not exist or cannot be used" % name)
-        sys.exit()
-    for line in infile:
-        fields = line.split()
-        coverage_dict.update({fields[0]:fields[2]})
-    print(coverage_dict)
-    if len(coverage_dict)>=1:
-        for k,v in coverage_dict.iteritems():
-            outfile.write(str(k)+"\t"+str(v)+"\n")
-    else:
-        raise TypeError("dictionary is empty")
-    infile.close()
-    outfile.close()
-    return coverage_dict
-
 def get_sequence_length(fastq_in):
     from itertools import islice
     from gzip import GzipFile
@@ -315,36 +294,34 @@ def _perform_workflow_run_loop(data):
     picard = data[12]
     """This is now the PATH to bbduk.sh"""
     wgfast_path = data[13]
-    trim = data[14]
-    gatk_method = data[15]
-    processors = data[16]
+    gatk_method = data[14]
+    processors = data[15]
     if os.path.isfile("%s.tmp.xyx.matrix" % idx):
         pass
     else:
         """This means that the data is paired end"""
         if len(f)>1:
-            if "T" in trim:
-                if os.path.isfile("%s.F.paired.fastq.gz" % idx):
-                    pass
-                else:
-                    length = int(get_sequence_length(f[0])/2)
-                    subprocess.check_call("bbduk.sh in=%s in2=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.F.paired.fastq.gz out2=%s.R.paired.fastq.gz minlen=%s overwrite=true > /dev/null 2>&1" % (f[0],f[1],wgfast_path,idx,idx,length), shell=True)
+            if os.path.isfile("%s.F.paired.fastq.gz" % idx):
+                pass
             else:
-                os.link(f[0], "%s.F.paired.fastq.gz" % idx)
-                os.link(f[1], "%s.R.paired.fastq.gz" % idx)
-            """"trimmomatic seems to be running ok"""
+                length = int(get_sequence_length(f[0])/2)
+                try:
+                    subprocess.check_call("bbduk.sh in=%s in2=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.F.paired.fastq.gz out2=%s.R.paired.fastq.gz minlen=%s overwrite=true > /dev/null 2>&1" % (f[0],f[1],wgfast_path,idx,idx,length), shell=True)
+                except:
+                    print("Read trimmer did not finish correctly")
+                    sys.exit()
             if os.path.isfile("%s_renamed_header.bam" % idx):
                 pass
             else:
                 run_bwa_dev("%s.F.paired.fastq.gz" % idx, "%s.R.paired.fastq.gz" % idx, processors, idx, reference)
         else:
             """Single end read support"""
-            if "T" in trim:
-                """single end support"""
-                length = int(get_sequence_length(f[0])/2)
+            length = int(get_sequence_length(f[0])/2)
+            try:
                 subprocess.check_call("bbduk.sh in=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.single.fastq.gz minlen=%s overwrite=true ignorebadquality> /dev/null 2>&1" % (f[0],wgfast_path,idx,length), shell=True)
-            else:
-                os.link(f[0], "%s.single.fastq.gz" % idx)
+            except:
+                print("Read trimmer did not finish correctly")
+                sys.exit()
             if os.path.isfile("%s_renamed_header.bam" % idx):
                 pass
             else:
@@ -352,6 +329,7 @@ def _perform_workflow_run_loop(data):
         if os.path.isfile("%s_renamed_header.bam" % idx):
             pass
         else:
+            #TODO: See if this is still necessary
             """inserts read group information, required by new versions of GATK"""
             try:
                 os.system("java -jar %s INPUT=%s_renamed.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
@@ -366,7 +344,6 @@ def _perform_workflow_run_loop(data):
             sum_coverage("%s.coverage.out" % idx, coverage, idx)
             merge_files_by_column(0,"ref.genome_size.txt", "%s.amount_covered.txt" % idx, "%s.results.txt" % idx)
             merge_files_by_column(0,"ref.genome_size.txt", "%s.sum_covered.txt" % idx, "%s.cov.results.txt" % idx)
-            #report_stats("%s.results.txt" % idx, idx)
             report_stats("%s.results.txt" % idx, idx, "%s_breadth.txt" % idx)
             report_stats("%s.cov.results.txt" % idx, idx, "%s_sum_cov.txt" % idx)
         else:
@@ -375,12 +352,11 @@ def _perform_workflow_run_loop(data):
         make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
 
 def run_loop_dev(fileSets,dir_path,reference,processors,gatk,ref_coords,coverage,proportion,
-    matrix,ap,doc,tmp_dir,picard,wgfast_path,trim,gatk_method):
+    matrix,ap,doc,tmp_dir,picard,wgfast_path,gatk_method):
     files_and_temp_names = []
     for idx, f in fileSets.items():
         files_and_temp_names.append([idx,f,dir_path,reference,gatk,ref_coords,coverage,proportion,
-                                     matrix,ap,doc,tmp_dir,picard,wgfast_path,trim,gatk_method,processors])
-    #print(files_and_temp_names)
+                                     matrix,ap,doc,tmp_dir,picard,wgfast_path,gatk_method,processors])
     mp_shell(_perform_workflow_run_loop,files_and_temp_names,processors)
 
 def run_gatk(reference, processors, name, gatk, tmp_dir, gatk_method):
@@ -407,79 +383,79 @@ def run_gatk(reference, processors, name, gatk, tmp_dir, gatk_method):
 def process_vcf(vcf, ref_coords, coverage, proportion, name):
     """finds SNPs that pass user-defined thresholds
     for coverage and proportion - needs to look at tests"""
-    vcf_in = open(vcf)
+    #TODO: Check for compatability with GATK4
     vcf_out = open("%s.filtered.vcf" % name, "w")
     outdata = []
     good_snps = [ ]
     mixed_snps = [ ]
     mixed_refs = [ ]
     ref_set = set(ref_coords)
-    for line in vcf_in:
-        if line.startswith('#'):
-           pass
-        elif line.startswith('Java'):
-            pass
-        elif line.startswith('/tmp'):
-            pass
-        elif line.startswith('Try'):
-            pass
-        elif line.startswith('INFO'):
-            pass
-        elif line in ['\n', '\r\n']:
-            pass
-        else:
-            fields=line.split()
-            """for GATK, a period signifies a reference call.
-            First we want to look at the situation where this is
-            not the case"""
-            try:
-                merged_fields=fields[0]+"::"+fields[1]
-                if merged_fields in ref_set:
-                    if "." != fields[4]:
-                        snp_fields=fields[9].split(':')
-                        if int(len(snp_fields))>2:
-                            prop_fields=snp_fields[1].split(',')
-                            if int(snp_fields[2])>=coverage:
-                                if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
-                                    vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
-                                    outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
-                                    good_snps.append("1")
-                                else:
-                                    vcf_out.write(fields[0]+"::"+"\t"+fields[1]+"\t"+"-"+"\n")
-                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                                    mixed_snps.append("1")
-                                """if problems are encountered, throw in a gap.  Could be too conservative"""
-                            else:
-                                vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
-                                outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                        else:
-                            pass
-                        """This represents the case where the call is the reference"""
-                    elif "." == fields[4]:
-                        nosnp_fields=fields[7].split(';')
-                        cov_fields=nosnp_fields[1].replace("DP=","")
-                        try:
-                            if int(cov_fields)>=coverage:
-                                vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[3]+"\n")
-                                outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
-                            else:
-                                vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
-                                mixed_refs.append("1")
-                                outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                        except:
-                            vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
-                    else:
-                        print("error in vcf file found!")
-                        sys.exit()
-                else:
-                    pass
-            except:
+    with open(vcf) as vcf_in:
+        for line in vcf_in:
+            if line.startswith('#'):
+               pass
+            elif line.startswith('Java'):
                 pass
+            elif line.startswith('/tmp'):
+                pass
+            elif line.startswith('Try'):
+                pass
+            elif line.startswith('INFO'):
+                pass
+            elif line in ['\n', '\r\n']:
+                pass
+            else:
+                fields=line.split()
+                """for GATK, a period signifies a reference call.
+                First we want to look at the situation where this is
+                not the case"""
+                try:
+                    merged_fields=fields[0]+"::"+fields[1]
+                    if merged_fields in ref_set:
+                        if "." != fields[4]:
+                            snp_fields=fields[9].split(':')
+                            if int(len(snp_fields))>2:
+                                prop_fields=snp_fields[1].split(',')
+                                if int(snp_fields[2])>=coverage:
+                                    if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
+                                        vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
+                                        outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
+                                        good_snps.append("1")
+                                    else:
+                                        vcf_out.write(fields[0]+"::"+"\t"+fields[1]+"\t"+"-"+"\n")
+                                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                        mixed_snps.append("1")
+                                    """if problems are encountered, throw in a gap.  Could be too conservative"""
+                                else:
+                                    vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
+                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                            else:
+                                pass
+                            """This represents the case where the call is the reference"""
+                        elif "." == fields[4]:
+                            nosnp_fields=fields[7].split(';')
+                            cov_fields=nosnp_fields[1].replace("DP=","")
+                            try:
+                                if int(cov_fields)>=coverage:
+                                    vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[3]+"\n")
+                                    outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
+                                else:
+                                    vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
+                                    mixed_refs.append("1")
+                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                            except:
+                                vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
+                        else:
+                            print("error in vcf file found!")
+                            sys.exit()
+                    else:
+                        pass
+                except:
+                    pass
     print("number of SNPs in genome %s = " % name, len(good_snps))
     print("number of discarded SNPs in genome %s = " % name, len(mixed_snps))
     print("number of discarded Reference positions in genome %s = " % name, len(mixed_refs))
     print("-------------------------")
-    vcf_in.close()
     vcf_out.close()
     return outdata
 
@@ -496,10 +472,12 @@ def matrix_to_fasta(matrix_in, outfile):
     reduced = [ ]
     out_fasta = open(outfile, "w")
     redux = [ ]
-    for line in open(matrix_in):
-        newline = line.strip()
-        fields = newline.split()
-        reduced.append(fields[1:])
+    with open(matrix_in) as my_file:
+        for line in my_file:
+            newline = line.strip()
+            fields = newline.split()
+            reduced.append(fields[1:])
+    #TODO: check for compatibility with Python3
     test=map(list, zip(*reduced))
     for x in test:
         out_fasta.write(">"+str(x[0])+"\n")
@@ -537,14 +515,19 @@ def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, mode
         log_fh = open('%s.raxml.log' % suffix, 'w')
     except:
         log_isg.logPrint('could not open log file')
+    #TODO: See why this doesn't catch many RAxML errors
     try:
         raxml_run = Popen(args, stderr=log_fh, stdout=vcf_fh)
         raxml_run.wait()
-        log_isg.logPrint("sequence(s) inserted into tree")
+        #log_isg.logPrint("sequence(s) inserted into tree")
     except:
         log_isg.logPrint("sequence(s) were not inserted into tree!!!!!")
-    os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.%s > %s.tree_including_unknowns_noedges.tree" % (suffix, suffix))
-    subprocess.check_call("mv RAxML_labelledTree.%s %s_tree_including_unknowns_edges.tree" % (suffix, suffix) , shell=True)
+    try:
+        os.system("sed 's/\[[^]]*\]//g' RAxML_labelledTree.%s > %s.tree_including_unknowns_noedges.tree" % (suffix, suffix))
+        subprocess.check_call("mv RAxML_labelledTree.%s %s_tree_including_unknowns_edges.tree" % (suffix, suffix) , shell=True)
+    except:
+        log_isg.logPrint("error encountered running RAxML...check log file")
+        sys.exit()
     try:
         subprocess.check_call("cat RAxML_classificationLikelihoodWeights.%s >> %s" % (suffix, out_class_file), shell=True)
     except:
@@ -556,13 +539,14 @@ def subsample_snps(matrix, dist_sets, used_snps, subnums):
     """get a list of all possible positions, depending
     on those positions in the original matrix - tested"""
     allSNPs = [ ]
-    for line in open(matrix, "U"):
-        if line.startswith("LocusID"):
-            pass
-        else:
-            fields=line.split()
-            allSNPs.append(fields[0])
-    for k,v in used_snps.iteritems():
+    with open(matrix) as my_file:
+        for line in my_file:
+            if line.startswith("LocusID"):
+                pass
+            else:
+                fields=line.split()
+                allSNPs.append(fields[0])
+    for k,v in used_snps.items():
         for z in dist_sets:
             if len(z) == 0:
                 pass
@@ -600,15 +584,16 @@ def find_used_snps():
         name=get_seq_name(infile)
         reduced=name.replace('.filtered.vcf', '')
         good_snps=[]
-        for line in open(infile):
-            fields=line.split()
-            try:
-                if fields[1] != "-":
-                    good_snps.append("1")
-                else:
-                    pass
-            except:
-                raise TypeError("abnormal number of fields observed")
+        with open(infile) as my_file:
+            for line in my_file:
+                fields=line.split()
+                try:
+                    if fields[1] != "-":
+                        good_snps.append("1")
+                    else:
+                        pass
+                except:
+                    raise TypeError("abnormal number of fields observed")
         used_SNPs[str(reduced)] = int(len(good_snps))
     return used_SNPs
 
@@ -637,9 +622,9 @@ def branch_lengths_2_decimals(str_newick_tree):
 
 def fasta_to_tab(fasta):
     """tested"""
-    infile = open(fasta, "rU")
+    #infile = open(fasta, "rU")
     outfile = open("out.tab", "w")
-    for record in SeqIO.parse(infile, "fasta"):
+    for record in SeqIO.parse(open(fasta), "fasta"):
         """this list is just for testing,
         and is ok if it's overwritten for each
         fasta"""
@@ -647,22 +632,23 @@ def fasta_to_tab(fasta):
         outfile.write(str(record.id)+"\t"+str(record.seq)+"\n")
         for_test.append(record.id)
         for_test.append(str(record.seq))
-    infile.close()
+    #infile.close()
     outfile.close()
     return for_test
 
 def tab_to_fasta(new_tab):
     """tested"""
-    infile = open(new_tab, "rU")
+    #infile = open(new_tab, "rU")
     outfile = open("out.fasta", "w")
-    for line in infile:
-        to_test = []
-        fields = line.split()
-        outfile.write(">"+fields[0]+"\n")
-        outfile.write(fields[1].upper())
-        to_test.append(fields[0])
-        to_test.append(fields[1].upper())
-    infile.close()
+    with open(new_tab) as infile:
+        for line in infile:
+            to_test = []
+            fields = line.split()
+            outfile.write(">"+fields[0]+"\n")
+            outfile.write(fields[1].upper())
+            to_test.append(fields[0])
+            to_test.append(fields[1].upper())
+    #infile.close()
     outfile.close()
     return to_test
 
@@ -670,13 +656,14 @@ def tab_to_matrix(tab):
     """tested"""
     reduced = [ ]
     out_matrix = open("tab_matrix", "w")
-    for line in open(tab):
-        tmp_list = []
-        fields = line.split()
-        tmp_list.append(fields[0])
-        for nucs in fields[1]:
-            tmp_list.append(nucs.upper())
-        reduced.append(tmp_list)
+    with open(tab) as my_file:
+        for line in my_file:
+            tmp_list = []
+            fields = line.split()
+            tmp_list.append(fields[0])
+            for nucs in fields[1]:
+                tmp_list.append(nucs.upper())
+            reduced.append(tmp_list)
     test=map(list, zip(*reduced))
     for x in test:
         out_matrix.write("\t".join(x))
@@ -738,9 +725,10 @@ def file_to_fasta(matrix, out_fasta):
     """almost identical to matrix_to_fasta. Not tested"""
     reduced = [ ]
     out_matrix = open(out_fasta, "w")
-    for line in open(matrix, "U"):
-        fields = line.strip().split()
-        reduced.append(fields)
+    with open(matrix) as my_file:
+        for line in my_file:
+            fields = line.strip().split()
+            reduced.append(fields)
     test=map(list, zip(*reduced))
     for x in test:
         out_matrix.write(">"+str(x[0])+"\n")
@@ -750,16 +738,16 @@ def file_to_fasta(matrix, out_fasta):
 
 def prune_fasta(to_prune, infile, outfile):
     """tested"""
-    my_in = open(infile, "U")
+    #my_in = open(infile, "U")
     my_out = open(outfile, "w")
     seqrecords = [ ]
     ids = [ ]
-    for record in SeqIO.parse(my_in, "fasta"):
+    for record in SeqIO.parse(open(infile), "fasta"):
         if record.id not in to_prune:
             seqrecords.append(record)
             ids.append(record.id)
     SeqIO.write(seqrecords, my_out, "fasta")
-    my_in.close()
+    #my_in.close()
     my_out.close()
     return ids
 
@@ -776,16 +764,17 @@ def compare_subsample_results(outnames,distances,fudge):
     for infile in glob.glob(os.path.join(curr_dir, "*.subsample.distances.txt")):
         name=get_seq_name(infile)
         split_fields=name.split(".")
-        genomes_used = [ ]
-        all_dists=[ ]
-        dists_greater_than_true=[ ]
-        dists_equal_to_true=[ ]
-        dists_less_than_true=[ ]
+        genomes_used = []
+        all_dists=[]
+        dists_greater_than_true=[]
+        dists_equal_to_true=[]
+        dists_less_than_true=[]
         """Here, I get the list of the genomes that are being analyzed"""
         try:
-            for line in open(infile, "U"):
-                fields = line.split()
-                all_dists.append(float(fields[7]))
+            with open(infile) as my_file:
+                for line in my_file:
+                    fields = line.split()
+                    all_dists.append(float(fields[7]))
         except:
            print("problem parsing input file: %s" % infile)
         if len(all_dists)>=1:
@@ -823,11 +812,12 @@ def compare_subsample_results(outnames,distances,fudge):
 def transform_tree(tree):
     """converts a Newick tree into a Nexus-formatted
     tree that can be visualized with FigTree - needs testing"""
-    infile = open(tree, "U")
+    #infile = open(tree, "U")
     tree_string = []
-    for line in infile:
-        tree_string.append(line)
-    infile.close()
+    with open(tree) as infile:
+        for line in infile:
+            tree_string.append(line)
+    #infile.close()
     mytree = Phylo.read(tree, 'newick')
     tree_names = [ ]
     for clade in mytree.find_clades():
@@ -861,7 +851,7 @@ def write_reduced_matrix(matrix):
     """This function takes a NASP formatted
     SNP matrix and writes a temporary matrix
     that can be easily combined with temporary files - tested"""
-    in_matrix = open(matrix, "U")
+    in_matrix = open(matrix)
     outfile = open("temp.matrix", "w")
     outdata = [ ]
     firstLine = in_matrix.readline()
@@ -879,7 +869,7 @@ def write_reduced_matrix(matrix):
     return outdata
 
 def make_temp_matrix(vcf, matrix, name):
-    in_matrix = open(matrix, "rU")
+    in_matrix = open(matrix)
     """these are all of the screened SNPs - tested"""
     matrix_ids=[ ]
     firstLine = in_matrix.readline()
@@ -1288,15 +1278,16 @@ def _perform_workflow_create_params(data):
             tmptree.write(final_tree)
             tmptree.close()
             tmptree2 = open("%s.tree" % new_name, "w")
-            for line in open("%s.tmp.tree" % new_name, "U"):
-                if line.startswith("[&U]"):
-                    fields = line.split()
-                    fixed_fields = [ ]
-                    for x in fields:
-                        fixed_fields.append(x.replace("'",""))
-                    tmptree2.write(fixed_fields[1])
-                else:
-                    pass
+            with open("%s.tmp.tree" % new_name) as my_file:
+                for line in my_file:
+                    if line.startswith("[&U]"):
+                        fields = line.split()
+                        fixed_fields = [ ]
+                        for x in fields:
+                            fixed_fields.append(x.replace("'",""))
+                        tmptree2.write(fixed_fields[1])
+                    else:
+                        pass
             tmptree2.close()
             """result is a pruned tree that is ready for RAxML"""
             matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
@@ -1316,9 +1307,9 @@ def _perform_workflow_create_params(data):
 
 def create_params_files_dev(new_sample_dicts,tree,matrix,final_sets,processors):
     to_run = []
-    for k,v in new_sample_dicts.iteritems():
+    for k,v in new_sample_dicts.items():
         to_run.append([k,v,tree,matrix,final_sets,processors])
-    mp_shell(_perform_workflow_create_params, to_run, processors)
+    mp_shell(_perform_workflow_create_params,to_run,processors)
 
 def process_temp_matrices_2(final_sets,final_matrices,tree,processors,patristic_distances, V, parameters, model):
     to_run = []
@@ -1362,15 +1353,16 @@ def _perform_workflow_temp_matrices(data):
         tmptree.write(final_tree)
         tmptree.close()
         tmptree2 = open("%s.tree" % full_context, "w")
-        for line in open("%s.tmp.tree" % full_context, "U"):
-            if line.startswith("[&U]"):
-                fields = line.split()
-                fixed_fields = [ ]
-                for x in fields:
-                    fixed_fields.append(x.replace("'",""))
-                tmptree2.write(fixed_fields[1])
-            else:
-                pass
+        with open("%s.tmp.tree" % full_context) as my_file:
+            for line in my_file:
+                if line.startswith("[&U]"):
+                    fields = line.split()
+                    fixed_fields = [ ]
+                    for x in fields:
+                        fixed_fields.append(x.replace("'",""))
+                    tmptree2.write(fixed_fields[1])
+                else:
+                    pass
         tmptree2.close()
         matrix_to_fasta(sample, "%s.fasta" % full_context)
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
