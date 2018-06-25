@@ -17,12 +17,6 @@ phylogenetically from a NASP formatted SNP
 matrix
 """
 
-data_files = ['ext/standard-raxml/raxmlHPC-PTHREADS-SSE3',
-              'ext/standard-raxml/raxmlHPC-SSE3']
-data_files += glob("ext/*.jar")
-data_files += glob("ext/*.fasta")
-data_files += glob("ext/bbmap/*.sh")
-
 
 setup(name='wgfast',
       version=__version__,
@@ -34,10 +28,11 @@ setup(name='wgfast',
       packages=find_packages(),
       entry_points={'console_scripts': ['wgfast=wgfast.main:main']},
       include_package_data=True,
-      package_data={'wgfast':['command.txt']},
-      data_files=[
-          ('wgfast/bin', data_files)
-      ],
+      package_data={'wgfast': ['command.txt', 'bin/bbduk.sh',
+            'bin/calcmem.sh', 
+            'bin/raxmlHPC-PTHREADS-SSE3',
+            'bin/raxmlHPC-SSE3', 'bin/*.fasta',
+            'bin/*.jar']},
       classifiers=[
           'Programming Language :: Python',
           'Development Status :: 4 - Beta',

@@ -20,10 +20,6 @@ GATK_PATH = bin_path("GenomeAnalysisTK.jar")
 #TODO: See if I can remove this
 PICARD_PATH = bin_path("CreateSequenceDictionary.jar")
 ADD_GROUPS = bin_path("AddOrReplaceReadGroups.jar")
-# adds other binaries to path
-BIN_PATH = os.path.dirname(GATK_PATH)
-sys.path.append(os.path.join(BIN_PATH))
-
 
 def main(argv=None):
     if argv is None:
@@ -143,12 +139,12 @@ def run_wgfast(reference_dir,read_directory,processors,coverage,proportion,keep,
     #check for binary dependencies
     log_isg.logPrint('testing the paths of all dependencies')
     ap=os.path.abspath("%s" % os.getcwd())
-    aa = subprocess.call(['which', 'raxmlHPC-SSE3'])
-    if aa == 0:
-        pass
-    else:
-        print("RAxML must be in your path as raxmlHPC-SSE3")
-        sys.exit()
+    # aa = subprocess.call(['which', 'raxmlHPC-SSE3'])
+    # if aa == 0:
+    #     pass
+    # else:
+    #     print("RAxML must be in your path as raxmlHPC-SSE3")
+    #     sys.exit()
     print("*citation: 'Stamatakis, A. RAxML version 8: a tool for phylogenetic analysis and post-analysis of large phylogenies. Bioinformatics (2014).'")
     print("*citation: 'Berger SA, Krompass D, Stamatakis A. Performance, accuracy, and Web server for evolutionary placement of short sequence reads under maximum likelihood. Syst Biol. 2011;60(3):291-302'")
     ab = subprocess.call(['which', 'samtools'])
@@ -164,13 +160,13 @@ def run_wgfast(reference_dir,read_directory,processors,coverage,proportion,keep,
     else:
         print("bwa must be in your path")
         sys.exit()
-    """This is the new test for bbduk.sh"""
-    ac = subprocess.call(['which', 'bbduk.sh'])
-    if ac == 0:
-        pass
-    else:
-        print("bbduk need to be in your path as bbduk.sh")
-        sys.exit()
+    # """This is the new test for bbduk.sh"""
+    # ac = subprocess.call(['which', 'bbduk.sh'])
+    # if ac == 0:
+    #     pass
+    # else:
+    #     print("bbduk need to be in your path as bbduk.sh")
+    #     sys.exit()
     print("*citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'")
     print("Patristic distances calculated with DendroPy")
     print("*citation: 'Sukumaran J, Holder MT. DendroPy: a Python library for phylogenetic computing. Bioinformatics. 2010;26(12):1569-71. Epub 2010/04/28. doi: 10.1093/bioinformatics/btq228. PubMed PMID: 20421198'")

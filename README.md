@@ -12,13 +12,8 @@ can either be a metagenomics dataset, a metatranscriptomics dataset,
 or a single isolate sequencing dataset
 
 #### Installation ####
-1.  To install, enter the wgfast directory and type the command below.  If you don't have sudo
-privileges, install to base directory using --prefix:
-sudo python setup.py install
-2.  Open the script (wgfast.py) with a text editor and change the path to your WG-FAST installation directory.
-For example:
-WGFAST_PATH="/Users/jsahl/wgfast"
-3.  To verify your installation, enter the wgfast directory and type the command below.  If everything
-is working correctly, all tests should pass:
-python tests/test_all_functions.py
+Tested with a Python 3.6 environment
+`conda install wgfast -c bioconda -c tara_furstenau`
+Run test data from github repository
+`wgfast -r path/to/test_data -d path/to/test_data/reads/ -p 4 -c 1 -s F`
 
