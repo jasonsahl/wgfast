@@ -1,0 +1,30 @@
+{% set data = load_setup_py_data() %}
+
+package:
+  name: 'wgfast'
+  version: {{ data.get('version') }}
+
+source:
+  path: ./
+
+build:
+  number: 0
+  entry_points:
+    - wgfast = wgfast.main:main
+
+requirements:
+  build:
+    - python>=2.6
+    - setuptools
+  run:
+    - python
+    - biopython
+    - dendropy # -c bioconda
+    - samtools==0.1.19 # -c bioconda
+    - bwa==0.7.8
+    - java-1.7.0-openjdk-cos6-x86_64 # -c anaconda
+    - java-jdk # -c anaconda
+
+
+
+

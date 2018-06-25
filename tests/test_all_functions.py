@@ -9,7 +9,7 @@ import tempfile
 import shutil
 import re
 import sys
-from wg_fast.util import *
+from wgfast.util import *
 
 curr_dir=os.getcwd()
 

@@ -1,0 +1,1 @@
+python ../wgfast.py -m ../test_data/nasp_matrix.tsv -t ../test_data/nasp_raxml.tree -r ../test_data/reference.fasta -d ../test_data/reads/ -x ../test_data/nasp.PARAMS -k T
