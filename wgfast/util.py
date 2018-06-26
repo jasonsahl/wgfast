@@ -39,7 +39,6 @@ tar = tarfile.open(BBMAP_PATH, "r:gz")
 tar.extractall(path=os.path.dirname(BBMAP_PATH))
 tar.close()
 BBDUK_PATH = os.path.join(os.path.dirname(BBMAP_PATH), "bbmap/bbduk.sh")
-print(BBDUK_PATH, os.path.dirname(BBMAP_PATH))
 
 
 def mp_shell(func, params, numProc):
