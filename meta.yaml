@@ -20,7 +20,7 @@ requirements:
     - python
     - biopython
     - dendropy # -c bioconda
-    - samtools==0.1.19 # -c bioconda
+    - samtools # -c bioconda
     - bwa==0.7.8
     - java-1.7.0-openjdk-cos6-x86_64 # -c anaconda
     - java-jdk # -c anaconda
