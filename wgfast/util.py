@@ -25,7 +25,7 @@ import threading
 import collections
 import random
 from pkg_resources import resource_filename
-
+import tarfile
 
 def bin_path(file_name):
     """ Return the path for bin files."""
@@ -34,7 +34,12 @@ def bin_path(file_name):
 
 RAXML_PATH = bin_path("raxmlHPC-SSE3")
 RAXML_THREAD_PATH = bin_path("raxmlHPC-PTHREADS-SSE3")
-BBDUK_PATH = bin_path("bbduk.sh")
+BBMAP_PATH = bin_path("BBMap_38.08.tar.gz")
+tar = tarfile.open(BBMAP_PATH, "r:gz")
+tar.extractall(path=os.path.dirname(BBMAP_PATH))
+tar.close()
+BBDUK_PATH = os.path.join(os.path.dirname(BBMAP_PATH), "bbmap/bbduk.sh")
+print(BBDUK_PATH, os.path.dirname(BBMAP_PATH))
 
 
 def mp_shell(func, params, numProc):
@@ -1023,7 +1028,7 @@ def _perform_workflow_subsample_snps_dev(data):
     allsnps = data[3]
     """allsnps is a list of all SNPs used"""
     matrix = data[4]
-    for k,v in used_snps.iteritems():
+    for k,v in used_snps.items():
         if final_set[0]==k:
             for x in range(1,int(subnums)+1):
                 kept_snps=random.sample(set(allsnps), int(v))
@@ -1060,7 +1065,7 @@ def subsample_snps_2(final_sets,used_snps,subnums,allsnps,processors,matrix):
 
 def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
     """needs testing"""
-    for k,v in used_snps.iteritems():
+    for k,v in used_snps.items():
         if final_set[0]==k:
             for x in range(1,int(subnums)+1):
                 kept_snps=random.sample(set(allsnps), int(v))

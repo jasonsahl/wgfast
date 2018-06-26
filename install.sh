@@ -1,5 +1,5 @@
 #!/bin/bash -e -x
-cd wgfast/bin/standard-raxml
+cd wgfast/bin/standard-RAxML
 # make raxmlHPC executable
 make -f Makefile.SSE3.gcc
 make -f Makefile.SSE3.PTHREADS.gcc

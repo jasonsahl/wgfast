@@ -1,6 +1,5 @@
 include README.md
-include wgfast/bin/bbduk.sh
-include wgfast/bin/calcmem.sh
+include wgfast/bin/BBMap_38.08.tar.gz
 include wgfast/bin/illumina_adapters_all.fasta
 include wgfast/bin/trimmomatic-0.30.jar
 include wgfast/bin/AddOrReplaceReadGroups.jar

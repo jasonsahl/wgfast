@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 from setuptools import setup, find_packages
 import re
-from glob import glob
-
 
 __author__ = "Jason Sahl"
 __credits__ = ["Jason Sahl"]
@@ -18,6 +16,7 @@ matrix
 """
 
 
+
 setup(name='wgfast',
       version=__version__,
       description='whole genome focused array SNP typing',
@@ -28,11 +27,10 @@ setup(name='wgfast',
       packages=find_packages(),
       entry_points={'console_scripts': ['wgfast=wgfast.main:main']},
       include_package_data=True,
-      package_data={'wgfast': ['command.txt', 'bin/bbduk.sh',
-            'bin/calcmem.sh', 
+      package_data={'wgfast': ['command.txt',
             'bin/raxmlHPC-PTHREADS-SSE3',
             'bin/raxmlHPC-SSE3', 'bin/*.fasta',
-            'bin/*.jar']},
+            'bin/*.jar', 'bin/BBMap_38.08.tar.gz']},
       classifiers=[
           'Programming Language :: Python',
           'Development Status :: 4 - Beta',

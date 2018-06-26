@@ -277,12 +277,12 @@ def run_wgfast(reference_dir,read_directory,processors,coverage,proportion,keep,
         print("")
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % suffix,"all_patristic_distances.txt")
     if subsample=="T":
-        aa = subprocess.call(['which', 'raxmlHPC-PTHREADS-SSE3'])
-        if aa == 0:
-            pass
-        else:
-            print("for sub-sample routine, RAxML must be in your path as raxmlHPC-PTHREADS-SSE3")
-            sys.exit()
+        # aa = subprocess.call(['which', 'raxmlHPC-PTHREADS-SSE3'])
+        # if aa == 0:
+        #     pass
+        # else:
+        #     print("for sub-sample routine, RAxML must be in your path as raxmlHPC-PTHREADS-SSE3")
+        #     sys.exit()
         print("*citation: 'Stamatakis A. RAxML-VI-HPC: maximum likelihood-based phylogenetic analyses with thousands of taxa and mixed models. Bioinformatics. 2006;22(21):2688-90'")
         try:
             if os.path.isfile("tmp_patristic_distances.txt"):
@@ -310,7 +310,7 @@ def run_wgfast(reference_dir,read_directory,processors,coverage,proportion,keep,
             else:
                 sample_sets[entries[0]]=[entries[2]]
         new_sample_dicts = {}
-        for k,v in sample_sets.iteritems():
+        for k,v in sample_sets.items():
             uniques = []
             [uniques.append(item) for item in v if item not in uniques]
             new_sample_dicts.update({k:uniques})
