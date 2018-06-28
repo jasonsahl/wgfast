@@ -28,9 +28,10 @@ except:
     sys.exit()
 
 #Need to update with new GATK4
-GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
+"""I should no longer need this argument"""
+#GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
 #TODO: See if I can remove this
-PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
+#PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
 ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
 
 def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsample,
@@ -112,7 +113,13 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     if ac == 0:
         pass
     else:
-        print("bbduk need to be in your path as bbduk.sh")
+        print("bbduk needs to be in your path as bbduk.sh")
+        sys.exit()
+    ac = subprocess.call(['which', 'gatk'])
+    if ac == 0:
+        pass
+    else:
+        print("GATK needs to be in your path as gatk")
         sys.exit()
     print("*citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'")
     print("Patristic distances calculated with DendroPy")
@@ -163,7 +170,8 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         """creates dict file with picard tools.  In testing, GATK does this incorrectly"""
         try:
             #TODO: Check to see if I can remove this step
-            os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
+            #os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
+            os.system("gatk CreateSequenceDictionary -R=%s/scratch/reference.fasta -O=%s/scratch/reference.dict > /dev/null 2>&1" % (ap, ap))
         except:
             print("dict wasn't created")
             sys.exit()
@@ -187,8 +195,10 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         else:
             ref_coords = get_all_snps(matrix)
             log_isg.logPrint("Loop starting")
-            run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap,processors,GATK_PATH,
-            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,WGFAST_PATH,gatk_method)
+            #run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap,processors,GATK_PATH,
+            #ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,WGFAST_PATH,gatk_method)
+            run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap,processors,ref_coords,
+            coverage,proportion,matrix,ap,doc,tmp_dir,WGFAST_PATH,gatk_method)
     """will subsample based on the number of SNPs reported by the following function"""
     if "T" in doc:
         os.system("cat *breadth.txt > breadth_over_%sx_out.txt" % coverage)

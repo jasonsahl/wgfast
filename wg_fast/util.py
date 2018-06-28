@@ -283,19 +283,19 @@ def _perform_workflow_run_loop(data):
     f = data[1]
     dir_path = data[2]
     reference = data[3]
-    gatk = data[4]
-    ref_coords = data[5]
-    coverage = data[6]
-    proportion = data[7]
-    matrix = data[8]
-    ap = data[9]
-    doc = data[10]
-    tmp_dir = data[11]
-    picard = data[12]
+    #gatk = data[4]
+    ref_coords = data[4]
+    coverage = data[5]
+    proportion = data[6]
+    matrix = data[7]
+    ap = data[8]
+    doc = data[9]
+    tmp_dir = data[10]
+    #picard = data[11]
     """This is now the PATH to bbduk.sh"""
-    wgfast_path = data[13]
-    gatk_method = data[14]
-    processors = data[15]
+    wgfast_path = data[11]
+    gatk_method = data[12]
+    processors = data[13]
     if os.path.isfile("%s.tmp.xyx.matrix" % idx):
         pass
     else:
@@ -332,12 +332,14 @@ def _perform_workflow_run_loop(data):
             #TODO: See if this is still necessary
             """inserts read group information, required by new versions of GATK"""
             try:
-                os.system("java -jar %s INPUT=%s_renamed.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
+                #os.system("java -jar %s INPUT=%s_renamed.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
+                os.system("gatk AddOrReplaceReadGroups -I %s_renamed.bam -O %s_renamed_header.bam -SO=coordinate --RGLB=%s --RGPL=%s --RGPU=name --RGSM=%s > /dev/null 2>&1" % (idx,idx,idx,idx,idx))
                 os.system("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx)
             except:
                 print("problem running picard tools")
                 sys.exit()
-        run_gatk(reference,processors,idx,gatk,tmp_dir,gatk_method)
+        run_gatk_dev(reference,processors,idx,tmp_dir,gatk_method)
+        #run_gatk(reference,processors,idx,gatk,tmp_dir,gatk_method)
         if "T" == doc:
             subprocess.check_call("samtools depth %s_renamed_header.bam > %s.coverage" % (idx,idx), shell=True)
             remove_column("%s.coverage" % idx, idx)
@@ -351,13 +353,33 @@ def _perform_workflow_run_loop(data):
         process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
         make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
 
-def run_loop_dev(fileSets,dir_path,reference,processors,gatk,ref_coords,coverage,proportion,
-    matrix,ap,doc,tmp_dir,picard,wgfast_path,gatk_method):
+def run_loop_dev(fileSets,dir_path,reference,processors,ref_coords,coverage,proportion,
+    matrix,ap,doc,tmp_dir,wgfast_path,gatk_method):
     files_and_temp_names = []
     for idx, f in fileSets.items():
-        files_and_temp_names.append([idx,f,dir_path,reference,gatk,ref_coords,coverage,proportion,
-                                     matrix,ap,doc,tmp_dir,picard,wgfast_path,gatk_method,processors])
+        files_and_temp_names.append([idx,f,dir_path,reference,ref_coords,coverage,proportion,
+                                     matrix,ap,doc,tmp_dir,wgfast_path,gatk_method,processors])
     mp_shell(_perform_workflow_run_loop,files_and_temp_names,processors)
+
+def run_gatk_dev(reference,processors,name,tmp_dir,gatk_method):
+    args = ['gatk', 'HaplotypeCaller', '-R', '%s' % reference,
+            '--sample-ploidy', '2', '--output-mode', '%s' % gatk_method,
+            '-stand-call-conf', '30', '-I', '%s_renamed_header.bam' % name, '-O', '%s.vcf.out' % name]
+    print(" ".join(args))
+    try:
+        vcf_fh = open('%s.vcf.out' % name, 'w')
+    except:
+        log_isg.logPrint('could not open vcf file')
+    try:
+        log_fh = open('%s.vcf.log' % name, 'w')
+    except:
+        log_isg.logPrint('could not open log file')
+    try:
+        gatk_run = Popen(args, stderr=log_fh, stdout=vcf_fh)
+        gatk_run.wait()
+    except:
+        log_isg.logPrint("GATK encountered problems and did not run")
+
 
 def run_gatk(reference, processors, name, gatk, tmp_dir, gatk_method):
     """gatk controller, mbq used to be set to 17, but was recently changed - untested, system call"""
