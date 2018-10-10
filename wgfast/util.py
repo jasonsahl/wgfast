@@ -279,7 +279,7 @@ def get_sequence_length(fastq_in):
 
 def run_bwa_dev(read_1, read_2, processors, name, reference):
     #read_group = '@RG\tID:%s\tSM:vac6wt\tPL:ILLUMINA\tPU:vac6wt' % name
-    other_opts = ["|","samtools","view","-uS","-","|","samtools","sort","-@","4","-","%s_renamed" % name]
+    other_opts = ["|","samtools","view","-uS","-","|","samtools","sort","-@","4","-T","%s_renamed" % name]
     bwa_dev(reference,read_1,read_2,processors,other_opts,name)
 
 def bwa_dev(reference,read_1,read_2,processors,my_opts,name):
@@ -325,7 +325,7 @@ def _perform_workflow_run_loop(data):
                 except Exception as e:
                     print("Read trimmer did not finish correctly", e)
                     sys.exit()
-            if os.path.isfile("%s_renamed_header.bam" % idx):
+            if os.path.isfile("%s_renamed.bam" % idx):
                 pass
             else:
                 run_bwa_dev("%s.F.paired.fastq.gz" % idx, "%s.R.paired.fastq.gz" % idx, processors, idx, reference)
@@ -337,7 +337,7 @@ def _perform_workflow_run_loop(data):
             except Exception as e:
                 print("Read trimmer did not finish correctly", e)
                 sys.exit()
-            if os.path.isfile("%s_renamed_header.bam" % idx):
+            if os.path.isfile("%s_renamed.bam" % idx):
                 pass
             else:
                 run_bwa_dev("%s.single.fastq.gz" % idx, "NULL", processors, idx, reference)
