@@ -14,10 +14,10 @@ build:
 
 requirements:
   build:
-    - python>=2.6
+    - python==3.6
     - setuptools
   run:
-    - python
+    - python==3.6
     - biopython
     - dendropy # -c bioconda
     - samtools # -c bioconda
