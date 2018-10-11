@@ -279,6 +279,7 @@ def get_sequence_length(fastq_in):
 
 def run_bwa_dev(read_1, read_2, processors, name, reference):
     #read_group = '@RG\tID:%s\tSM:vac6wt\tPL:ILLUMINA\tPU:vac6wt' % name
+    print(os.getcwd())
     other_opts = ["|","samtools","view","-uS","-","|","samtools","sort","-@","4","-o","%s_renamed.bam" % name]
     bwa_dev(reference,read_1,read_2,processors,other_opts,name)
 
@@ -290,7 +291,7 @@ def bwa_dev(reference,read_1,read_2,processors,my_opts,name):
         mem_arguments.extend([reference,read_1,read_2])
     mem_arguments.extend(my_opts)
     arg_string = " ".join(mem_arguments)
-    subprocess.call("%s" % arg_string, stdout=open(os.devnull, "wb"), stderr=open(os.devnull, "wb"),shell=True)
+    subprocess.call("%s" % arg_string, stdout=open(os.devnull, "wb"), stderr=open("bwa.log", "wb"),shell=True)
 
 def _perform_workflow_run_loop(data):
     """sample ID"""
