@@ -28,7 +28,7 @@ requirements:
 test:
   imports:
     - wgfast
-   commands:
+  commands:
     - python -m unittest -v run_tests.py
 
 
