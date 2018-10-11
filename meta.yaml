@@ -28,7 +28,6 @@ requirements:
 test:
   imports:
     - wgfast
-  commands:
-    - python run_tests.py
+
 
 
