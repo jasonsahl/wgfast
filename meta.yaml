@@ -25,6 +25,10 @@ requirements:
     - java-1.7.0-openjdk-cos6-x86_64 # -c anaconda
     - java-jdk # -c anaconda
 
-
+test:
+  imports:
+    - wgfast
+   commands:
+    - python -m unittest -v run_tests.py
 
 
