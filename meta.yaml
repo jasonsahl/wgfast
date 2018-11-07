@@ -27,6 +27,7 @@ requirements:
     - bbmap # -c bioconda
     - raxml # -c bioconda
     - picard # bioconda
+    - bzip2
 
 test:
   imports:
