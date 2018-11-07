@@ -28,9 +28,9 @@ setup(name='wgfast',
       entry_points={'console_scripts': [
             'wgfast=wgfast.main:main',
             'wgfast_prep=wgfast.tools.wgfast_prep:main',
-            'wgfast_extract_tree_names=wgfast.tools.extract_tree_names:main',
-            'wgfast_subsample_reads_and_place=wgfast.tools.subsample_reads_and_place:main',
-            'wgfast_subsample_snps_pearson=wgfast.tools.subsample_snps_pearson:main'
+            # 'wgfast_extract_tree_names=wgfast.tools.extract_tree_names:main',
+            # 'wgfast_subsample_reads_and_place=wgfast.tools.subsample_reads_and_place:main',
+            # 'wgfast_subsample_snps_pearson=wgfast.tools.subsample_snps_pearson:main'
             ]},
       include_package_data=True,
       package_data={'wgfast': ['command.txt',
