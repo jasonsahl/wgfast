@@ -17,7 +17,6 @@ from wgfast.util import *
 
 #Need to update with new GATK4
 GATK_PATH = bin_path("GenomeAnalysisTK.jar")
-ADD_GROUPS = bin_path("AddOrReplaceReadGroups.jar")
 
 def main(argv=None):
     if argv is None:
