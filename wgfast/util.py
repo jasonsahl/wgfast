@@ -24,6 +24,12 @@ from operator import itemgetter
 import threading
 import collections
 import random
+from pkg_resources import resource_filename
+
+def bin_path(file_name):	
+    """ Return the path for bin files."""	
+    fp = os.path.join('bin', file_name)	
+    return resource_filename('wgfast', fp)
 
 
 def mp_shell(func, params, numProc):
