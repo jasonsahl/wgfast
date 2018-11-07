@@ -12,7 +12,7 @@ def test_file(option, opt_str, value, parser):
     try:
         with open(value): setattr(parser.values, option.dest, value)
     except IOError:
-        print '%s file cannot be opened' % option
+        print('%s file cannot be opened' % option)
         sys.exit()
 
 def test_models(option, opt_str, value, parser):
@@ -21,7 +21,7 @@ def test_models(option, opt_str, value, parser):
     elif "ASC_GTRGAMMA" in value:
         setattr(parser.values, option.dest, value)
     else:
-        print "substitution model is not supported"
+        print("substitution model is not supported")
         sys.exit()
 
 def get_field_index(matrix_in):
@@ -39,15 +39,16 @@ def matrix_to_fasta(matrix_in, last):
     Similar to tested function in main script,
     but slightly different output"""
     reduced = [ ]
-    out_fasta = open("all.fasta", "w")
+    
     for line in open(matrix_in, "U"):
         fields = line.split("\t")
         reduced.append(fields[1:last])
     test=map(list, zip(*reduced))
-    for x in test:
-        print >> out_fasta, ">"+str(x[0])
-        print >> out_fasta, "".join(x[1:])
-    out_fasta.close()
+    with open("all.fasta", "w") as out_fasta:
+        for x in test:
+            out_fasta.write(">"+str(x[0]))
+            out_fasta.write("".join(x[1:]))
+
 
 def main(matrix, model, processors):
     """determines whether or not raxml is in your path"""
@@ -55,13 +56,13 @@ def main(matrix, model, processors):
     if ab == 0:
         pass
     else:
-        print "RAxML must be in your path as raxmlHPC-SSE3 if using ASC_GTRGAMMA"
+        print("RAxML must be in your path as raxmlHPC-SSE3 if using ASC_GTRGAMMA")
         sys.exit()
     ab = subprocess.call(['which', 'raxmlHPC-PTHREADS-SSE3'])
     if ab == 0:
         pass
     else:
-        print "RAxML must be in your path as raxmlHPC-PTHREADS-SSE3 if using GTRGAMMA"
+        print("RAxML must be in your path as raxmlHPC-PTHREADS-SSE3 if using GTRGAMMA")
         sys.exit()
     last=get_field_index(matrix)
     matrix_to_fasta(matrix, last)
@@ -75,7 +76,7 @@ def main(matrix, model, processors):
     subprocess.check_call("mv RAxML_bestTree.nasp nasp_raxml.tree", shell=True)
     subprocess.check_call("mv RAxML_binaryModelParameters.PARAMS nasp.PARAMS", shell=True)
     subprocess.check_call("rm RAxML_* out.fasta all.fasta", shell=True)
-    print "Model used: %s" % model
+    print("Model used: %s" % model)
 
 if __name__ == "__main__":
     usage="usage: %prog [options]"
@@ -94,7 +95,7 @@ if __name__ == "__main__":
     mandatories = ["matrix"]
     for m in mandatories:
         if not options.__dict__[m]:
-            print "\nMust provide %s.\n" %m
+            print("\nMust provide %s.\n" %m)
             parser.print_help()
             exit(-1)
 
