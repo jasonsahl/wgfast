@@ -46,8 +46,8 @@ def matrix_to_fasta(matrix_in, last):
     test=map(list, zip(*reduced))
     with open("all.fasta", "w") as out_fasta:
         for x in test:
-            out_fasta.write(">"+str(x[0]))
-            out_fasta.write("".join(x[1:]))
+            out_fasta.write(">"+str(x[0])+"\n")
+            out_fasta.write("".join(x[1:])+"\n")
 
 def main(argv=None):
     if argv is None:
