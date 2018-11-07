@@ -49,8 +49,10 @@ def matrix_to_fasta(matrix_in, last):
             out_fasta.write(">"+str(x[0]))
             out_fasta.write("".join(x[1:]))
 
-
-def main(matrix, model, processors):
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+    matrix, model, processors = parse(argv)
     """determines whether or not raxml is in your path"""
     ab = subprocess.call(['which', 'raxmlHPC-SSE3'])
     if ab == 0:
@@ -78,7 +80,7 @@ def main(matrix, model, processors):
     subprocess.check_call("rm RAxML_* out.fasta all.fasta", shell=True)
     print("Model used: %s" % model)
 
-if __name__ == "__main__":
+def parse(argv):
     usage="usage: %prog [options]"
     parser = OptionParser(usage=usage)
     parser.add_option("-m", "--snp_matrix", dest="matrix",
@@ -90,13 +92,16 @@ if __name__ == "__main__":
     parser.add_option("-p", "--processors", dest="processors",
                       help="number of processors to use with GTRGAMMA, defaults to 4",
                       action="store", type="int", default="4")
-    options, args = parser.parse_args()
+    options, args = parser.parse_args(argv)
 
     mandatories = ["matrix"]
     for m in mandatories:
         if not options.__dict__[m]:
             print("\nMust provide %s.\n" %m)
             parser.print_help()
-            exit(-1)
+            sys.exit(-1)
+    return options.matrix, options.model, options.processors
 
-    main(options.matrix,options.model,options.processors)
+
+if __name__ == "__main__":
+    main(sys.argv)
