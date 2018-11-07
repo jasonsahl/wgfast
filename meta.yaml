@@ -22,12 +22,15 @@ requirements:
     - dendropy # -c bioconda
     - samtools # -c bioconda
     - bwa==0.7.8
-    - java-1.7.0-openjdk-cos6-x86_64 # -c anaconda
-    - java-jdk # -c anaconda
+    - bbmap # -c bioconda
+    - raxml # -c bioconda
+    - picard # bioconda
 
 test:
   imports:
     - wgfast
+  commands:
+    - wgfast --help > /dev/null
 
 
 

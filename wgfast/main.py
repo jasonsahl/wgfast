@@ -17,8 +17,6 @@ from wgfast.util import *
 
 #Need to update with new GATK4
 GATK_PATH = bin_path("GenomeAnalysisTK.jar")
-#TODO: See if I can remove this
-PICARD_PATH = bin_path("CreateSequenceDictionary.jar")
 ADD_GROUPS = bin_path("AddOrReplaceReadGroups.jar")
 
 def main(argv=None):
@@ -216,7 +214,7 @@ def run_wgfast(reference_dir,read_directory,processors,coverage,proportion,keep,
         """creates dict file with picard tools.  In testing, GATK does this incorrectly"""
         try:
             #TODO: Check to see if I can remove this step
-            os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
+            os.system("picard CreateSequenceDictionary R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (ap, ap))
         except:
             print("dict wasn't created")
             sys.exit()
@@ -241,7 +239,7 @@ def run_wgfast(reference_dir,read_directory,processors,coverage,proportion,keep,
             ref_coords = get_all_snps(matrix)
             log_isg.logPrint("Loop starting")
             run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap,processors,GATK_PATH,
-            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,gatk_method)
+            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,gatk_method)
     """will subsample based on the number of SNPs reported by the following function"""
     if "T" in doc:
         os.system("cat *breadth.txt > breadth_over_%sx_out.txt" % coverage)

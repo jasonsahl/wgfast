@@ -24,21 +24,6 @@ from operator import itemgetter
 import threading
 import collections
 import random
-from pkg_resources import resource_filename
-import tarfile
-
-def bin_path(file_name):
-    """ Return the path for bin files."""
-    fp = os.path.join('bin', file_name)
-    return resource_filename('wgfast', fp)
-
-RAXML_PATH = bin_path("raxmlHPC-SSE3")
-RAXML_THREAD_PATH = bin_path("raxmlHPC-PTHREADS-SSE3")
-BBMAP_PATH = bin_path("BBMap_38.08.tar.gz")
-tar = tarfile.open(BBMAP_PATH, "r:gz")
-tar.extractall(path=os.path.dirname(BBMAP_PATH))
-tar.close()
-BBDUK_PATH = os.path.join(os.path.dirname(BBMAP_PATH), "bbmap/bbduk.sh")
 
 
 def mp_shell(func, params, numProc):
@@ -307,9 +292,8 @@ def _perform_workflow_run_loop(data):
     ap = data[9]
     doc = data[10]
     tmp_dir = data[11]
-    picard = data[12]
-    gatk_method = data[13]
-    processors = data[14]
+    gatk_method = data[12]
+    processors = data[13]
     if os.path.isfile("%s.tmp.xyx.matrix" % idx):
         pass
     else:
@@ -321,7 +305,7 @@ def _perform_workflow_run_loop(data):
                 length = int(get_sequence_length(f[0])/2)
                 try:
                     subprocess.check_call("bash %s in=%s in2=%s ref=%s out=%s.F.paired.fastq.gz out2=%s.R.paired.fastq.gz minlen=%s overwrite=true > /dev/null 2>&1" % (
-                        BBDUK_PATH, f[0], f[1], bin_path('illumina_adapters_all.fasta'), idx, idx, length), shell=True)
+                        "bbduk.sh", f[0], f[1], bin_path('illumina_adapters_all.fasta'), idx, idx, length), shell=True)
                 except Exception as e:
                     print("Read trimmer did not finish correctly", e)
                     sys.exit()
@@ -333,7 +317,7 @@ def _perform_workflow_run_loop(data):
             """Single end read support"""
             length = int(get_sequence_length(f[0])/2)
             try:
-                subprocess.check_call("bash %s in=%s ref=%s out=%s.single.fastq.gz minlen=%s overwrite=true ignorebadquality> /dev/null 2>&1" % (BBDUK_PATH, f[0],bin_path('illumina_adapters_all.fasta'),idx,length), shell=True)
+                subprocess.check_call("bash %s in=%s ref=%s out=%s.single.fastq.gz minlen=%s overwrite=true ignorebadquality> /dev/null 2>&1" % ("bbduk.sh", f[0],bin_path('illumina_adapters_all.fasta'),idx,length), shell=True)
             except Exception as e:
                 print("Read trimmer did not finish correctly", e)
                 sys.exit()
@@ -347,7 +331,7 @@ def _perform_workflow_run_loop(data):
             #TODO: See if this is still necessary
             """inserts read group information, required by new versions of GATK"""
             try:
-                os.system("java -jar %s INPUT=%s_renamed.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (picard,idx,idx,idx,idx,idx))
+                os.system("picard AddOrReplaceReadGroups INPUT=%s_renamed.bam OUTPUT=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT > /dev/null 2>&1" % (idx,idx,idx,idx,idx))
                 os.system("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx)
             except:
                 print("problem running picard tools")
@@ -367,11 +351,11 @@ def _perform_workflow_run_loop(data):
         make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
 
 def run_loop_dev(fileSets,dir_path,reference,processors,gatk,ref_coords,coverage,proportion,
-    matrix,ap,doc,tmp_dir,picard,gatk_method):
+    matrix,ap,doc,tmp_dir,gatk_method):
     files_and_temp_names = []
     for idx, f in fileSets.items():
         files_and_temp_names.append([idx,f,dir_path,reference,gatk,ref_coords,coverage,proportion,
-                                     matrix,ap,doc,tmp_dir,picard,gatk_method,processors])
+                                     matrix,ap,doc,tmp_dir,gatk_method,processors])
     mp_shell(_perform_workflow_run_loop,files_and_temp_names,processors)
 
 def run_gatk(reference, processors, name, gatk, tmp_dir, gatk_method):
@@ -506,20 +490,20 @@ def run_raxml(fasta_in, tree, out_class_file, insertion_method, parameters, mode
     """untested function, system calls"""
     if "NULL" == parameters:
         if "ASC_GTRGAMMA" == model:
-            args = [RAXML_PATH, '-f', '%s' % insertion_method,
+            args = ["raxmlHPC-SSE3", '-f', '%s' % insertion_method,
 	         '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-t',
 	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
         else:
-            args = [RAXML_PATH, '-f', '%s' % insertion_method,
+            args = ["raxmlHPC-SSE3", '-f', '%s' % insertion_method,
 	         '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-t',
 	         '%s' % tree, '--no-bfgs', '>', '/dev/null 2>&1']
     else:
         if "ASC_GTRGAMMA" == model:
-            args = [RAXML_PATH, '-f', '%s' % insertion_method,
+            args = ["raxmlHPC-SSE3", '-f', '%s' % insertion_method,
 	         '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-R', parameters, '-t',
 	         '%s' % tree, '--asc-corr=lewis', '--no-bfgs', '>', '/dev/null 2>&1']
         else:
-            args = [RAXML_PATH, '-f', '%s' % insertion_method,
+            args = ["raxmlHPC-SSE3", '-f', '%s' % insertion_method,
 	         '-s', '%s' % fasta_in, '-m', '%s' % model, '-n', '%s' % suffix, '-R', parameters, '-t',
 	         '%s' % tree, '--no-bfgs', '>', '/dev/null 2>&1']
     try:
@@ -716,7 +700,7 @@ def filter_alignment(tab):
 
 def raxml_calculate_base_tree(in_fasta, model, name):
     """not tested, all system calls"""
-    args = [RAXML_PATH, '-f', 'd', '-p', '12345',
+    args = ["raxmlHPC-SSE3", '-f', 'd', '-p', '12345',
 	     '-s', '%s' % in_fasta, '-m', '%s' % model, '-n', '%s' % name, "--no-bfgs",
 	     '>', '/dev/null 2>&1']
     try:
@@ -1149,7 +1133,7 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
                 pass
             #forcing GTRGAMMA
             try:
-                subprocess.check_call("%s -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS > /dev/null 2>&1" % (RAXML_THREAD_PATH, my_processors, new_name, new_name, new_name), shell=True)
+                subprocess.check_call("%s -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS > /dev/null 2>&1" % ("raxmlHPC-PTHREADS-SSE3", my_processors, new_name, new_name, new_name), shell=True)
                 os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
             except:
                 continue
@@ -1202,7 +1186,7 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
                 pass
         else:
             try:
-                subprocess.check_call("%s -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (RAXML_THREAD_PATH, my_processors, new_name, new_name, new_name), shell=True)
+                subprocess.check_call("%s -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % ("raxmlHPC-PTHREADS-SSE3", my_processors, new_name, new_name, new_name), shell=True)
                 os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
                 run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
             except:
@@ -1312,7 +1296,7 @@ def _perform_workflow_create_params(data):
                 pass
             #forcing GTRGAMMA
             try:
-                subprocess.check_call("%s -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS > /dev/null 2>&1" % (RAXML_THREAD_PATH, my_processors, new_name, new_name, new_name), shell=True)
+                subprocess.check_call("%s -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS > /dev/null 2>&1" % ("raxmlHPC-PTHREADS-SSE3", my_processors, new_name, new_name, new_name), shell=True)
                 os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
             except:
                 continue
@@ -1386,7 +1370,7 @@ def _perform_workflow_temp_matrices(data):
                 pass
         else:
             try:
-                subprocess.check_call("%s -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (RAXML_THREAD_PATH, my_processors, new_name, new_name, new_name), shell=True)
+                subprocess.check_call("%s -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % ("raxmlHPC-PTHREADS-SSE3", my_processors, new_name, new_name, new_name), shell=True)
                 os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
                 run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
             except:
