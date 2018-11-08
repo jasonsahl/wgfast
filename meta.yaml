@@ -11,11 +11,12 @@ build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   entry_points:
     - wgfast = wgfast.main:main
-    - wgfast_prep = wgfast.tools.wgfast_prep:main
+    - wgfast_prep = wgfast.wgfast_prep:main
 
 
 requirements:
   build:
+    - setuptools
     - python==3.6
   run:
     - python==3.6
@@ -33,11 +34,11 @@ test:
     - wgfast
   commands:
     - wgfast --help > /dev/null
-
-
+    - wgfast_prep --help > /dev/null
 
 about:
   home: https://github.com/jasonsahl/wgfast
   summary: The whole genome focused array SNP typing (WG-FAST) pipeline
-  license: MIT
+  license: GPL v3
   license_file: LICENSE
+  license_family: GPL
