@@ -39,3 +39,5 @@ test:
 about:
   home: https://github.com/jasonsahl/wgfast
   summary: The whole genome focused array SNP typing (WG-FAST) pipeline
+  license: MIT
+  license_file: LICENSE
