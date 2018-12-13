@@ -28,6 +28,7 @@ setup(name='wgfast',
       entry_points={'console_scripts': [
             'wgfast=wgfast.main:main',
             'wgfast_prep=wgfast.tools.wgfast_prep:main',
+            'wgfast_db=wgfastdb.main:main'
             # 'wgfast_extract_tree_names=wgfast.tools.extract_tree_names:main',
             # 'wgfast_subsample_reads_and_place=wgfast.tools.subsample_reads_and_place:main',
             # 'wgfast_subsample_snps_pearson=wgfast.tools.subsample_snps_pearson:main'

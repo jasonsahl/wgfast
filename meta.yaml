@@ -9,17 +9,21 @@ source:
 
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
+  skip: true  # [not linux]
+  script: "{{ PYTHON }} -m pip install . -v"
   entry_points:
     - wgfast = wgfast.main:main
     - wgfast_prep = wgfast.tools.wgfast_prep:main
+    - wgfast_db = wgfast_db.main:main
 
 
 requirements:
   build:
-    - python==3.6
-    - setuptools
+    - python >= 3.4
+  host:
+    - pip
   run:
-    - python==3.6
+    - python >=3.4
     - biopython
     - dendropy # -c bioconda
     - samtools # -c bioconda
@@ -27,16 +31,22 @@ requirements:
     - bbmap # -c bioconda
     - raxml # -c bioconda
     - picard # bioconda
-    - bzip2
+    - mash # -c bioconda
+    - nasp # -c bioconda
+    - ncbitk # -c tara_furstenau
+    - snakemake >=5 # -c bioconda
+    - genbankqc # -c tara_furstenau
+
 
 test:
-  imports:
-    - wgfast
   commands:
-    - wgfast --help > /dev/null
-
-
+    - wgfast --help
+    - wgfast_prep --help
+    - wgfast_db --help
 
 about:
   home: https://github.com/jasonsahl/wgfast
-  summary: The whole genome focused array SNP typing (WG-FAST) pipeline
+  summary: 'The whole genome focused array SNP typing (WG-FAST) pipeline'
+  license: 'GPL v3'
+  license_file: LICENSE
+  license_family: 'GPL'
