@@ -1,4 +1,3 @@
 include README.md
 include wgfast/bin/illumina_adapters_all.fasta
 include wgfast/bin/GenomeAnalysisTK.jar
-include wgfast/tools/*.py

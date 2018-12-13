@@ -27,8 +27,12 @@ setup(name='wgfast',
       packages=find_packages(),
       entry_points={'console_scripts': [
             'wgfast=wgfast.main:main',
+<<<<<<< HEAD
             'wgfast_prep=wgfast.tools.wgfast_prep:main',
             'wgfast_db=wgfastdb.main:main'
+=======
+            'wgfast_prep=wgfast.wgfast_prep:main'
+>>>>>>> 6c21ca878de24009a5092e77b793dff9f7fecf9b
             # 'wgfast_extract_tree_names=wgfast.tools.extract_tree_names:main',
             # 'wgfast_subsample_reads_and_place=wgfast.tools.subsample_reads_and_place:main',
             # 'wgfast_subsample_snps_pearson=wgfast.tools.subsample_snps_pearson:main'

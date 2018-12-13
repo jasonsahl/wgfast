@@ -1,5 +1,3 @@
-{% set data = load_setup_py_data() %}
-
 package:
   name: 'wgfast'
   version: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
@@ -19,7 +17,7 @@ build:
 
 requirements:
   build:
-    - python >= 3.4
+    - python >=3.4
   host:
     - pip
   run:
@@ -40,6 +38,7 @@ requirements:
 
 test:
   commands:
+<<<<<<< HEAD
     - wgfast --help
     - wgfast_prep --help
     - wgfast_db --help
@@ -50,3 +49,14 @@ about:
   license: 'GPL v3'
   license_file: LICENSE
   license_family: 'GPL'
+=======
+    - wgfast --help > /dev/null
+    - wgfast_prep --help > /dev/null
+
+about:
+  home: https://github.com/jasonsahl/wgfast
+  summary: The whole genome focused array SNP typing (WG-FAST) pipeline
+  license: GPL v3
+  license_file: LICENSE
+  license_family: GPL
+>>>>>>> 6c21ca878de24009a5092e77b793dff9f7fecf9b
