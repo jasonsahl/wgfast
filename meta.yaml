@@ -8,7 +8,7 @@ source:
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   skip: true  # [not linux]
-  script: "{{ PYTHON }} -m pip install . -v"
+  script: "python -m pip install . -v"
   entry_points:
     - wgfast = wgfast.main:main
     - wgfast_prep = wgfast.tools.wgfast_prep:main
@@ -17,11 +17,11 @@ build:
 
 requirements:
   build:
-    - python >=3.4
+    - python {{ python }}
   host:
     - pip
   run:
-    - python >=3.4
+    - python {{ python }}
     - biopython
     - dendropy # -c bioconda
     - samtools # -c bioconda
