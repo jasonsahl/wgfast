@@ -7,6 +7,7 @@ import logging
 import click
 import subprocess as sp
 import pandas as pd
+import numpy as np
 from collections import namedtuple
 
 from wgfastdb.parse_util import types, error, warn, config_logging
@@ -161,7 +162,9 @@ def check_and_adjust_length_of_arg_list(args_dict, n_species):
     param_data = {}
     for param in PARAMS:
         if param in args_dict:
-            if (len(args_dict[param]) > 1):
+            if args_dict[param] is None:
+                continue
+            elif (len(args_dict[param]) > 1):
                 if len(args_dict[param]) != n_species:
                     problem = """
                         The number of values for parameter {0} must be the same
@@ -176,9 +179,9 @@ def check_and_adjust_length_of_arg_list(args_dict, n_species):
                 param_data[param] = args_dict[param] * n_species
     return pd.DataFrame(param_data, columns=PARAMS)
 
-def get_arg_df_from_cml(args):
+def get_arg_df_from_cml(args, n_species):
     args_dict = vars(args)
-    df = check_and_adjust_length_of_arg_list(args_dict, len(args.species))
+    df = check_and_adjust_length_of_arg_list(args_dict, n_species)
     df['species'] = args_dict['species']
     df = df.set_index('species')
     return df
@@ -225,12 +228,13 @@ def combine_cml_and_cfg_params(cfg, cml, user_params):
             # because there are no default values
             LOG.exception("Reference information must be provided")
             raise
-    return pd.DataFrame(combined_data, columns=PARAMS, index=cfg['species'])
+    return pd.DataFrame(
+        np.array(combined_data).T, columns=PARAMS, index=cfg.index)
 
 
 def get_arg_df(args, user_params):
-    if 'species' in args:
-        cml_arg_data = get_arg_df_from_cml(args)
+    if args.species is not None:
+        cml_arg_data = get_arg_df_from_cml(args, len(args.species))
         try:
             cml_arg_data['reference']
         except KeyError:
@@ -239,7 +243,7 @@ def get_arg_df(args, user_params):
         return cml_arg_data
     else:
         cfg_arg_data = get_arg_df_from_config(args)
-        cml_arg_data = get_arg_df_from_cml(args)
+        cml_arg_data = get_arg_df_from_cml(args, len(cfg_arg_data.index))
         return combine_cml_and_cfg_params(
             cfg_arg_data, cml_arg_data, user_params)
 
@@ -304,7 +308,6 @@ def make_dirs(outpath):
     os.makedirs(logs, exist_ok=True)
     os.makedirs(wgfast, exist_ok=True)
     return PATHS(genomes=genomes, logs=logs, wgfast=wgfast, wrk_dir=wrk_dir)
-    
 
 
 def main(argv=None):
