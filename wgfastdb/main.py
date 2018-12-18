@@ -2,14 +2,18 @@ import argparse
 import sys
 import datetime
 import os
+import json
 import logging
+import click
 import subprocess as sp
 import pandas as pd
+from collections import namedtuple
 
-from wgfastdb.parse_util import types, error, warn
+from wgfastdb.parse_util import types, error, warn, config_logging
 
 
-DEFAULT_LOG_FNAME = wgfastdb.log
+DEFAULT_LOG_FNAME = "wgfastdb.log"
+LOG = logging.getLogger(__name__)
 
 def parse():
     parser = argparse.ArgumentParser(
@@ -30,17 +34,17 @@ def parse():
         """
     )
 
-    dowload.add_argument(
-        "--update", action='store_true', default=False,
+    download.add_argument(
+        "--no_update", action='store_true', default=False,
         help="""
-        Sync your collection with the latest assembly versions
+        Do not sync your collection with the latest assembly versions
         """
     )
     download.add_argument(
-        "--update-assembly", action="store_true", default=False,
+        "--no_assembly_update", action="store_true", default=False,
         help="""
-        Download the latest assembly summary and taxonomy
-        dump or use your local copies.
+        Do not download the latest assembly summary and taxonomy
+        dump and use your local copies.
         """
     )
 
@@ -131,10 +135,6 @@ def parse():
         help="Number of worker threads to spawn."
     )
 
-    parser.add_argument(
-        'snakemake_args', nargs=argparse.REMAINDER,
-        help="Additional snakemake arguments"
-    )
     return parser
 
 
@@ -157,24 +157,8 @@ def validate_types_in_config(column_data, types):
         validated.append(types(value))
     return validated
 
-def config_logging(file_name, level="INFO"):
-    """Configure logging
-    Arguments:
-        level (str): Logging level
-    """
-    logging.basicConfig(
-        filename=file_name,
-        datefmt='%m/%d/%Y %I:%M:%S %p',
-        level=getattr(logging, level),
-        filemode='w',
-        format='%(asctime)s %(levelname)s: [%(name)s] %(message)s')
-    return logging.getLogger(__name__)
-
-
-
-
 def check_and_adjust_length_of_arg_list(args_dict, n_species):
-    param_data = []
+    param_data = {}
     for param in PARAMS:
         if param in args_dict:
             if (len(args_dict[param]) > 1):
@@ -183,12 +167,13 @@ def check_and_adjust_length_of_arg_list(args_dict, n_species):
                         The number of values for parameter {0} must be the same
                         as the number of species ({1})
                         """.format(param, n_species)
-                    logger.exception(problem)
+                    LOG.exception(problem)
                     raise ValueError(problem)
                 else:
-                    param_data.append(args_dict[param])
+                    param_data[param] = args_dict[param]
+                    # param_data.append(args_dict[param])
             else:
-                param_data.append(args_dict[param] * n_species)
+                param_data[param] = args_dict[param] * n_species
     return pd.DataFrame(param_data, columns=PARAMS)
 
 def get_arg_df_from_cml(args):
@@ -202,12 +187,12 @@ def get_arg_df_from_config(args):
     try:
         df = pd.read_csv(args.config, index_col="species")
     except ValueError:
-        logger.exception(
+        LOG.exception(
             """Required 'species' column is not 
             present in config file: {}""".format(args.config))
         raise
     except Exception:
-        logger.exception(
+        LOG.exception(
             "Problem reading config file: {}".format(args.config)
         )
         raise
@@ -238,51 +223,88 @@ def combine_cml_and_cfg_params(cfg, cml, user_params):
         except KeyError:
             # this should only occur if reference params are not provided
             # because there are no default values
-            logger.exception("Reference information must be provided")
+            LOG.exception("Reference information must be provided")
             raise
     return pd.DataFrame(combined_data, columns=PARAMS, index=cfg['species'])
-        
 
-
-    
 
 def get_arg_df(args, user_params):
     if 'species' in args:
-        cml_arg_data = get_arg_data_from_cml(args)
+        cml_arg_data = get_arg_df_from_cml(args)
         try:
             cml_arg_data['reference']
         except KeyError:
-            logger.exception("Reference information is required")
+            LOG.exception("Reference information is required")
             raise
         return cml_arg_data
     else:
-        cfg_arg_data = get_arg_data_from_config(args)
-        cml_arg_data = get_arg_data_from_cml(
-            args, len(cfg_arg_data['species']))
+        cfg_arg_data = get_arg_df_from_config(args)
+        cml_arg_data = get_arg_df_from_cml(args)
         return combine_cml_and_cfg_params(
             cfg_arg_data, cml_arg_data, user_params)
-        
-def run(params_json, outpath, threads, snakemake_args):
-    script = os.path.join(os.path.dirname(__file__), "wgfastdb_tree.py")
-    update = "--update" if args.update else "--no-update"
-    update_assembly = (
-        "--update-assembly" if args.update_assembly else "--local-assembly")
-    cmd = 'snakemake --config path={outpath} threads={threads} '
-            'params={params} script={script} update={update}, '
-            'update_assembly={update_assembly}'.format(
-                outpath=outpath,
-                threads=threads,
-                params=params_json,
-                script=script,
-                update=update,
-                update_assembly=update_assembly).split()
+
+
+def run_snake(snakefile, work_path, params, snakemake_args):
+    cmd = (
+            'snakemake --snakefile {snakefile} -d {outpath} '
+            '--config params={params}'.format(
+                snakefile=snakefile,
+                outpath=work_path,
+                params=params,
+                ).split())
     cmd += snakemake_args
     try:
-        sp.call(cmd, check=True)
-    except ( KeyboardInterrupt, sp.CalledProcessError) as e:
-                warn("Unlocking directory after failed snakemake")
-                sp.run(cmd + ["--unlock"], check=True )
-                error(e)
+        sp.run(cmd, check=True)
+    except (KeyboardInterrupt, sp.CalledProcessError) as e:
+        warn("Unlocking directory after failed snakemake")
+        sp.run(cmd + ["--unlock"], check=True )
+        error(e)
+
+def download_sequences(species, paths, update, update_assembly):
+    message = "Downloading sequences for species: {0}\nWriting to {1}".format(
+        ", ".join(species), paths.genomes)
+    LOG.info(message)
+    click.secho(message, err=False, fg='green')
+    cmd = ["ncbitk", update, update_assembly,
+           paths.genomes] + species
+    LOG.info("Running command: {}".format(" ".join(cmd)))
+    sp.check_output(cmd)
+    message = "Finished downloading sequences to: {}".format(
+        paths.genomes)
+    LOG.info(message)
+    click.secho(message, err=False, fg="green")
+
+def run(params_json, args, snakemake_args):
+    paths = make_dirs(args.path)
+    snek_path = os.path.dirname(__file__)
+    curate_snakefile = os.path.join(
+        snek_path, "curate_snek")
+    update = "--no-update" if args.no_update else "--update"
+    update_assembly = (
+        "--local-assembly" if args.no_assembly_update
+        else "--update-assembly")
+    species = list(json.loads(params_json).keys())
+    download_sequences(species, paths, update, update_assembly)
+    run_snake(
+        os.path.join(snek_path, "curate_snek"),
+        paths.wrk_dir, params_json, snakemake_args)
+    run_snake(
+        os.path.join(snek_path, "nasp_snek"),
+        paths.wrk_dir, params_json, snakemake_args
+    )
+
+PATHS = namedtuple('paths', ['genomes', 'logs', 'wgfast', 'wrk_dir'])
+
+def make_dirs(outpath):
+    genomes = os.path.join(outpath, "genomes")
+    logs = os.path.join(outpath, "logs")
+    wgfast = os.path.join(outpath, "wgfast")
+    wrk_dir = outpath
+    os.makedirs(genomes, exist_ok=True)
+    os.makedirs(logs, exist_ok=True)
+    os.makedirs(wgfast, exist_ok=True)
+    return PATHS(genomes=genomes, logs=logs, wgfast=wgfast, wrk_dir=wrk_dir)
+    
 
 
 def main(argv=None):
@@ -294,11 +316,12 @@ def main(argv=None):
         parser.print_help(sys.stdout)
         sys.exit(0)
     user_params = get_user_provided_params(argv)
-    args, snakemake_args = parser.parse_known_args(argv)
-    logger = config_logging(args.log)
+    args, snakemake_args = parser.parse_known_args(argv[1:])
+    config_logging(args.log)
     arg_df = get_arg_df(args, user_params)
-    logger.info("Parameters set to:\n{}".format(arg_df))
-    run(arg_df.to_json, args.path, args.threads, snakemake_args)
+    LOG.info("Parameters set to:\n{}".format(arg_df))
+    run(arg_df.to_json(orient="index"), args, snakemake_args)
 
 if __name__ == "__main__":
     main()
+
