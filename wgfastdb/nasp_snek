@@ -1,0 +1,242 @@
+import glob
+import shutil
+from datetime import datetime
+
+PARAMS = config['params']
+SPECIES = list(PARAMS.keys())
+
+
+def curate_dir(wildcards):
+    return expand(
+        "genomes/{species}/qc/{u}-{c}-{a}-{d}/passed/{fasta}.fasta",
+        species=wildcards.species,
+        u=PARAMS[wildcards.species]['unknowns'],
+        c=PARAMS[wildcards.species]['contigs'],
+        a=PARAMS[wildcards.species]['assembly_size'],
+        d=PARAMS[wildcards.species]['distance'],
+        fasta=wildcards.fasta)
+
+def get_franken_fastas(wildcards):
+    path = "genomes/{species}/qc/{u}-{c}-{a}-{d}/passed/".format(
+        species=wildcards.species,
+        u=PARAMS[wildcards.species]['unknowns'],
+        c=PARAMS[wildcards.species]['contigs'],
+        a=PARAMS[wildcards.species]['assembly_size'],
+        d=PARAMS[wildcards.species]['distance'])
+    fastas = [os.path.splitext(os.path.basename(f))[0] for f in 
+        glob.glob(os.path.join(path, "*.fasta"))]
+    return ["wgfast/{species}/{fasta}.frankenfasta".format(
+        species=wildcards.species,
+        fasta=f) for f in fastas]
+
+
+def get_rel_franken_fastas(wildcards):
+    franken = get_franken_fastas(wildcards)
+    return ["../../{}".format(f) for f in franken  ] 
+
+
+rule all:
+    input: 
+        expand(
+            ["wgfast/{species}/bestsnp.tsv",
+            "wgfast/{species}/reference.fasta",
+            "wgfast/{species}/nasp_raxml.tree",
+            "wgfast/{species}/nasp.PARAMS"],
+            species=SPECIES)
+
+
+rule remove_duplicates:
+    input: "wgfast/{species}/reference.fasta"
+    output: 
+        temp("wgfast/{species}/duplicates.txt"),
+        temp("wgfast/{species}/reference.delta")
+    params:
+        wd = "wgfast/{species}"
+    threads: 1
+    log: "logs/{species}_remove_duplicates.log"
+    message: """
+        Removing duplicate regions in reference {input}
+        Writing to {output[0]}.
+        Logging to {log}.
+        Using {threads} thread(s).
+        """
+    shell:
+        "cd {params.wd}; find_duplicates --reference ../../{input} > ../../{log} 2>&1"
+
+
+
+rule frankenfastas:
+    input:
+        ref="wgfast/{species}/reference.fasta",
+        fa=curate_dir
+    output:
+        temp("wgfast/{species}/{fasta}.frankenfasta"),
+        temp("wgfast/{species}/{fasta}.filtered.delta"),
+        temp("wgfast/{species}/{fasta}.delta")
+    params:
+        wd="wgfast/{species}"
+    threads: 1
+    message: """
+        Generating frankenfasta from {input.fa} using reference
+        {input.ref}.
+        Writing to {output[0]}.
+        Logging to {log}.
+        Using {threads} thread(s).
+        """
+    log: "logs/{species}_{fasta}_frankenfasta.log"
+    shell:
+        "cd {params.wd}; convert_external_genome "
+        "--reference ../../{input.ref} "
+        "--external ../../{input.fa} > ../../{log} 2>&1"
+
+rule nasp_matrix:
+    input:
+        ref="wgfast/{species}/reference.fasta",
+        dups="wgfast/{species}/duplicates.txt",
+        franken=get_franken_fastas
+    output:
+        "wgfast/{species}/bestsnp.tsv",
+        temp("wgfast/{species}/master.tsv"),
+        temp("wgfast/{species}/missingdata.tsv"),
+        temp("wgfast/{species}/sample_stats.tsv"),
+        temp("wgfast/{species}/general_stats.tsv")
+    params:
+        wd="wgfast/{species}",
+        franken_rel=get_rel_franken_fastas
+    log: "logs/{species}_nasp.log"
+    message: """
+        Running nasp for {wildcards.species} using reference {input.ref}
+        duplicate file {input.dups} and frankenfastas: {input.franken}.
+        Writing to {output[0]}
+        Logging to {log}.
+        Using {threads} thread(s)."""
+    threads: 8
+    shell:
+        "cd {params.wd}; nasp matrix --num-threads {threads} "
+        "--reference-fasta ../../{input.ref} "
+        "--reference-dups ../../{input.dups} "
+        "{params.franken_rel} > ../../{log} 2>&1"
+
+rule validate_reference:
+    params:
+        ref=lambda wildcards: PARAMS[wildcards.species]['reference']
+    output:
+        "wgfast/{species}/reference.fasta"
+    log: "logs/{species}_move_ref.log"
+    threads: 1
+    message: """
+        Validating and moving reference file ({params.ref}). 
+        Writing to wgfast output directory {output}.
+        Logging to {log}.
+        Using {threads} thread(s).
+        """
+    run:
+        with open(log[0], 'w') as out:
+            try:
+                original_reference = glob.glob("genomes/{0}/{1}*.fasta".format(
+                    wildcards.species,
+                    params.ref))[0]
+                new_reference = "wgfast/{0}/reference.fasta".format(
+                    wildcards.species
+                )
+                shutil.copyfile(
+                    original_reference, new_reference)
+                out.write(
+                    "Moved reference genome {0} to {1}".format(
+                        original_reference, new_reference
+                    )
+                )
+            except FileNotFoundError:
+                out.write(
+                    "Reference file {} is not found ... check inputs".format(
+                        original_reference
+                    ))
+
+
+rule matrix_to_fasta:
+    input: "wgfast/{species}/bestsnp.tsv"
+    output: temp("wgfast/{species}/all.fasta")
+    message: """
+        Coverting {input} to fasta ({output}).
+        Logging to {log}.
+        Using {threads} thread(s).
+        """
+    threads: 1
+    log: "logs/{species}_matrix_to_fasta.log"
+    run:
+        def fasta(header, seq):
+            return ">{0}\n{1}\n".format(header, seq)
+
+        def get_field_index(matrix_in):
+            firstLine = open(matrix_in).readline().rstrip()
+            first_fields = firstLine.split("\t")
+            last = first_fields.index("#SNPcall")
+            return last
+        
+        def matrix_to_fasta(matrix_in, last, outpath):
+            reduced = []
+            with open(matrix_in) as my_file:
+                for line in my_file:
+                    fields = line.split("\t")
+                    reduced.append(fields[1:last])
+            test = map(list, zip(*reduced))
+            with open(
+                outpath, "w") as out_fasta:
+                for x in test:
+                    out_fasta.write(
+                        fasta(str(x[0]), "".join(x[1:])))
+        
+        with open(log[0], 'w') as out:
+            last = get_field_index(input[0])
+            matrix_to_fasta(input[0], last, output[0])
+            out.write(
+                "Done converting matrix {0} to fasta {1}".format(
+                    input[0], output[0]))
+
+
+rule raxml_tree:
+    input: "wgfast/{species}/all.fasta"
+    output: 
+        tree="wgfast/{species}/nasp_raxml.tree",
+        out=temp("wgfast/{species}/out.fasta")
+    log: "logs/{species}_raxml_tree.log"
+    threads: 1
+    message: """
+        Running raxmlHPC-SSE3 using {input}.
+        Writing to {output}.
+        Logging to {log}.
+        Using {threads} thread(s)."""
+    params:
+        wd="wgfast/{species}"
+    shell:
+        "sed 's/://g' {input} | sed 's/,//g' > "
+        "wgfast/{wildcards.species}/out.fasta; "
+        "cd {params.wd}; "
+        "raxmlHPC-SSE3 -f d -p 12345 -m ASC_GTRGAMMA "
+        "-s ../../{output.out} "
+        "-n nasp --asc-corr=lewis --no-bfgs > ../../{log} 2>&1; "
+        "mv RAxML_bestTree.nasp nasp_raxml.tree"
+
+rule raxml_params:
+    input: 
+        out="wgfast/{species}/out.fasta",
+        tree="wgfast/{species}/nasp_raxml.tree"
+    output: "wgfast/{species}/nasp.PARAMS"
+    params:
+        wd = "wgfast/{species}",
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    log: "logs/{species}_raxml_params.log"
+    threads: 1
+    message: """
+        Running RAxML params using {input.out} and {input.tree}.
+        Writing to {output}.
+        Logging to {log}.
+        Using {threads} thread(s)."""
+    shell:
+        "cd {params.wd}; raxmlHPC-SSE3 -f e -m ASC_GTRGAMMA -s ../../{input.out} "
+        "-t ../../{input.tree} -n {params.timestamp} --asc-corr=lewis --no-bfgs "
+        "> ../../{log} 2>&1; "
+        "mv RAxML_binaryModelParameters.{params.timestamp} nasp.PARAMS; "
+        "rm RAxML_*; rm out.fasta*"
+
+        
