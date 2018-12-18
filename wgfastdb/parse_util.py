@@ -2,10 +2,22 @@ import argparse
 import os
 import click
 import textwrap
+import logging
 import sys
 from glob import glob
 
-
+def config_logging(file_name, level="INFO"):
+    """Configure logging
+    Arguments:
+        level (str): Logging level
+    """
+    logging.basicConfig(
+        filename=file_name,
+        datefmt='%m/%d/%Y %I:%M:%S %p',
+        level=getattr(logging, level),
+        filemode='w',
+        format='%(asctime)s %(levelname)s: [%(name)s] %(message)s')
+    return logging.getLogger(__name__)
 
 def warn(msg):
     '''Prints a warning message to stderr.'''
@@ -51,7 +63,7 @@ def project_dir_type(input_path):
     input_path = os.path.abspath(input_path)
     if not os.path.isdir(input_path):
         try:
-            os.mkdirs(input_path)
+            os.makedirs(input_path)
         except PermissionError:
             error(
                 "No permission to make directory: {}".format(input_path))
@@ -86,7 +98,7 @@ def outpath_type(input_path):
     is issued. Returns absolute path to directory."""
     input_path = os.path.abspath(input_path)
     try:
-        os.mkdirs(input_path)
+        os.makedirs(input_path)
     except PermissionError:
         error(
             "No permission to make directory: {}".format(input_path))
@@ -121,7 +133,7 @@ def outfile_type(input_file):
     path = os.path.dirname(input_file)
     if not os.path.isdir(path):
         try:
-            os.mkdirs(path)
+            os.makedirs(path)
         except PermissionError:
             error(
                 "No permission to create file: {}".format(input_file)
@@ -190,13 +202,14 @@ def nonneg_float(input_val):
         raise argparse.ArgumentTypeError("Not a valid non-negative float")
     return input_val
 
+def fasta(header, seq):
+    return ">{0}\n{1}\n".format(header, seq)
 
 types = {
     'int': int,
     'str': str,
     'float': float,
     'bool': bool,
-    'list': ast.literal_eval,
     'file_type': file_type,
     'outfile_type': outfile_type,
     'path_type': path_type,
@@ -208,7 +221,6 @@ types = {
     'write_handle_type': write_handle_type,
     'read_handle_type': read_handle_type,
     'path_list_type': path_list_type,
-    'flag_type': flag_type,
     'positive_float': positive_float,
     'nonneg_float': nonneg_float
     }
