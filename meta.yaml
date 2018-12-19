@@ -39,7 +39,7 @@ test:
   commands:
     - wgfast --help
     - wgfast_prep --help
-    - wgfast_db --help
+    - wgfastdb --help
 
 about:
   home: https://github.com/jasonsahl/wgfast
