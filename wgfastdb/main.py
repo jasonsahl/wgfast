@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 from collections import namedtuple
 
-from wgfast.wgfastdb.parse_util import types, error, warn, config_logging
+from wgfastdb.parse_util import types, error, warn, config_logging
 
 
 DEFAULT_LOG_FNAME = "wgfastdb.log"
