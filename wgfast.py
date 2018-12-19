@@ -21,11 +21,11 @@ if os.path.exists(WGFAST_PATH):
 else:
     print("your WG-FAST path is not correct.  Edit the path in wgfast.py and try again")
     sys.exit()
-try:
-    from wg_fast.util import *
-except:
-    print("wgfast path needs to be modified in the wgfast.py file")
-    sys.exit()
+#try:
+from wg_fast.util import *
+#except:
+#    print("wgfast path needs to be modified in the wgfast.py file")
+#    sys.exit()
 
 #Need to update with new GATK4
 GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"

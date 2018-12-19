@@ -6,12 +6,12 @@ import logging
 import subprocess
 import sys
 from subprocess import Popen
-try:
-    from Bio import SeqIO
-    from Bio import Phylo
-except:
-    print("BioPython is not in your PYTHONPATH, but needs to be")
-    sys.exit()
+#try:
+from Bio import SeqIO
+#    from Bio import Phylo
+#except:
+#print("BioPython is not in your PYTHONPATH, but needs to be")
+#sys.exit()
 try:
     import dendropy
     from dendropy import treecalc

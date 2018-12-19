@@ -26,13 +26,10 @@ def test_models(option, opt_str, value, parser):
 
 def get_field_index(matrix_in):
     """untested function"""
-    #matrix=open(matrix_in, "rU")
     with open(matrix_in) as my_matrix:
         firstLine = open(matrix_in).readline().rstrip()
-        #fixed_line = firstLine.strip()
         first_fields = firstLine.split("\t")
         last=first_fields.index("#SNPcall")
-    #matrix.close()
     return last
 
 def matrix_to_fasta(matrix_in, last):
@@ -41,7 +38,6 @@ def matrix_to_fasta(matrix_in, last):
     but slightly different output"""
     reduced = [ ]
     out_fasta = open("all.fasta", "w")
-    #for line in open(matrix_in, "U"):
     with open(matrix_in) as my_matrix:
         for line in my_matrix:
             fields = line.split("\t")
@@ -50,12 +46,17 @@ def matrix_to_fasta(matrix_in, last):
     for x in test:
         out_fasta.write(">"+str(x[0])+"\n")
         out_fasta.write("".join(x[1:])+"\n")
-        #print >> out_fasta, ">"+str(x[0])
-        #print >> out_fasta, "".join(x[1:])
     out_fasta.close()
 
-def main(matrix, model, processors):
+def main(matrix,model,processors,algorithm):
     """determines whether or not raxml is in your path"""
+    if algorithm == "raxml-ng":
+        ab = subprocess.call(['which', 'raxmlHPC-ng'])
+        if ab == 0:
+            pass
+        else:
+            print("RAxML must be in your path as raxml-ng")
+            sys.exit()
     if model == "ASC_GTRGAMMA":
         ab = subprocess.call(['which', 'raxmlHPC-SSE3'])
         if ab == 0:
@@ -96,6 +97,9 @@ if __name__ == "__main__":
     parser.add_option("-p", "--processors", dest="processors",
                       help="number of processors to use with GTRGAMMA, defaults to 4",
                       action="store", type="int", default="4")
+    parser.add_option("-a", "--algorithm", dest="algorithm",
+                      help="algorithm to use, either raxml-ng or raxml-HPC",
+                      action="store", type="string", default="raxml-ng")
     options, args = parser.parse_args()
 
     mandatories = ["matrix"]
@@ -105,4 +109,4 @@ if __name__ == "__main__":
             parser.print_help()
             exit(-1)
 
-    main(options.matrix,options.model,options.processors)
+    main(options.matrix,options.model,options.processors,options.algorithm)
