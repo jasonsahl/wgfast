@@ -97,7 +97,7 @@ When `wgfastdb` is called, the download and curation processes are called as sub
 Each step is broken up into a number of different Snakemake rules. Each rule can be submitted as a job on a cluster using commands for the appropriate scheduler. This is accomplished by creating a cluster configuration json file that outlines the resources that should be applied to each rule. There can also be a default setting which will be the fall-back position for rules that are not provided a specific configuration. Any of the variables defined in the json can be accessed when defining the cluster script. The values in the cluster configuration file can be accessed using the cluster keyword when passed to the `--cluster` argument.
 
 An example using slurm:
-`srun --time 8:00:00 --mem 2000 wgfastdb ./ --config wgfastdb.cfg --threads 8 --cluster-config cluster.cfg --cluster "sbatch --mem {cluster.mem} --time {cluster.time} --job-name (cluster.job-name} --output ./Logs/{cluster.job-name}_%A.log --cpus {cluster.cpus}" --jobs 24` 
+`srun --time 8:00:00 --mem 20000 wgfastdb ./ --config wgfastdb.cfg --threads 8 --cluster-config cluster.cfg --cluster "sbatch --mem {cluster.mem} --time {cluster.time} --job-name (cluster.job-name} --output ./Logs/{cluster.job-name}_%A.log --cpus {cluster.cpus}" --jobs 24` 
 
 For each job, cluster.mem, cluster.time, and cluster.job-name values will be pulled from the cluster.cfg file (see example below) under the name of the rule that is being executed. Certain jobs are allocated a maximum number of threads but it will not use more than specificed by `--jobs/--cores`. If not specified, Snakemake assumes that only one core is available and will therefore scale back the number of threads to one.
 
