@@ -133,7 +133,7 @@ def parse():
 
     parser.add_argument(
         "--threads", '-t', type=types['positive_int'], default=4,
-        help="Number of worker threads to spawn."
+        help="Number of worker threads to spawn for curation."
     )
 
     return parser
@@ -188,7 +188,7 @@ def get_arg_df_from_cml(args, n_species):
      
 def get_arg_df_from_config(args):
     try:
-        df = pd.read_csv(args.config, index_col="species")
+        df = pd.read_csv(args.config, index_col="species", comment='#')
     except ValueError:
         LOG.exception(
             """Required 'species' column is not 
@@ -248,6 +248,17 @@ def get_arg_df(args, user_params):
             cfg_arg_data, cml_arg_data, user_params)
 
 
+def unlock_snake(snakefile, work_path, params, snakemake_args):
+    cmd = (
+            'snakemake --snakefile {snakefile} -d {outpath} '
+            '--config params={params}'.format(
+                snakefile=snakefile,
+                outpath=work_path,
+                params=params,
+                ).split())
+    cmd += snakemake_args
+    sp.run(cmd, check=True)
+
 def run_snake(snakefile, work_path, params, snakemake_args):
     cmd = (
             'snakemake --snakefile {snakefile} -d {outpath} '
@@ -256,6 +267,7 @@ def run_snake(snakefile, work_path, params, snakemake_args):
                 outpath=work_path,
                 params=params,
                 ).split())
+    print(cmd)
     cmd += snakemake_args
     try:
         sp.run(cmd, check=True)
@@ -278,24 +290,49 @@ def download_sequences(species, paths, update, update_assembly):
     LOG.info(message)
     click.secho(message, err=False, fg="green")
 
+
+def curate(species, paths, params, threads):
+    params = json.loads(params)
+    for spec in species:
+        message = (
+            "Running genbankqc on {0} using the "
+            "following parameters {1} and using {2} threads".format(
+                spec, " ".join(
+                    ["{0}={1}".format(k, v) for k, v in params[spec].items()]),
+                    threads))
+        LOG.info(message)
+        click.secho(message, err=False, fg='green')
+
+        sp.call(
+            list(map(str, ["genbankqc", "species",
+            os.path.join(paths.genomes, spec),
+            "-n", params[spec]['unknowns'],
+            "-c", params[spec]['contigs'],
+            "-s", params[spec]['assembly_size'],
+            "-d", params[spec]['distance'],
+            "--processes", threads])))
+
+
+
+
 def run(params_json, args, snakemake_args):
     paths = make_dirs(args.path)
     snek_path = os.path.dirname(__file__)
-    curate_snakefile = os.path.join(
-        snek_path, "curate_snek")
-    update = "--no-update" if args.no_update else "--update"
-    update_assembly = (
-        "--local-assembly" if args.no_assembly_update
-        else "--update-assembly")
-    species = list(json.loads(params_json).keys())
-    download_sequences(species, paths, update, update_assembly)
-    run_snake(
-        os.path.join(snek_path, "curate_snek"),
-        paths.wrk_dir, params_json, snakemake_args)
-    run_snake(
-        os.path.join(snek_path, "nasp_snek"),
-        paths.wrk_dir, params_json, snakemake_args
-    )
+    nasp_snek = os.path.join(snek_path, "nasp_snek")
+    if "--unlock" in snakemake_args:
+        unlock_snake(nasp_snek, paths.wrk_dir, params_json, snakemake_args)
+    else:
+        update = "--no-update" if args.no_update else "--update"
+        update_assembly = (
+            "--local-assembly" if args.no_assembly_update
+            else "--update-assembly")
+        species = list(json.loads(params_json).keys())
+        download_sequences(species, paths, update, update_assembly)
+        curate(species, paths, params_json, args.threads)
+        run_snake(
+            nasp_snek,
+            paths.wrk_dir, params_json, snakemake_args
+        )
 
 PATHS = namedtuple('paths', ['genomes', 'logs', 'wgfast', 'wrk_dir'])
 
