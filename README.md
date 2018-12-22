@@ -59,7 +59,7 @@ Options:
 ## WGFAST automatic setup
 `wgfastdb` will automate the download and curation of bacterial genomes using [NCBITK](https://github.com/andrewsanchez/NCBITK) and [GenBankQC](https://github.com/andrewsanchez/GenBankQC), respectively. It will then generate all of the WGFAST required files using the curated genomes.  
 
-`wgfastdb` can be run using a species or list of species from the command line or by passing a config file (Note: the species name must match exactly a species directory at ftp://ftp.ncbi.nlm.nih.gov/genomes/genbank/bacteria/). The config file must contain each species name and the ID of the reference genome that should be used. Other parameters can be customized for each individual species or the column can be left out if all default values should be used. If passing values at the command line, each of the parameters must be lists that are the same length as the list of species passed. If a single value is passed for a parameter, it will be applied to all species. 
+`wgfastdb` can be run using a species or list of species from the command line or by passing a config file (Note: the species name must match exactly a species directory at ftp://ftp.ncbi.nlm.nih.gov/genomes/genbank/bacteria/). The config file should contain comma separated values and must contain each species name and the ID of the reference genome that should be used. Other parameters can be customized for each individual species or the column can be left out if all default values should be used. If passing values at the command line, each of the parameters must be lists that are the same length as the list of species passed. If a single value is passed for a parameter, it will be applied to all species. 
 
 Example Config:
 `wgfastdb.cfg`
@@ -83,7 +83,7 @@ Bacillus_anthracis,GCA_000008445,200,3.0,3.0,3.0
 ```
 
 #### Step 1: Download sequences
-If running `wgfastdb` for the first time in a new directory (`PATH`), the sequences for the species listed will be downloaded, formated, and unzipped into `PATH/genomes/SPECIES_NAME/*.fasta`. If you are updating an existing database, make sure to call `wgfastdb` from the root `PATH`, not the `genomes` directory. By default, if the collection already exists, `wgfastdb` will check for updates and make any changes; to skip this step and use the collection asis, pass `--no_update` and `--no_assembly_update`. 
+If running `wgfastdb` for the first time in a new directory (`PATH`), the sequences for the species listed will be downloaded, formated, and unzipped into `PATH/genomes/SPECIES_NAME/*.fasta`. If you are updating an existing database, make sure to call `wgfastdb` from the root `PATH`, not the `genomes` directory. By default, if the collection already exists, `wgfastdb` will check for updates and make any changes; to skip this step and use the collection as is, pass `--no_update` and `--no_assembly_update`. 
 
 #### Step 2: Sequence curation
 Next a quality control step is performed on the collection of genomes. This step has 4 parameters that control which genomes pass the filters: `--unknowns`, `--contigs`, `--assembly_size`, and `--distance`. See usage below or [GenBankQC](https://github.com/andrewsanchez/GenBankQC) for more details.  The fasta files that passed the filters are located at `PATH/genomes/SPECIES_NAME/qc/200-3.0-3.0-3.0/passed/*.fasta`, where `200-3.0-3.0-3.0` are the parameter values set for `--unknowns`, `--contigs`, `--assembly_size`, and `--distance`. 
