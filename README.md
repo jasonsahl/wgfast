@@ -123,7 +123,7 @@ The `srun --time 8:00:00 --mem 2000` at the beginning of the line defines the re
     "frankenfastas" :
     {
         "job-name": "frankenfastas",
-        "time": "30:00",
+        "time": "5:00",
     },
     "nasp_matrix" :
     {
