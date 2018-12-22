@@ -5,7 +5,6 @@ from datetime import datetime
 PARAMS = config['params']
 SPECIES = list(PARAMS.keys())
 
-
 def curate_dir(wildcards):
     return expand(
         "genomes/{species}/qc/{u}-{c}-{a}-{d}/passed/{fasta}.fasta",
@@ -238,5 +237,3 @@ rule raxml_params:
         "> ../../{log} 2>&1; "
         "mv RAxML_binaryModelParameters.{params.timestamp} nasp.PARAMS; "
         "rm RAxML_*; rm out.fasta*"
-
-        
