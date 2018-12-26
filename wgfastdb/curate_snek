@@ -1,0 +1,51 @@
+import glob
+
+PARAMS = config['params']
+SPECIES = list(PARAMS.keys())
+
+def get_seqs(wildcards):
+    return glob.glob("genomes/{species}/*.fasta".format(
+        species=wildcards.species))
+
+def get_output(wildcards):
+    return expand("genomes/{species}/qc/{u}-{c}-{a}-{d}/qctask.done",
+        zip,
+        species=SPECIES,
+        u=[PARAMS[s]['unknowns'] for s in SPECIES],
+        c=[PARAMS[s]['contigs'] for s in SPECIES],
+        a=[PARAMS[s]['assembly_size'] for s in SPECIES],
+        d=[PARAMS[s]['distance'] for s in SPECIES])
+
+rule all:
+    input: get_output
+
+
+rule curate:
+    input: get_seqs
+    output: touch("genomes/{species}/qc/{u}-{c}-{a}-{d}/qctask.done")
+    threads: 8
+    message: """
+    Executing genbankqc with {threads} threads on {wildcards.species},
+    Logging to logs/{wildcards.species}_curate.log"""
+    shell:
+        "genbankqc species genomes/{wildcards.species} -n {wildcards.u} "
+        "-c {wildcards.c} -s {wildcards.a} -d {wildcards.d} "
+        "--processes {threads} > logs/{wildcards.species}_curate.log 2>&1"
+
+
+
+# rule all:
+#     input: get_output
+
+# rule curate:
+#     input:
+#     output: 
+#         "genomes/{species}/qc/{u}-{c}-{a}-{d}/passed/{fastas}"
+#     threads: 8
+#     message: """
+#     Executing genbankqc with {threads} threads on {wildcards.species},
+#     Logging to logs/{wildcards.species}_curate.log"""
+#     shell:
+#         "genbankqc species genomes/{wildcards.species} -n {wildcards.u} "
+#         "-c {wildcards.c} -s {wildcards.a} -d {wildcards.d} "
+#         "--processes {threads} > logs/{wildcards.species}_curate.log 2>&1"
