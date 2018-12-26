@@ -131,11 +131,6 @@ def parse():
         help="Set log file path"
     )
 
-    parser.add_argument(
-        "--threads", '-t', type=types['positive_int'], default=4,
-        help="Number of worker threads to spawn for curation."
-    )
-
     return parser
 
 
@@ -267,14 +262,9 @@ def run_snake(snakefile, work_path, params, snakemake_args):
                 outpath=work_path,
                 params=params,
                 ).split())
-    print(cmd)
     cmd += snakemake_args
-    try:
-        sp.run(cmd, check=True)
-    except (KeyboardInterrupt, sp.CalledProcessError) as e:
-        warn("Unlocking directory after failed snakemake")
-        sp.run(cmd + ["--unlock"], check=True )
-        error(e)
+    sp.run(cmd, check=True)
+    
 
 def download_sequences(species, paths, update, update_assembly):
     message = "Downloading sequences for species: {0}\nWriting to {1}".format(
@@ -319,6 +309,7 @@ def run(params_json, args, snakemake_args):
     paths = make_dirs(args.path)
     snek_path = os.path.dirname(__file__)
     nasp_snek = os.path.join(snek_path, "nasp_snek")
+    curate_snek = os.path.join(snek_path, "curate_snek")
     if "--unlock" in snakemake_args:
         unlock_snake(nasp_snek, paths.wrk_dir, params_json, snakemake_args)
     else:
@@ -328,7 +319,13 @@ def run(params_json, args, snakemake_args):
             else "--update-assembly")
         species = list(json.loads(params_json).keys())
         download_sequences(species, paths, update, update_assembly)
-        curate(species, paths, params_json, args.threads)
+        # curate(species, paths, params_json, args.threads)
+        LOG.info("Running Curation")
+        run_snake(
+            curate_snek,
+            paths.wrk_dir, params_json, snakemake_args
+        )
+        LOG.info("Generating matrix and tree")
         run_snake(
             nasp_snek,
             paths.wrk_dir, params_json, snakemake_args
