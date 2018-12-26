@@ -88,8 +88,32 @@ rule frankenfastas:
         "--reference ../../{input.ref} "
         "--external ../../{input.fa} > ../../{log} 2>&1"
 
+
+rule nasp_dto:
+    input: 
+        ref="wgfast/{species}/reference.fasta",
+        dups="wgfast/{species}/duplicates.txt",
+        franken=get_franken_fastas
+    output: temp("wgfast/{species}/matrix_dto.xml")
+    run:
+        from nasp.matrix_DTO import write_dto
+        print(input.franken)
+        input_franken = [os.path.abspath(f) for f in input.franken]
+        print(input_franken)
+        franks = [(
+            fp.rstrip(".frankenfasta"), "nucmer", fp)
+            for fp in input_franken]
+        print(franks)
+        params = {'reference-dups': os.path.abspath(input.dups),
+            'reference-fasta': os.path.abspath(input.ref)}
+        write_dto(params, franks, [], output[0])
+
+        
+
+
 rule nasp_matrix:
-    input:
+    input: 
+        dto="wgfast/{species}/matrix_dto.xml",
         ref="wgfast/{species}/reference.fasta",
         dups="wgfast/{species}/duplicates.txt",
         franken=get_franken_fastas
@@ -101,20 +125,45 @@ rule nasp_matrix:
         temp("wgfast/{species}/general_stats.tsv")
     params:
         wd="wgfast/{species}",
-        franken_rel=get_rel_franken_fastas
     log: "logs/{species}_nasp.log"
     message: """
-        Running nasp for {wildcards.species} using reference {input.ref}
-        duplicate file {input.dups} and frankenfastas: {input.franken}.
+        Running nasp for {wildcards.species} using dto {input.dto}
+        reference {input.ref} and duplicate file {input.dups}.
         Writing to {output[0]}
         Logging to {log}.
         Using {threads} thread(s)."""
     threads: 8
     shell:
         "cd {params.wd}; nasp matrix --num-threads {threads} "
-        "--reference-fasta ../../{input.ref} "
-        "--reference-dups ../../{input.dups} "
-        "{params.franken_rel} > ../../{log} 2>&1"
+        "--dto-file ../../{input.dto} > ../../{log} 2>&1"
+
+# rule nasp_matrix:
+    # input:
+    #     ref="wgfast/{species}/reference.fasta",
+    #     dups="wgfast/{species}/duplicates.txt",
+    #     franken=get_franken_fastas
+    # output:
+    #     "wgfast/{species}/bestsnp.tsv",
+    #     temp("wgfast/{species}/master.tsv"),
+    #     temp("wgfast/{species}/missingdata.tsv"),
+    #     temp("wgfast/{species}/sample_stats.tsv"),
+    #     temp("wgfast/{species}/general_stats.tsv")
+    # params:
+    #     wd="wgfast/{species}",
+    #     franken_rel=get_rel_franken_fastas
+    # log: "logs/{species}_nasp.log"
+    # message: """
+    #     Running nasp for {wildcards.species} using reference {input.ref}
+    #     duplicate file {input.dups} and frankenfastas: {input.franken}.
+    #     Writing to {output[0]}
+    #     Logging to {log}.
+    #     Using {threads} thread(s)."""
+    # threads: 8
+    # shell:
+    #     "cd {params.wd}; nasp matrix --num-threads {threads} "
+    #     "--reference-fasta ../../{input.ref} "
+    #     "--reference-dups ../../{input.dups} "
+    #     "{params.franken_rel} > ../../{log} 2>&1"
 
 rule validate_reference:
     params:
