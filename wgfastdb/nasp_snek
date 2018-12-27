@@ -72,6 +72,7 @@ rule frankenfastas:
         temp("wgfast/{species}/{fasta}.frankenfasta"),
         temp("wgfast/{species}/{fasta}.filtered.delta"),
         temp("wgfast/{species}/{fasta}.delta")
+    log: "logs/{species}_{fasta}_frankenfasta.log"
     params:
         wd="wgfast/{species}"
     threads: 1
@@ -82,7 +83,6 @@ rule frankenfastas:
         Logging to {log}.
         Using {threads} thread(s).
         """
-    log: "logs/{species}_{fasta}_frankenfasta.log"
     shell:
         "cd {params.wd}; convert_external_genome "
         "--reference ../../{input.ref} "
@@ -95,6 +95,10 @@ rule nasp_dto:
         dups="wgfast/{species}/duplicates.txt",
         franken=get_franken_fastas
     output: temp("wgfast/{species}/matrix_dto.xml")
+    message: """
+        Generating {output} from reference {input.ref} duplicate file 
+        {input.dups} and frankenfastas wgfast/{wildcards.species}/*.frankenfasta
+        """
     run:
         from nasp.matrix_DTO import write_dto
         print(input.franken)
@@ -124,10 +128,10 @@ rule nasp_matrix:
         temp("wgfast/{species}/sample_stats.tsv"),
         temp("wgfast/{species}/general_stats.tsv")
     params:
-        wd="wgfast/{species}",
+        wd="wgfast/{species}"
     log: "logs/{species}_nasp.log"
     message: """
-        Running nasp for {wildcards.species} using dto {input.dto}
+        Running nasp for {wildcards.species} using dto {input.dto},
         reference {input.ref} and duplicate file {input.dups}.
         Writing to {output[0]}
         Logging to {log}.
@@ -255,15 +259,16 @@ rule raxml_tree:
         Logging to {log}.
         Using {threads} thread(s)."""
     params:
-        wd="wgfast/{species}"
+        wd="wgfast/{species}",
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     shell:
         "sed 's/://g' {input} | sed 's/,//g' > "
         "wgfast/{wildcards.species}/out.fasta; "
         "cd {params.wd}; "
         "raxmlHPC-SSE3 -f d -p 12345 -m ASC_GTRGAMMA "
         "-s ../../{output.out} "
-        "-n nasp --asc-corr=lewis --no-bfgs > ../../{log} 2>&1; "
-        "mv RAxML_bestTree.nasp nasp_raxml.tree"
+        "-n {params.timestamp} --asc-corr=lewis --no-bfgs > ../../{log} 2>&1; "
+        "mv RAxML_bestTree.{params.timestamp} nasp_raxml.tree"
 
 rule raxml_params:
     input: 
