@@ -49,6 +49,13 @@ def parse():
         """
     )
 
+    download.add_argument(
+        "--download_only", action="store_true", default=False,
+        help="""
+        Run only the download step.
+        """
+    )
+
     group = download.add_mutually_exclusive_group(required=True)
     group.add_argument(
         "--species", '-s', nargs='+', type=str,
@@ -73,6 +80,11 @@ def parse():
 
     curate = parser.add_argument_group(
         'Curate', description="Curate genomes"
+    )
+
+    curate.add_argument(
+        "--curate_only", action="store_true", default=False,
+        help="Run only the curate step"
     )
     
     curate.add_argument(
@@ -318,18 +330,20 @@ def run(params_json, args, snakemake_args):
             "--local-assembly" if args.no_assembly_update
             else "--update-assembly")
         species = list(json.loads(params_json).keys())
-        download_sequences(species, paths, update, update_assembly)
+        if not args.curate_only:
+            download_sequences(species, paths, update, update_assembly)
         # curate(species, paths, params_json, args.threads)
-        LOG.info("Running Curation")
-        run_snake(
-            curate_snek,
-            paths.wrk_dir, params_json, snakemake_args
-        )
-        LOG.info("Generating matrix and tree")
-        run_snake(
-            nasp_snek,
-            paths.wrk_dir, params_json, snakemake_args
-        )
+        if not args.download_only:
+            LOG.info("Running Curation")
+            run_snake(
+                curate_snek,
+                paths.wrk_dir, params_json, snakemake_args
+            )
+            LOG.info("Generating matrix and tree")
+            run_snake(
+                nasp_snek,
+                paths.wrk_dir, params_json, snakemake_args
+            )
 
 PATHS = namedtuple('paths', ['genomes', 'logs', 'wgfast', 'wrk_dir'])
 
