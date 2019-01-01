@@ -89,21 +89,21 @@ If running `wgfastdb` for the first time in a new directory (`PATH`), the sequen
 Next a quality control step is performed on the collection of genomes. This step has 4 parameters that control which genomes pass the filters: `--unknowns`, `--contigs`, `--assembly_size`, and `--distance`. See usage below or [GenBankQC](https://github.com/andrewsanchez/GenBankQC) for more details.  The fasta files that passed the filters are located at `PATH/genomes/SPECIES_NAME/qc/200-3.0-3.0-3.0/passed/*.fasta`, where `200-3.0-3.0-3.0` are the parameter values set for `--unknowns`, `--contigs`, `--assembly_size`, and `--distance`. 
 
 #### Step 3: Matrix and Tree Generation
-Using only the sequences in `PATH/genomes/SPECIES_NAME/qc/200-3.0-3.0-3.0/passed/*.fasta`, a NASP matrix is created using the genome that matches the `--reference` id (`'GCA_XXXXXXXXX*.fasta`) as the reference. This reference must exist in `PATH/genomes/SPECIES_NAME/*.fasta`. When complete, the matrix will be used to generate the RAxML .tree and .PARAMS file. All three files will be placed at `PATH/wgfast/SPECIES_NAME/` using the names listed above, with all intermediate files removed. 
+Using only the sequences in `PATH/genomes/SPECIES_NAME/qc/200-3.0-3.0-3.0/passed/*.fasta`, a NASP matrix is created using the genome that matches the `--reference` id (`GCA_XXXXXXXXX*.fasta`) as the reference. This reference must exist in `PATH/genomes/SPECIES_NAME/*.fasta`. When complete, the matrix will be used to generate the RAxML .tree and .PARAMS file. All three files will be placed at `PATH/wgfast/SPECIES_NAME/` using the names listed above, with all intermediate files removed. 
 
 #### Running
-When `wgfastdb` is called, the download and curation processes are called as subprocesses of the main process, and the `threads` parameter will be passed and used by each serial curate (step 2) subprocess call. The processes in step 3 are run as a snakemake file that will spawn new processes for each step. Snakemake parameters can be passed at the command line and a snakemake config file can define resources to be used by each rule of the snake file. The `--jobs` or `--cores` snakemake parameter is important to tell snakemake the maximum number of cores/jobs to use.  
+When `wgfastdb` is called, the download process is called as a subprocess of the main process. The processes in step 2 and 3 are run as a snakemake file that will spawn new processes for each step. Snakemake parameters can be passed at the command line and a snakemake config file can define resources to be used by each rule of the snake file. The `--jobs` or `--cores` snakemake parameter is important to tell snakemake the maximum number of cores/jobs to use.  
 
 Each step is broken up into a number of different Snakemake rules. Each rule can be submitted as a job on a cluster using commands for the appropriate scheduler. This is accomplished by creating a cluster configuration json file that outlines the resources that should be applied to each rule. There can also be a default setting which will be the fall-back position for rules that are not provided a specific configuration. Any of the variables defined in the json can be accessed when defining the cluster script. The values in the cluster configuration file can be accessed using the cluster keyword when passed to the `--cluster` argument.
 
 An example using slurm:
-`srun --time 8:00:00 --mem 20000 wgfastdb ./ --config wgfastdb.cfg --threads 8 --cluster-config cluster.cfg --cluster "sbatch --mem {cluster.mem} --time {cluster.time} --job-name (cluster.job-name} --output ./Logs/{cluster.job-name}_%A.log --cpus {cluster.cpus}" --jobs 24` 
+`srun --time 8:00:00 wgfastdb ./ --config wgfastdb.cfg --cluster-config cluster.cfg --cluster "sbatch --mem {cluster.mem} --time {cluster.time} --job-name (cluster.job-name} --output ./Logs/{cluster.job-name}_%A.log" --jobs 24` 
 
-For each job, cluster.mem, cluster.time, and cluster.job-name values will be pulled from the cluster.cfg file (see example below) under the name of the rule that is being executed. Certain jobs are allocated a maximum number of threads but it will not use more than specificed by `--jobs/--cores`. If not specified, Snakemake assumes that only one core is available and will therefore scale back the number of threads to one.
+For each job, cluster.mem, cluster.time, and cluster.job-name values will be pulled from the cluster.cfg file (see example below) under the name of the rule that is being executed. Certain jobs are allocated a maximum number of threads but it will not use more than specified by `--jobs/--cores`. If not specified, Snakemake assumes that only one core is available and will therefore scale back the number of threads to one.
 
 In this case, requesting 24 jobs means that snakemake will run up to 24 jobs at a time for rules that have a max number of one thread. For rules like nasp_matrix that can run a max of 8 threads, only 3 jobs can be run at the same time.
 
-The `srun --time 8:00:00 --mem 2000` at the beginning of the line defines the resources for running the main `wgfastdb` process which includes the download and curate steps.
+The `srun --time 8:00:00` at the beginning of the line defines the resources for running the main `wgfastdb` process. 
 
 `cluster.cfg`
 ```
@@ -115,15 +115,26 @@ The `srun --time 8:00:00 --mem 2000` at the beginning of the line defines the re
         "time" : "20:00",
         "mem" : 2000
     },
+    "curate" : 
+    {
+        "job-name": "curate",
+        "time": "5:00:00",
+        "mem": 30000
+    },
     "remove_duplicates" :
     {
-        "job-name": ""remove_duplicates",
-        "time" : "10:00",
+        "job-name": "remove_duplicates",
+        "time" : "10:00"
     },
     "frankenfastas" :
     {
         "job-name": "frankenfastas",
-        "time": "5:00",
+        "time": "5:00"
+    },
+    "nasp_dto":
+    {
+        "job-name": "nasp_dto",
+        "time": "5:00"
     },
     "nasp_matrix" :
     {
@@ -133,17 +144,17 @@ The `srun --time 8:00:00 --mem 2000` at the beginning of the line defines the re
     },
     "validate_reference" :
     {
-        "job-name": "validate_reference",
+        "job-name": "validate_reference"
     },
     "matrix_to_fasta" :
     {
         "job-name" : "matrix_to_fasta",
-        "time" : "30:00",
+        "time" : "30:00"
     },
     "raxml_tree" :
     {
         "job-name": "raxml_tree",
-        "time": "00:30:00",
+        "time": "30:00"
     },
     "raxml_params" :
     {
@@ -162,14 +173,13 @@ The `srun --time 8:00:00 --mem 2000` at the beginning of the line defines the re
 
 ```
 $ wgfastdb
-usage: wgfastdb [-h] [--no_update] [--no_assembly_update]
+usage: wgfastdb [-h] [--no_update] [--no_assembly_update] [--download_only]
                 (--species SPECIES [SPECIES ...] | --config CONFIG)
-                [--unknowns UNKNOWNS [UNKNOWNS ...]]
+                [--curate_only] [--unknowns UNKNOWNS [UNKNOWNS ...]]
                 [--contigs CONTIGS [CONTIGS ...]]
                 [--assembly_size ASSEMBLY_SIZE [ASSEMBLY_SIZE ...]]
                 [--distance DISTANCE [DISTANCE ...]]
                 [--reference REFERENCE [REFERENCE ...]] [--log LOG]
-                [--threads THREADS]
                 PATH
 
 Database setup for WGFAST
@@ -177,9 +187,6 @@ Database setup for WGFAST
 optional arguments:
   -h, --help            show this help message and exit
   --log LOG, -l LOG     Set log file path (default: ./wgfastdb.log)
-  --threads THREADS, -t THREADS
-                        Number of worker threads to spawn for curation.
-                        (default: 4)
 
 Download:
   Download and update sequences from NCBI
@@ -191,6 +198,7 @@ Download:
   --no_assembly_update  Do not download the latest assembly summary and
                         taxonomy dump and use your local copies. (default:
                         False)
+  --download_only       Run only the download step. (default: False)
   --species SPECIES [SPECIES ...], -s SPECIES [SPECIES ...]
                         List of species to build database. The species name
                         must match exactly a species directory at
@@ -209,6 +217,7 @@ Download:
 Curate:
   Curate genomes
 
+  --curate_only         Run only the curate step (default: False)
   --unknowns UNKNOWNS [UNKNOWNS ...], -n UNKNOWNS [UNKNOWNS ...]
                         Maximum number of unknown bases (not A, T, C, G) for
                         curation. If more than one value is passed, the list
@@ -244,3 +253,7 @@ Tree:
                         REQUIRED from the command line or in the config file.
                         (default: None)
 ```
+
+
+
+
