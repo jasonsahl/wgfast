@@ -22,6 +22,8 @@ requirements:
   run:
     - python {{ python }}
     - biopython
+    - pandas
+    - click
     - dendropy # -c bioconda
     - samtools # -c bioconda
     - bwa==0.7.8
