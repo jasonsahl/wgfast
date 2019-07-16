@@ -65,8 +65,10 @@ been calculated. Make sure that you use the conda version of RAxML for full comp
 -y, Only run sub-sample routine and exit? Defaults to F (T or F)  
 -j, MODEL, which model to run with raxml (GTRGAMMA, ASC_GTRGAMMA)  
 
-####Test Data:  
+#### Test Data:  
 
 1. To give *WG-FAST* a try to make sure everything is installed correctly, check out the test_data
 directory.  
-2.
+2. The following command was run from a “run” directory created within the WG-FAST
+installation:  
+```python ../wgfast.py -r ../test_data -d ../test_data/reads/ -p 4 -c 1 -s F```  
