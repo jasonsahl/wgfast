@@ -10,7 +10,7 @@ sequencing of clinical specimen metagenomic data
 #### Contact:  
 Please address queries, conserns, improvements to jasonsahl at gmail dot com  
 
-#### What does WG-FAST do?  
+#### What does *WG-FAST* do?  
 
 WG-FAST was designed as a tool to phylogenetically genotype unknown samples, even those
 with extremely low read coverage, in the context of a well-studied dataset.
