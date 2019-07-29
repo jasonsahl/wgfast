@@ -20,7 +20,7 @@ or a single isolate sequencing dataset
 ```conda install -c anaconda biopython```  
 
 2. Download the wgfast github repository:  
-```git clone https://github.com/jasonsahl/wgfast.git````  
+```git clone https://github.com/jasonsahl/wgfast.git```  
 
 3. Open the script (wgfast.py) with a text editor and change the path to your *WG-FAST* installation directory.  
 For example:  
