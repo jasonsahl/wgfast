@@ -51,38 +51,39 @@ def matrix_to_fasta(matrix_in, last):
 def main(matrix,model,processors,algorithm):
     """determines whether or not raxml is in your path"""
     if algorithm == "raxml-ng":
-        ab = subprocess.call(['which', 'raxmlHPC-ng'])
+        ab = subprocess.call(['which', 'raxml-ng'])
         if ab == 0:
             pass
         else:
             print("RAxML must be in your path as raxml-ng")
             sys.exit()
-    if model == "ASC_GTRGAMMA":
-        ab = subprocess.call(['which', 'raxmlHPC-SSE3'])
-        if ab == 0:
-            pass
-        else:
-            print("RAxML must be in your path as raxmlHPC-SSE3 if using ASC_GTRGAMMA")
-            sys.exit()
-    elif model == "GTRGAMMA":
+    elif algorithm == "raxml-HPC":
         ab = subprocess.call(['which', 'raxmlHPC-PTHREADS-SSE3'])
         if ab == 0:
             pass
         else:
-            print("RAxML must be in your path as raxmlHPC-PTHREADS-SSE3 if using GTRGAMMA")
+            print("RAxML must be in your path as raxmlHPC-PTHREADS-SSE3")
             sys.exit()
     last=get_field_index(matrix)
     matrix_to_fasta(matrix, last)
+    #Prep the creation of the FASTA file, removing odd characters
     os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
     if model == "ASC_GTRGAMMA":
-        subprocess.check_call("raxmlHPC-SSE3 -f d -p 12345 -m %s -s out.fasta -n nasp --asc-corr=lewis --no-bfgs > /dev/null 2>&1" % model, shell=True)
-        subprocess.check_call("raxmlHPC-SSE3 -f e -m %s -s out.fasta -t RAxML_bestTree.nasp -n PARAMS --asc-corr=lewis --no-bfgs > /dev/null 2>&1" % model, shell=True)
+        subprocess.check_call("raxmlHPC-SSE3 -f d -p 12345 -m %s -s out.fasta -n nasp --asc-corr=lewis --no-bfgs > /dev/null 2>&1" % model, stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        subprocess.check_call("raxmlHPC-SSE3 -f e -m %s -s out.fasta -t RAxML_bestTree.nasp -n PARAMS --asc-corr=lewis --no-bfgs > /dev/null 2>&1" % model, stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
     else:
-        subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f d -p 12345 -m %s -s out.fasta -n nasp --no-bfgs > /dev/null 2>&1" % (processors,model), shell=True)
-        subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m %s -s out.fasta -t RAxML_bestTree.nasp -n PARAMS --no-bfgs > /dev/null 2>&1" % (processors,model), shell=True)
-    subprocess.check_call("mv RAxML_bestTree.nasp nasp_raxml.tree", shell=True)
-    subprocess.check_call("mv RAxML_binaryModelParameters.PARAMS nasp.PARAMS", shell=True)
-    subprocess.check_call("rm RAxML_* out.fasta all.fasta", shell=True)
+        if algorithm == "raxml-HPC":
+            subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f d -p 12345 -m %s -s out.fasta -n nasp --no-bfgs > /dev/null 2>&1" % (processors,model), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m %s -s out.fasta -t RAxML_bestTree.nasp -n PARAMS --no-bfgs > /dev/null 2>&1" % (processors,model), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        elif algorithm == "raxml-ng":
+            subprocess.check_call("raxml-ng --msa out.fasta --model GTR+G --threads %s --prefix nasp" % processors,stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+    if algorithm == "raxml-HPC":
+        subprocess.check_call("mv RAxML_bestTree.nasp nasp_raxml.tree", shell=True)
+        subprocess.check_call("mv RAxML_binaryModelParameters.PARAMS nasp.PARAMS", shell=True)
+        subprocess.check_call("rm RAxML_* out.fasta all.fasta", shell=True)
+    else:
+        subprocess.check_call("mv nasp.raxml.bestTree nasp_raxml.tree", stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        subprocess.check_call("rm nasp.raxml.startTree out.fasta all.fasta", stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
     print("Model used: %s" % model)
 
 if __name__ == "__main__":
@@ -92,11 +93,11 @@ if __name__ == "__main__":
                       help="path to NASP snp_matrix [REQUIRED]",
                       action="callback", callback=test_file, type="string")
     parser.add_option("-o", "--model", dest="model",
-                      help="model for RAxML, defaults to ASC_GTRGAMMA, can also be GTRGAMMA",
-                      action="callback", callback=test_models, type="string", default="ASC_GTRGAMMA")
+                      help="model for RAxML, can be ASC_GTRGAMMA or GTRGAMMA [DEFAULT]",
+                      action="callback", callback=test_models, type="string", default="GTRGAMMA")
     parser.add_option("-p", "--processors", dest="processors",
-                      help="number of processors to use with GTRGAMMA, defaults to 4",
-                      action="store", type="int", default="4")
+                      help="number of processors to use with GTRGAMMA, defaults to 2",
+                      action="store", type="int", default="2")
     parser.add_option("-a", "--algorithm", dest="algorithm",
                       help="algorithm to use, either raxml-ng or raxml-HPC",
                       action="store", type="string", default="raxml-ng")

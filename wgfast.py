@@ -5,7 +5,6 @@ WG-FAST
 written by Jason Sahl
 correspondence: jasonsahl@gmail.com
 """
-from __future__ import print_function
 from optparse import OptionParser
 import subprocess
 import os
@@ -21,20 +20,14 @@ if os.path.exists(WGFAST_PATH):
 else:
     print("your WG-FAST path is not correct.  Edit the path in wgfast.py and try again")
     sys.exit()
-#try:
-from wg_fast.util import *
-#except:
-#    print("wgfast path needs to be modified in the wgfast.py file")
-#    sys.exit()
-
-#Need to update with new GATK4
-GATK_PATH=WGFAST_PATH+"/bin/GenomeAnalysisTK.jar"
-#TODO: See if I can remove this
-PICARD_PATH=WGFAST_PATH+"/bin/CreateSequenceDictionary.jar"
-ADD_GROUPS=WGFAST_PATH+"/bin/AddOrReplaceReadGroups.jar"
+try:
+    from wg_fast.util import *
+except:
+    print("wgfast path needs to be modified in the wgfast.py file")
+    sys.exit()
 
 def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsample,
-    subnums,doc,tmp_dir,fudge,only_subs,model,gatk_method):
+    subnums,doc,tmp_dir,fudge,only_subs,model):
     ref_path=os.path.abspath("%s" % reference_dir)
     dir_path=os.path.abspath("%s" % read_directory)
     """Test to make sure all required files are present"""
@@ -65,14 +58,8 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         print("More than one file in your reference directory ending in '.fasta'...exiting")
         sys.exit()
     """Get the reference information. Outfile is named $name.tmp.txt"""
-    get_seq_length(reference, "ref")
+    get_seq_length(reference,"ref")
     subprocess.check_call("tr ' ' '\t' < ref.tmp.txt > ref.genome_size.txt", shell=True)
-    if len(reference_list) == 0:
-        print("You need to provide a reference FASTA file in your reference directory, ending in 'fasta'")
-        sys.exit()
-    elif len(reference_list) > 1:
-        print("Multiple files found in your reference directory ending in 'fasta'...exiting")
-        sys.exit()
     try:
         parameters = "".join(glob.glob(os.path.join(ref_path, "*.PARAMS")))
         parameters_list = glob.glob(os.path.join(ref_path, "*.PARAMS"))
@@ -84,8 +71,9 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     except:
         parameters = "NULL"
     #check for binary dependencies
-    log_isg.logPrint('testing the paths of all dependencies')
+    logPrint('testing the paths of all dependencies')
     ap=os.path.abspath("%s" % os.getcwd())
+    #This is now part of the conda install
     aa = subprocess.call(['which', 'raxmlHPC-SSE3'])
     if aa == 0:
         pass
@@ -101,19 +89,28 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         print("samtools must be in your path")
         sys.exit()
     print("*citation: 'Li H, Handsaker B, Wysoker A, Fennell T, Ruan J, Homer N, Marth G, Abecasis G, Durbin R, Genome Project Data Processing S. The Sequence Alignment/Map format and SAMtools. Bioinformatics. 2009;25(16):2078-9'")
-    ac = subprocess.call(['which', 'bwa'])
+    ac = subprocess.call(['which','minimap2'])
     if ac == 0:
         pass
     else:
-        print("bwa must be in your path")
+        print("minimap2 must be in your path")
         sys.exit()
     """This is the new test for bbduk.sh"""
-    ac = subprocess.call(['which', 'bbduk.sh'])
+    ac = subprocess.call(['which','bbduk.sh'])
     if ac == 0:
         pass
     else:
         print("bbduk need to be in your path as bbduk.sh")
         sys.exit()
+    #test for new dependencies
+    variant_tools = ['gatk','picard']
+    for tool in variant_tools:
+        ab = subprocess.call(['which', tool])
+        if ab == 0:
+            pass
+        else:
+            print("%s must be in your path" % tool)
+            sys.exit()
     print("*citation: 'Li H. Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM. arXivorg. 2013(arXiv:1303.3997 [q-bio.GN])'")
     print("Patristic distances calculated with DendroPy")
     print("*citation: 'Sukumaran J, Holder MT. DendroPy: a Python library for phylogenetic computing. Bioinformatics. 2010;26(12):1569-71. Epub 2010/04/28. doi: 10.1093/bioinformatics/btq228. PubMed PMID: 20421198'")
@@ -123,8 +120,8 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     print("*citation :Cock PJ, Antao T, Chang JT, Chapman BA, Cox CJ, Dalke A, Friedberg I, Hamelryck T, Kauff F, Wilczynski B, de Hoon MJ. Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics. 2009;25(11):1422-3")
     print("")
     #done checking for dependencies"""
-    log_isg.logPrint('WG-FAST pipeline starting')
-    log_isg.logPrint("WG-FAST was invoked with the following parameters:")
+    logPrint('WG-FAST pipeline starting')
+    logPrint("WG-FAST was invoked with the following parameters:")
     print("-m %s \\" % "".join(matrix))
     print("-t %s \\" % "".join(tree))
     print("-r %s \\" % "".join(reference))
@@ -140,8 +137,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     print("-e %s \\" % tmp_dir)
     print("-f %s \\" % fudge)
     print("-y %s \\" % only_subs)
-    print("-j %s \\" % model)
-    print("-q %s" % gatk_method)
+    print("-j %s" % model)
     print("-------------------------")
     try:
         os.makedirs('%s/scratch' % ap)
@@ -154,19 +150,11 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     if only_subs == "T":
         pass
     else:
-        subprocess.check_call("cp %s %s/scratch/reference.fasta" % (reference, ap), shell=True)
+        subprocess.check_call("cp %s %s/scratch/reference.fasta" % (reference, ap), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         #index reference file.  GATK appears to do this incorrectly"""
-        subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % ap, shell=True)
-        #TODO: replace with minimap2
-        subprocess.check_call("bwa index %s/scratch/reference.fasta > /dev/null 2>&1" % ap, shell=True)
-
-        """creates dict file with picard tools.  In testing, GATK does this incorrectly"""
-        try:
-            #TODO: Check to see if I can remove this step
-            os.system("java -jar %s R=%s/scratch/reference.fasta O=%s/scratch/reference.dict > /dev/null 2>&1" % (PICARD_PATH, ap, ap))
-        except:
-            print("dict wasn't created")
-            sys.exit()
+        subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % ap, stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        subprocess.check_call("picard CreateSequenceDictionary R=%s/scratch/reference.fasta" % ap, stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+    #First checkpoint, not sure this saves much time
     if os.path.isfile("temp.matrix"):
         pass
     else:
@@ -186,9 +174,9 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
             sys.exit()
         else:
             ref_coords = get_all_snps(matrix)
-            log_isg.logPrint("Loop starting")
-            run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap,processors,GATK_PATH,
-            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,ADD_GROUPS,WGFAST_PATH,gatk_method)
+            logPrint("Loop starting")
+            run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap,processors,
+            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,WGFAST_PATH)
     """will subsample based on the number of SNPs reported by the following function"""
     if "T" in doc:
         os.system("cat *breadth.txt > breadth_over_%sx_out.txt" % coverage)
@@ -201,7 +189,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     for name in outnames:
         for k,v in used_snps.items():
             if name == k:
-                log_isg.logPrint("number of callable positions in genome %s = %s" % (k,v))
+                logPrint("number of callable positions in genome %s = %s" % (k,v))
     if only_subs == "T":
         try:
             #Starts with a clean slate, to replace with new EPA algorithm
@@ -219,12 +207,12 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         suffix = run_raxml("out.fasta", tree,"out.classification_results.txt", "V", parameters, model, "out")
         transform_tree("%s.tree_including_unknowns_noedges.tree" % suffix)
         print("")
-        log_isg.logPrint("Insertion likelihood values:")
+        logPrint("Insertion likelihood values:")
         parse_likelihoods("out.classification_results.txt")
         print("")
         calculate_pairwise_tree_dists("%s.tree_including_unknowns_noedges.tree" % suffix,"all_patristic_distances.txt")
     if subsample=="T":
-        aa = subprocess.call(['which', 'raxmlHPC-PTHREADS-SSE3'])
+        aa = subprocess.call(['which','raxmlHPC-PTHREADS-SSE3'])
         if aa == 0:
             pass
         else:
@@ -239,12 +227,13 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         except:
             print("all_patrisitic_distances.txt must be in your analysis directory!")
             sys.exit()
-        final_sets, distances=find_two_new("tmp_patristic_distances.txt", outnames)
+        final_sets,distances=find_two_new("tmp_patristic_distances.txt", outnames)
         results = get_closest_dists_new(final_sets,outnames)
-        log_isg.logPrint("running subsample routine, forcing GTRGAMMA model")
+        logPrint("running subsample routine, forcing GTRGAMMA model")
         """mpshell on this function"""
         allsnps = get_all_snps(matrix)
         subsample_snps_2(final_sets,used_snps,subnums,allsnps,processors,"temp.matrix")
+        #These tmp matrices look ok2
         temp_matrices = glob.glob(os.path.join(ap, "*tmp.matrix"))
         final_matrices = []
         for matrix in temp_matrices:
@@ -257,22 +246,19 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
             else:
                 sample_sets[entries[0]]=[entries[2]]
         new_sample_dicts = {}
-        for k,v in sample_sets.iteritems():
+        for k,v in sample_sets.items():
             uniques = []
             [uniques.append(item) for item in v if item not in uniques]
             new_sample_dicts.update({k:uniques})
-        log_isg.logPrint('creating PARAMS file')
-        if os.path.isfile("*PARAMS"):
-            pass
-        else:
-            create_params_files_dev(new_sample_dicts,tree,"temp.matrix",final_sets,processors)
+        logPrint('creating PARAMS file')
+        create_params_files_dev(new_sample_dicts,tree,"temp.matrix",final_sets,processors)
         try:
             """Must make sure that remove previous RAxML files"""
             subprocess.check_call("rm RAxML*", shell=True, stderr=open(os.devnull, 'w'))
         except:
             pass
         """final_matrices does indeed have all of the temp matrices loaded"""
-        log_isg.logPrint('adding unknowns to tree')
+        logPrint('adding unknowns to tree')
         #TODO: enter progress bar instead of printing out lots of text
         process_temp_matrices_2(final_sets,final_matrices,tree,processors,"all_patristic_distances.txt", "V", parameters, model)
         print("-------------------------")
@@ -294,7 +280,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
                 pass
             os.chdir("%s" % ap)
             subprocess.check_call("rm -rf scratch", shell=True)
-    log_isg.logPrint("all done")
+    logPrint("all done")
 
 if __name__ == "__main__":
     usage="usage: %prog [options]"
@@ -339,10 +325,6 @@ if __name__ == "__main__":
     parser.add_option("-j", "--model", dest="model",
                       help="which model to run with raxml, GTRGAMMA, ASC_GTRGAMMA, GTRCAT, ASC_GTRCAT",
                       action="callback", callback=test_models, type="string", default="ASC_GTRGAMMA")
-    parser.add_option("-q", "--gatk_method", dest="gatk_method",
-                      help="How to call GATK? Defaults to EMIT_ALL_CONFIDENT_SITES, can be EMIT_ALL_SITES",
-                      action="callback", callback=test_gatk, type="string", default="EMIT_ALL_CONFIDENT_SITES")
-
     options, args = parser.parse_args()
 
     mandatories = ["reference_dir","read_directory"]
@@ -355,4 +337,4 @@ if __name__ == "__main__":
     main(options.reference_dir,options.read_directory,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
          options.subnums,options.doc,options.tmp_dir,options.fudge,
-         options.only_subs,options.model,options.gatk_method)
+         options.only_subs,options.model)
