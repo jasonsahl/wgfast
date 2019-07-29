@@ -102,13 +102,13 @@ algorithm in RAxML v8, placing the unknown into a user-provided phylogeny. The r
 tree is converted into Nexus, such that the unknowns can be easily visualized (Red) in
 FigTree (http://tree.bio.ed.ac.uk/software/figtree/).  
 8. For the optional sub-sampling routine, the following functions are performed:  
-a. For each query, the two closest genomes are identified, based on lowest pairwise
+**a.** For each query, the two closest genomes are identified, based on lowest pairwise
 patristic distances calculated by DendroPy  
-b. Two matrices are created for each query, one for each of the nearest neighbors. Each
+**b.** Two matrices are created for each query, one for each of the nearest neighbors. Each
 of these contains the name of the query and the name of the neighbor, ending in
 “tmp.matrix”. If you generate these files (and keep them), then run *WG-FAST* in “-y T”
 mode, these files will be skipped and will not need to be created again.  
-c. Each matrix is then converted into a FASTA file and a parameters file is created with
+**c.** Each matrix is then converted into a FASTA file and a parameters file is created with
 RAxML. The thought process here is that once the parameters files are created, they
 can be used for future comparisons. If you run *WG-FAST* with “-y T”, you can re-use
 these parameters files and won’t need to generate again. This method uses the
@@ -116,7 +116,7 @@ PTHREADS method to take advantage of multiple processors. Currently, only four
 separate parameters files can be generated concurrently; this value is hardcoded into
 the script. This is due to the large computational demand required by this method, but
 could be made into a tunable parameter, if needed.  
-d. The initial tree is pruned of the genome to be re-inserted. Each sub-sampled neighbor
+**d.** The initial tree is pruned of the genome to be re-inserted. Each sub-sampled neighbor
 is then inserted back into the pruned phylogeny, using the GTRGAMMA method, to
 stay consistent with the parameters file. The patristic distance is then calculated
 between the neighbor and the “Reference”. This is done because if a NASP-formatted
