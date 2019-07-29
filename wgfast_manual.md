@@ -171,6 +171,7 @@ pairwise comparisons in your analysis.
 ### Additional scripts included with *WG-FAST*:  
 
 1. wgfast_prep.py  
+
 -What does it do? Given a NASP matrix, this script will generate a maximum likelihood
 phylogeny with RAxML and will also generate a “parameters” file that can be used for future
 *WG-FAST* runs. The use of a parameters cuts down on the computational requirements when
@@ -229,8 +230,7 @@ iteration (1st column), the number of correct placements (2nd column) and the be
 one is identified. For example:  
 ```100  1```  
 ```200  10```  
-```optimal value is for Salmonella_enterica_subsp_enterica_serovar_Uganda_str_R8-
-3404nucmer is 200```  
+```optimal value is for Salmonella_enterica_subsp_enterica_serovar_Uganda_str_R8-3404nucmer is 200```  
 
 -Example usage:  
 
