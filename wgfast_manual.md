@@ -73,21 +73,21 @@ directory.
 installation:  
 ```python ../wgfast.py -r ../test_data -d ../test_data/reads/ -p 4 -c 1 -s F```  
 
-#### What is #WG-FAST# doing?  
+#### What is *WG-FAST* doing?  
 
-#WG-FAST# is a pipeline that wraps other tools together to place the samples into a phylogenetic
-context, based on a well-characterized dataset. The order of functions conducted by #WG-FAST#
+*WG-FAST* is a pipeline that wraps other tools together to place the samples into a phylogenetic
+context, based on a well-characterized dataset. The order of functions conducted by *WG-FAST*
 include:  
 1. Adapters are trimmed using BBduk. A list of adapters is included in the “bin” directory
-(“illumina_adapters_all.txt”) within the WG-FAST distribution. This file includes all of the
+(“illumina_adapters_all.txt”) within the *WG-FAST* distribution. This file includes all of the
 standard Illumina adapters that I could find, plus additional ones that we use in our
 laboratory. If you have different adapters than these, add the sequences into this file when
-you run #WG-FAST#. The minimum length of sequences to keep is hard coded as 50, but I
+you run *WG-FAST*. The minimum length of sequences to keep is hard coded as 50, but I
 could change this value to reflect different lengths if needed.  
 2. A dictionary is created from the Reference fasta with Picard Tools and the reference fasta is
 indexed with SAMtools.  
 3. Reads are paired into a single sample based on their names, although single end reads are
-also supported. #WG-FAST# assumes that names be something like: *S1_R1_001.fastq.gz” or
+also supported. *WG-FAST* assumes that names be something like: "S1_R1_001.fastq.gz” or
 “R1_001.fastq.gz”. If the name pairings aren’t recognized, they will be run as single ended.  
 4. Reads are mapped to the reference with minimap2, using default settings. SNPs are then
 called with the Haplotype caller method in GATK v4.  
@@ -106,11 +106,11 @@ a. For each query, the two closest genomes are identified, based on lowest pairw
 patristic distances calculated by DendroPy  
 b. Two matrices are created for each query, one for each of the nearest neighbors. Each
 of these contains the name of the query and the name of the neighbor, ending in
-“tmp.matrix”. If you generate these files (and keep them), then run #WG-FAST# in “-y T”
+“tmp.matrix”. If you generate these files (and keep them), then run *WG-FAST* in “-y T”
 mode, these files will be skipped and will not need to be created again.  
 c. Each matrix is then converted into a FASTA file and a parameters file is created with
 RAxML. The thought process here is that once the parameters files are created, they
-can be used for future comparisons. If you run #WG-FAST# with “-y T”, you can re-use
+can be used for future comparisons. If you run *WG-FAST* with “-y T”, you can re-use
 these parameters files and won’t need to generate again. This method uses the
 PTHREADS method to take advantage of multiple processors. Currently, only four
 separate parameters files can be generated concurrently; this value is hardcoded into
@@ -134,4 +134,4 @@ user.
 Try running the script with the subsample routine with;  
 ```python ../wgfast.py -r ../test_data -d ../test_data/reads/ -p 4 –c 1```
 
-* Output printed to screen:*  
+#### Output printed to screen:  
