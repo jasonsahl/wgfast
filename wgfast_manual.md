@@ -180,10 +180,10 @@ running additional *WG-FAST* runs using the same input files.
 
 -What does the output look like? Two files are produced:  
 
-1. “nasp_raxml.tree”. Your tree. Names have been fixed to work with WG-FAST. Make sure
+a. “nasp_raxml.tree”. Your tree. Names have been fixed to work with WG-FAST. Make sure
 that names do not include periods.  
-2. “nasp.PARAMS”. Parameters file. Use this with the “-X” flag described above.  
-3. Example usage:  
+b. “nasp.PARAMS”. Parameters file. Use this with the “-X” flag described above.  
+c. Example usage:  
 ```python wgfast_prep.py -m nasp.matrix```  
 
 -Note: if you run this script with a model separate from ASC_GTRGAMMA, you will also need to
@@ -191,3 +191,48 @@ use this model when running the main wgfast script, if you use the parameters fi
 large file, you can run the script using the GTRGAMMA model and multiple processors.  
 
 ```python wgfast_prep.py -m nasp_matrix.tsv -o GTRGAMMA -p 4```  
+
+2. subsample_snps_pearson.py  
+
+-What does it do? Given a NASP matrix, the script generates a new matrix over a given number
+of iterations at a given level of SNP sampling. The script then conducts a Mantel test using the
+Pearson correlation between the original similarity matrix and a matrix sampled at a given SNP
+density.  
+
+-What do you need for the script to run?
+a. NASP nasp_matrix
+b. 'mothur executable in your path'. Mothur can be freely obtained from:  
+http://www.mothur.org/wiki/Download_mothur  
+
+-What does the output look like? One file is generated “results.txt”, that is new-line delimited,
+with each line containing a Pearson correlation value (0 to 1).  
+
+-Example usage:  
+```python subsample_snps_pearson.py -m nasp.matrix -s 100```  
+
+3. subsample_reads_and_place.py  
+
+-What does it do? This script helps sub-sample your SNP matrix and identify how robust specific
+regions of the phylogeny are. This script will prune the genome from the phylogeny, randomly
+subsample the SNPs at a given level n separate times, then will re-insert into the tree. The
+distance between the “correct” placement will be compared to the re-sampled placement. This
+is a computationally intensive method and works best with a job management system (see
+below).  
+
+-What do you need for the script to run? Requirements include:  
+a. NASP matrix  
+b. Corresponding phylogeny  
+c. Name of genome to test  
+
+-What does the output look like? For each genome, you will get an output file, showing each
+iteration (1st column), the number of correct placements (2nd column) and the best SNP level, if
+one is identified. For example:  
+```100  1```  
+```200  10```  
+```optimal value is for Salmonella_enterica_subsp_enterica_serovar_Uganda_str_R8-
+3404nucmer is 200```  
+
+-Example usage:  
+
+```python subsample_reads_and_place.py -m matrix.txt -t nasp_raxml.tree -n name -s 100
+-o 6 -e 10000```  
