@@ -283,8 +283,8 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     logPrint("all done")
 
 if __name__ == "__main__":
-    usage="usage: %prog [options]"
-    parser = OptionParser(usage=usage)
+    #usage="usage: %prog [options]"
+    parser = OptionParser(usage="usage: %prog [options]",version="%prog 1.0.1")
     parser.add_option("-r", "--reference_directory", dest="reference_dir",
                       help="path to reference file directory [REQUIRED]",
                       action="callback", callback=test_dir, type="string")

@@ -19,8 +19,6 @@ except:
     print("dendropy is not installed, but needs to be")
     sys.exit()
 import glob
-#Need to embed this method
-#import igs_logging as logPrint
 from operator import itemgetter
 import threading
 import collections
@@ -248,12 +246,14 @@ def read_file_sets(dir_path):
         (file_path,file_name_before_ext,full_ext) = get_readFile_components(infile)
         m=re.match("(.*)(_S.*)(_L.*)(_R.*)(_.*)", file_name_before_ext)
         if m is None:
-            m=re.match("(.*)("+"_R1"+")(_.*)$",file_name_before_ext)
+            #m=re.match("(.*)("+"_R1"+")(_.*)$",file_name_before_ext)
+            m=re.match("(.*)("+"_R1"+")(.*)$",file_name_before_ext)
             if m is not None:
                 (baseName,read) = m.groups()[0], m.groups()[1]
                 forward_reads[baseName] = infile
             else:
-                m=re.match("(.*)("+"_R2"+")(_.*)$",file_name_before_ext)
+                #m=re.match("(.*)("+"_R2"+")(_.*)$",file_name_before_ext)
+                m=re.match("(.*)("+"_R2"+")(.*)$",file_name_before_ext)
                 if m is not None:
                     (baseName,read) = m.groups()[0], m.groups()[1]
                     reverse_reads[baseName] = infile
