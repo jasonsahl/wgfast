@@ -187,10 +187,6 @@ def test_models(option, opt_str, value, parser):
         setattr(parser.values, option.dest, value)
     elif "ASC_GTRGAMMA" in value:
         setattr(parser.values, option.dest, value)
-    elif "GTRCAT" in value:
-        setattr(parser.values, option.dest, value)
-    elif "ASC_GTRCAT" in value:
-        setattr(parser.values, option.dest, value)
     else:
         print("substitution model is not supported")
         sys.exit()
@@ -302,20 +298,17 @@ def _perform_workflow_run_loop_dev(data):
     f = data[1]
     dir_path = data[2]
     reference = data[3]
-    #gatk = data[4]
     ref_coords = data[4]
     coverage = data[5]
     proportion = data[6]
     matrix = data[7]
-    ap = data[8]
+    scratch_dir = data[8]
     doc = data[9]
     tmp_dir = data[10]
-    #picard = data[12]
     """This is now the PATH to bbduk.sh"""
     wgfast_path = data[11]
-    #gatk_method = data[12]
     processors = data[12]
-
+    ploidy = data[13]
     if os.path.isfile("%s.tmp.xyx.matrix" % idx):
         pass
     else:
@@ -330,10 +323,7 @@ def _perform_workflow_run_loop_dev(data):
                 except:
                     print("Read trimmer did not finish correctly")
                     sys.exit()
-            if os.path.isfile("%s_renamed.bam" % idx):
-                pass
-            else:
-                subprocess.check_call("minimap2 -a %s %s.F.paired.fastq.gz %s.R.paired.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -Su -o %s_renamed.bam -" % (reference,idx,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.F.paired.fastq.gz %s.R.paired.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -Su -o %s_renamed.bam -" % (scratch_dir,idx,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         else:
             """Single end read support"""
             length = int(get_sequence_length(f[0])/2)
@@ -342,23 +332,23 @@ def _perform_workflow_run_loop_dev(data):
             except:
                 print("Read trimmer did not finish correctly")
                 sys.exit()
-            if os.path.isfile("%s_renamed.bam" % idx):
-                pass
-            else:
-                subprocess.check_call("minimap2 -a %s %s.single.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -Su -o %s_renamed.bam -" % (reference,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        if os.path.isfile("%s_renamed_header.bam" % idx):
-            pass
-        else:
-            #TODO: See if this is still necessary
-            """inserts read group information, required by new versions of GATK"""
-            try:
-                subprocess.check_call("picard AddOrReplaceReadGroups I=%s_renamed.bam O=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT" % (idx,idx,idx,idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-                os.system("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx)
-            except:
-                print("problem running picard tools on file: %s_renamed.bam" % idx)
-                sys.exit()
-        subprocess.check_call("gatk HaplotypeCaller -R scratch/reference.fasta -I %s_renamed_header.bam -O %s.test.vcf -ERC BP_RESOLUTION -ploidy 2" % (idx,idx), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        subprocess.check_call("gatk GenotypeGVCFs -O %s.vcf.out -R scratch/reference.fasta -V %s.test.vcf --include-non-variant-sites" % (idx,idx), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.single.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -Su -o %s_renamed.bam -" % (scratch_dir,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        """inserts read group information, required by new versions of GATK"""
+        try:
+            subprocess.check_call("picard AddOrReplaceReadGroups I=%s_renamed.bam O=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT" % (idx,idx,idx,idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        except:
+            time.sleep(5)
+            subprocess.check_call("picard AddOrReplaceReadGroups I=%s_renamed.bam O=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT" % (idx,idx,idx,idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            #print("problem running picard tools on file: %s_renamed.bam" % idx)
+            #sys.exit()
+        try:
+            subprocess.check_call("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx,stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        except:
+            print("problem indexing file with samtools..exiting")
+            sys.exit()
+        #TODO: be able to change the ploidy, which will affect the number of calls
+        subprocess.check_call("gatk HaplotypeCaller -R %s/reference.fasta -I %s_renamed_header.bam -O %s.test.vcf -ERC BP_RESOLUTION -ploidy %s" % (scratch_dir,idx,idx,ploidy), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        subprocess.check_call("gatk GenotypeGVCFs -O %s.vcf.out -R %s/reference.fasta -V %s.test.vcf --include-non-variant-sites" % (idx,scratch_dir,idx), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         if "T" == doc:
             subprocess.check_call("samtools depth %s_renamed_header.bam > %s.coverage" % (idx,idx), shell=True)
             remove_column("%s.coverage" % idx, idx)
@@ -369,15 +359,18 @@ def _perform_workflow_run_loop_dev(data):
             report_stats("%s.cov.results.txt" % idx, idx, "%s_sum_cov.txt" % idx)
         else:
             pass
-        process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
-        make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
+        good_calls = process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
+        if good_calls > 0:
+            make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
+        else:
+            print("sample %s had no calls and will not be inserted into the tree")
 
 def run_loop_dev(fileSets,dir_path,reference,processors,ref_coords,coverage,proportion,
-    matrix,ap,doc,tmp_dir,wgfast_path):
+    matrix,scratch_dir,doc,tmp_dir,wgfast_path,ploidy):
     files_and_temp_names = []
     for idx, f in fileSets.items():
         files_and_temp_names.append([idx,f,dir_path,reference,ref_coords,coverage,proportion,
-                                        matrix,ap,doc,tmp_dir,wgfast_path,processors])
+                                        matrix,scratch_dir,doc,tmp_dir,wgfast_path,processors,ploidy])
     mp_shell(_perform_workflow_run_loop_dev,files_and_temp_names,processors)
 
 def process_vcf(vcf, ref_coords, coverage, proportion, name):
@@ -386,9 +379,9 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     #TODO: Check for compatability with GATK4
     vcf_out = open("%s.filtered.vcf" % name, "w")
     outdata = []
-    good_snps = [ ]
-    mixed_snps = [ ]
-    mixed_refs = [ ]
+    good_snps = []
+    mixed_snps = []
+    mixed_refs = []
     ref_set = set(ref_coords)
     with open(vcf) as vcf_in:
         for line in vcf_in:
@@ -457,7 +450,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     print("number of discarded Reference positions in genome %s = " % name, len(mixed_refs))
     print("-------------------------")
     vcf_out.close()
-    return outdata
+    return len(good_snps)
 
 def sort_information(x):
     """simple sort - tested"""
@@ -477,7 +470,6 @@ def matrix_to_fasta(matrix_in, outfile):
             newline = line.strip()
             fields = newline.split()
             reduced.append(fields[1:])
-    #TODO: check for compatibility with Python3
     test=map(list, zip(*reduced))
     for x in test:
         out_fasta.write(">"+str(x[0])+"\n")
@@ -948,17 +940,13 @@ def calculate_pairwise_tree_dists(intree, output):
     """uses dendropy function to calculate all pairwise distances between tree - tested"""
     tree = dendropy.Tree.get_from_path(intree, "newick", preserve_underscores=True)
     outfile = open("%s" % output, "w")
-    #distances = treecalc.PatristicDistanceMatrix(tree)
     distances = tree.phylogenetic_distance_matrix()
     distances_sets = [ ]
-    #for i, t1 in enumerate(tree.taxon_set):
     for i,t1 in enumerate(tree.taxon_namespace):
         for t2 in tree.taxon_namespace[i+1:]:
-        #for t2 in tree.taxon_set[i+1:]:
             distances_sets.append(distances(t1, t2))
     try:
         for i, t1 in enumerate(tree.taxon_namespace):
-            #for t2 in tree.taxon_set[i+1:]:
             for t2 in tree.taxon_namespace[i+1:]:
                 outfile.write("Distance between '%s' and '%s': %s\n" % (t1.label, t2.label, distances(t1, t2)))
     except:
@@ -1026,9 +1014,7 @@ def _perform_workflow_subsample_snps_dev(data):
                     pass
                 else:
                     outfile = open("%s.%s.%s.tmp.matrix" % (k,x,final_set[1]), "w")
-                    #in_matrix=open(matrix,"U")
                     with open(matrix) as my_matrix:
-                        #firstLine = in_matrix.readline()
                         firstLine = my_matrix.readline()
                         outfile.write(firstLine)
                         first_fields = firstLine.split()
@@ -1036,13 +1022,12 @@ def _perform_workflow_subsample_snps_dev(data):
                         for y in first_fields:
                             fixed_fields.append(re.sub('[:,]', '', y))
                         gindex=fixed_fields.index(final_set[1])
-                        for line in in_matrix:
+                        for line in my_matrix:
                             matrix_fields=line.split()
                             if matrix_fields[0] in solids:
                                 outfile.write(line)
                             else:
                                 outfile.write("\t".join(matrix_fields[:gindex])+"\t"+"-"+"\t"+"\t".join(matrix_fields[gindex+1:])+"\n")
-                    #in_matrix.close()
                     outfile.close()
         else:
             pass
@@ -1052,7 +1037,6 @@ def subsample_snps_2(final_sets,used_snps,subnums,allsnps,processors,matrix):
     for f in final_sets:
         files_and_temp_names.append([f,used_snps,subnums,allsnps,matrix])
     mp_shell(_perform_workflow_subsample_snps_dev, files_and_temp_names, processors)
-
 
 def subsample_snps_dev(matrix, final_set, used_snps, subnums, allsnps):
     """needs testing"""
@@ -1122,15 +1106,17 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
             tmptree.write(final_tree)
             tmptree.close()
             tmptree2 = open("%s.tree" % new_name, "w")
-            for line in open("%s.tmp.tree" % new_name, "U"):
-                if line.startswith("[&U]"):
-                    fields = line.split()
-                    fixed_fields = [ ]
-                    for x in fields:
-                        fixed_fields.append(x.replace("'",""))
-                    tmptree2.write(fixed_fields[1])
-                else:
-                    pass
+            #for line in open("%s.tmp.tree" % new_name, "U"):
+            with open("%s.tmp.tree" % new_name) as my_file:
+                for line in my_file:
+                    if line.startswith("[&U]"):
+                        fields = line.split()
+                        fixed_fields = [ ]
+                        for x in fields:
+                            fixed_fields.append(x.replace("'",""))
+                        tmptree2.write(fixed_fields[1])
+                    else:
+                        pass
             tmptree2.close()
             """result is a pruned tree that is ready for RAxML"""
             matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
@@ -1176,15 +1162,17 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
         tmptree.write(final_tree)
         tmptree.close()
         tmptree2 = open("%s.tree" % full_context, "w")
-        for line in open("%s.tmp.tree" % full_context, "U"):
-            if line.startswith("[&U]"):
-                fields = line.split()
-                fixed_fields = [ ]
-                for x in fields:
-                    fixed_fields.append(x.replace("'",""))
-                tmptree2.write(fixed_fields[1])
-            else:
-                pass
+        #for line in open("%s.tmp.tree" % full_context, "U"):
+        with open("%s.tmp.tree" % full_context) as my_file:
+            for ine in my_file:
+                if line.startswith("[&U]"):
+                    fields = line.split()
+                    fixed_fields = [ ]
+                    for x in fields:
+                        fixed_fields.append(x.replace("'",""))
+                    tmptree2.write(fixed_fields[1])
+                else:
+                    pass
         tmptree2.close()
         matrix_to_fasta(sample, "%s.fasta" % full_context)
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
@@ -1220,12 +1208,12 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
         except:
             pass
 
-
 def check_input_files(matrix,reference):
     ref_names = []
-    for record in SeqIO.parse(open(reference, "U"), "fasta"):
-        ref_names.append(record.id)
-    with open(matrix, "U") as f:
+    with open(reference) as my_ref:
+        for record in SeqIO.parse(my_ref,"fasta"):
+            ref_names.append(record.id)
+    with open(matrix) as f:
         for line in f.readlines()[:2]:
             if line.startswith("LocusID"):
                 pass
@@ -1238,13 +1226,12 @@ def check_input_files(matrix,reference):
                     print("The IDs in your Reference don't match the names in your SNP matrix! Please fix and re-start...exiting...")
                     sys.exit()
 
-
 def create_merged_vcf():
     out_file = open("merged.vcf", "w")
     start_dir = os.getcwd()
     lists = []
     for infile in glob.glob(os.path.join(start_dir, "*.tmp.xyx.matrix")):
-        data = open(infile, "U").read().splitlines()
+        data = open(infile).read().splitlines()
         lists.append(data)
     test=map(list, zip(*lists))
     for x in test:
@@ -1259,7 +1246,6 @@ def _perform_workflow_create_params(data):
     full_matrix = data[3]
     dist_sets = data[4]
     processors = data[5]
-
     if int(processors)<=2:
         my_processors = 2
     else:
@@ -1288,14 +1274,6 @@ def _perform_workflow_create_params(data):
                 for line in my_file:
                     line = line.replace("'","")
                     tmptree2.write(line)
-                #    if line.startswith("[&U]"):
-                #        fields = line.split()
-                #        fixed_fields = [ ]
-                #        for x in fields:
-                #            fixed_fields.append(x.replace("'",""))
-                #        tmptree2.write(fixed_fields[1])
-                #    else:
-                #        pass
             tmptree2.close()
             """result is a pruned tree that is ready for RAxML"""
             matrix_to_fasta(full_matrix, "%s.fasta" % new_name)
@@ -1363,16 +1341,8 @@ def _perform_workflow_temp_matrices(data):
         tmptree2 = open("%s.tree" % full_context, "w")
         with open("%s.tmp.tree" % full_context) as my_file:
             for line in my_file:
-                #if line.startswith("[&U]"):
-                #    fields = line.split()
-                #    fixed_fields = [ ]
-                #    for x in fields:
-                #        fixed_fields.append(x.replace("'",""))
                 line = line.replace("'","")
                 tmptree2.write(line)
-                #tmptree2.write(fixed_fields[1])
-                #else:
-                #    pass
         tmptree2.close()
         matrix_to_fasta(sample, "%s.fasta" % full_context)
         os.system("sed 's/://g' %s.fasta | sed 's/,//g' > %s_in.fasta" % (full_context, full_context))
@@ -1408,3 +1378,23 @@ def _perform_workflow_temp_matrices(data):
         except:
             pass
     outfile.close()
+
+def qc_files(fasta,tree):
+    #first grab the IDs from the FASTA file:
+    fasta_ids = []
+    with open(fasta) as my_fasta:
+        for record in SeqIO.parse(fasta,"fasta"):
+            fasta_ids.append(record.id)
+    #Now parse the names from the tree:
+    tree_ids = []
+    mytree = Phylo.read(tree,'newick')
+    for clade in mytree.find_clades():
+        if clade.name:
+            tree_ids.append(clade.name)
+    tree_set = set(tree_ids)
+    fasta_set = set(fasta_ids)
+    if len(fasta_set) == len(tree_set):
+        print("new samples didn't get added correctly...exiting")
+        sys.exit()
+    else:
+        pass

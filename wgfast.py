@@ -11,6 +11,7 @@ import os
 import sys
 import errno
 import glob
+import tempfile
 
 """modify line below to reflect your installation directory"""
 WGFAST_PATH="/Users/jasonsahl/tools/wgfast"
@@ -27,7 +28,7 @@ except:
     sys.exit()
 
 def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsample,
-    subnums,doc,tmp_dir,fudge,only_subs,model):
+    subnums,doc,tmp_dir,fudge,only_subs,model,ploidy):
     ref_path=os.path.abspath("%s" % reference_dir)
     dir_path=os.path.abspath("%s" % read_directory)
     """Test to make sure all required files are present"""
@@ -137,23 +138,20 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     print("-e %s \\" % tmp_dir)
     print("-f %s \\" % fudge)
     print("-y %s \\" % only_subs)
-    print("-j %s" % model)
+    print("-j %s \\" % model)
+    print("-l %s" % ploidy)
     print("-------------------------")
-    try:
-        os.makedirs('%s/scratch' % ap)
-    except:
-        os.system("rm -rf %s/scratch" % ap)
-        os.makedirs('%s/scratch' % ap)
-    check_input_files(matrix, reference)
+    #makes a temporary directory
+    scratch_dir = tempfile.mkdtemp()
+    check_input_files(matrix,reference)
     ########Real work starts here############
-    #copy reference into the scratch directory, where all of the work will take place
     if only_subs == "T":
         pass
     else:
-        subprocess.check_call("cp %s %s/scratch/reference.fasta" % (reference, ap), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        subprocess.check_call("cp %s %s/reference.fasta" % (reference,scratch_dir), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         #index reference file.  GATK appears to do this incorrectly"""
-        subprocess.check_call("samtools faidx %s/scratch/reference.fasta" % ap, stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        subprocess.check_call("picard CreateSequenceDictionary R=%s/scratch/reference.fasta" % ap, stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        subprocess.check_call("samtools faidx %s/reference.fasta" % scratch_dir, stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        subprocess.check_call("picard CreateSequenceDictionary R=%s/reference.fasta" % scratch_dir, stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
     #First checkpoint, not sure this saves much time
     if os.path.isfile("temp.matrix"):
         pass
@@ -175,8 +173,8 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         else:
             ref_coords = get_all_snps(matrix)
             logPrint("Loop starting")
-            run_loop_dev(fileSets,dir_path,"%s/scratch/reference.fasta" % ap,processors,
-            ref_coords,coverage,proportion,matrix,ap,doc,tmp_dir,WGFAST_PATH)
+            run_loop_dev(fileSets,dir_path,"%s/reference.fasta" % scratch_dir,processors,
+            ref_coords,coverage,proportion,matrix,scratch_dir,doc,tmp_dir,WGFAST_PATH,ploidy)
     """will subsample based on the number of SNPs reported by the following function"""
     if "T" in doc:
         os.system("cat *breadth.txt > breadth_over_%sx_out.txt" % coverage)
@@ -204,7 +202,9 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         os.system("mv combined.matrix %s/nasp_matrix.with_unknowns.txt" % ap)
         """this fixes the SNP output to conform with RAxML"""
         os.system("sed 's/://g' all.fasta | sed 's/,//g' > out.fasta")
-        suffix = run_raxml("out.fasta", tree,"out.classification_results.txt", "V", parameters, model, "out")
+        #QC step here
+        qc_files("out.fasta",tree)
+        suffix = run_raxml("out.fasta",tree,"out.classification_results.txt","V",parameters,model,"out")
         transform_tree("%s.tree_including_unknowns_noedges.tree" % suffix)
         print("")
         logPrint("Insertion likelihood values:")
@@ -279,12 +279,11 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
             except:
                 pass
             os.chdir("%s" % ap)
-            subprocess.check_call("rm -rf scratch", shell=True)
+            subprocess.check_call("rm -rf %s" % scratch_dir, shell=True)
     logPrint("all done")
 
 if __name__ == "__main__":
-    #usage="usage: %prog [options]"
-    parser = OptionParser(usage="usage: %prog [options]",version="%prog 1.0.1")
+    parser = OptionParser(usage="usage: %prog [options]",version="%prog 1.0.2")
     parser.add_option("-r", "--reference_directory", dest="reference_dir",
                       help="path to reference file directory [REQUIRED]",
                       action="callback", callback=test_dir, type="string")
@@ -295,10 +294,10 @@ if __name__ == "__main__":
                       help="# of processors to use - defaults to 2",
                       default="2", type="int")
     parser.add_option("-c", "--coverage", dest="coverage",
-		              help="minimum SNP coverage required to be called a SNP - defaults to 3",
+		              help="minimum SNP coverage required to be called a SNP; defaults to 3",
                       default="3", type="int")
     parser.add_option("-o", "--proportion", dest="proportion",
-	              help="proportion of alleles to be called a SNP, defaults to 0.9",
+	                  help="proportion of alleles to be called a SNP, defaults to 0.9",
                       default="0.9", type="float")
     parser.add_option("-k", "--keep", dest="keep",
                       help="keep temp files?  Defaults to F",
@@ -312,7 +311,6 @@ if __name__ == "__main__":
     parser.add_option("-g", "--doc", dest="doc",
                       help="run depth of coverage on all files?  Defaults to T",
                       action="callback", callback=test_filter, type="string", default="T")
-    #TODO: think about removing this argument
     parser.add_option("-e", "--temp", dest="tmp_dir",
                       help="temporary directory for GATK analysis, defaults to /tmp",
                       action="store", type="string", default="/tmp")
@@ -323,8 +321,11 @@ if __name__ == "__main__":
                       help="Only run sub-sample routine and exit? Defaults to F",
                       action="callback", callback=test_filter, type="string", default="F")
     parser.add_option("-j", "--model", dest="model",
-                      help="which model to run with raxml, GTRGAMMA, ASC_GTRGAMMA, GTRCAT, ASC_GTRCAT",
+                      help="which model to run with raxml:GTRGAMMA,ASC_GTRGAMMA",
                       action="callback", callback=test_models, type="string", default="ASC_GTRGAMMA")
+    parser.add_option("-l", "--ploidy", dest="ploidy",
+                      help="ploidy to use with GATK, choose from 1 or 2 [DEFAULT]",
+                      action="store", type="int", default="2")
     options, args = parser.parse_args()
 
     mandatories = ["reference_dir","read_directory"]
@@ -337,4 +338,4 @@ if __name__ == "__main__":
     main(options.reference_dir,options.read_directory,
          options.processors,options.coverage,options.proportion,options.keep,options.subsample,
          options.subnums,options.doc,options.tmp_dir,options.fudge,
-         options.only_subs,options.model)
+         options.only_subs,options.model,options.ploidy)
