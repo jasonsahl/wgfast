@@ -652,12 +652,12 @@ def tab_to_matrix(tab):
             for nucs in fields[1]:
                 tmp_list.append(nucs.upper())
             reduced.append(tmp_list)
-    test=map(list,zip(*reduced))
+    test=list(map(list,zip(*reduced)))
     to_return = []
     for x in test:
         out_matrix.write("\t".join(x))
         out_matrix.write("\n")
-        to_return.append(x)
+        to_return.append(list(x))
     out_matrix.close()
     return to_return
 

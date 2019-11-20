@@ -38,49 +38,6 @@ class Test2(unittest.TestCase):
     def test_get_readFile_components_empty(self):
         self.assertEqual(get_readFile_components(""), ('', '', ''))
 
-class Test4(unittest.TestCase):
-    def test_process_vcf_reference_case(self):
-        tdir = tempfile.mkdtemp(prefix="filetest_",)
-        fpath = os.path.join(tdir,"testfile.filtered.vcf")
-        fp = open(fpath, "w")
-        fp.write("##fileformat=VCFv4.1\n")
-        fp.write("#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  vac6wt\n")
-        fp.write("ADK1    454     .       A       .       154     .       AN=1;DP=5;MQ=60.00;MQ0=0        GT:DP:MLPSAC:MLPSAF     0:5\n")
-        fp.close()
-        self.assertEqual(process_vcf(fpath, ["ADK1::454"], 4, 0.9, "tmp"), ["ADK1::454::A"])
-        shutil.rmtree(tdir)
-    def test_process_vcf_SNP_case(self):
-        tdir = tempfile.mkdtemp(prefix="filetest_",)
-        fpath = os.path.join(tdir,"testfile.filtered.vcf")
-        fp = open(fpath, "w")
-        fp.write("##fileformat=VCFv4.1\n")
-        fp.write("#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  vac6wt\n")
-        fp.write("ADK1    460     .       A       G       79      .       AC=1;AF=1.00;AN=1;DP=5;Dels=0.00;FS=0.000;HaplotypeScore=0.0000;MLEAC=1;MLEAF=1.00;MQ=60.00;MQ0=0;QD=15.80      GT:AD:DP:GQ:MLPSAC:MLPSAF:PL    1:0,5:5:99:1:1.00:109,0")
-        fp.close()
-        self.assertEqual(process_vcf(fpath, ["ADK1::460"],4, 0.9, "tmp"), ["ADK1::460::G"])
-        shutil.rmtree(tdir)
-    def test_process_vcf_other_cases(self):
-        tdir = tempfile.mkdtemp(prefix="filetest_",)
-        fpath = os.path.join(tdir,"testfile.filtered.vcf")
-        fp = open(fpath, "w")
-        fp.write("##fileformat=VCFv4.1\n")
-        fp.write("#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  vac6wt\n")
-        fp.write("ADK1    460     .       A       G       79      .       AC=1;AF=1.00;AN=1;DP=5;Dels=0.00;FS=0.000;HaplotypeScore=0.0000;MLEAC=1;MLEAF=1.00;MQ=60.00;MQ0=0;QD=15.80      GT:AD:DP:GQ:MLPSAC:MLPSAF:PL    1:0,5:5:99:1:1.00:109,0\n")
-        fp.write("ADK1    454     .       A       .       154     .       AN=1;DP=5;MQ=60.00;MQ0=0        GT:DP:MLPSAC:MLPSAF     0:5\n")
-        fp.close()
-        self.assertEqual(process_vcf(fpath, ["ADK1::460", "ADK1::454"], 6, 0.9, "tmp"), ["ADK1::460::-", "ADK1::454::-"])
-        shutil.rmtree(tdir)
-    def test_process_vcf_proportion(self):
-        tdir = tempfile.mkdtemp(prefix="filetest_",)
-        fpath = os.path.join(tdir,"testfile.filtered.vcf")
-        fp = open(fpath, "w")
-        fp.write("##fileformat=VCFv4.1\n")
-        fp.write("#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  vac6wt\n")
-        fp.write("ADK1    460     .       A       G       79      .       AC=1;AF=1.00;AN=1;DP=6;Dels=0.00;FS=0.000;HaplotypeScore=0.0000;MLEAC=1;MLEAF=1.00;MQ=60.00;MQ0=0;QD=15.80      GT:AD:DP:GQ:MLPSAC:MLPSAF:PL    1:1,5:6:99:1:1.00:109,0\n")
-        fp.close()
-        self.assertEqual(process_vcf(fpath, ["ADK1::460"], 5, 0.9, "tmp"), ["ADK1::460::-"])
-        shutil.rmtree(tdir)
-
 class Test5(unittest.TestCase):
     def test_sort_information_basic_function(self):
         self.assertEqual(sort_information("ADK1::460"), 460)
