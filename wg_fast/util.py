@@ -86,7 +86,8 @@ def report_stats(results,name,output):
                 total_size.append(float(fields[1]))
                 mapped_size.append(float(fields[2]))
             else:
-                print("coverage file is malformed")
+                print("coverage file for %s is malformed" % name)
+                print("-------------------------")
     try:
         total_summed = sum(total_size)
         total_mapped = sum(mapped_size)
@@ -363,7 +364,8 @@ def _perform_workflow_run_loop_dev(data):
         if good_calls > 0:
             make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
         else:
-            print("sample %s had no calls and will not be inserted into the tree")
+            print("sample %s had no calls and will not be inserted into the tree" % idx)
+            print("-------------------------")
 
 def run_loop_dev(fileSets,dir_path,reference,processors,ref_coords,coverage,proportion,
     matrix,scratch_dir,doc,tmp_dir,wgfast_path,ploidy):
@@ -858,15 +860,13 @@ def write_reduced_matrix(matrix):
     return outdata
 
 def make_temp_matrix(vcf, matrix, name):
-    in_matrix = open(matrix)
     """these are all of the screened SNPs - tested"""
-    matrix_ids=[ ]
-    firstLine = in_matrix.readline()
-    #Only reads the first field in for each line in matrix
-    for line in in_matrix:
-        mfields=line.split()
-        matrix_ids.append(mfields[0])
-    #parsed dictionary of all calls
+    matrix_ids=[]
+    with open(matrix) as in_matrix:
+        firstLine = in_matrix.readline()
+        for line in in_matrix:
+            mfields=line.split()
+            matrix_ids.append(mfields[0])
     value_dict={}
     new_dicts={}
     in_matrix.close()
@@ -895,7 +895,8 @@ def make_temp_matrix(vcf, matrix, name):
         if x in new_dicts:
             variety.append(new_dicts.get('%s' % x))
     variety_set = set(variety)
-    out_matrix = open("%s.tmp.xyx.matrix" % name,"a")
+    #Changed this from a to w on 12/5/19
+    out_matrix = open("%s.tmp.xyx.matrix" % name,"w")
     if len(variety)>=1:
         if "A" or "T" or "G" or "C" in value_dict_set:
             out_matrix.write('%s\n' % name)
