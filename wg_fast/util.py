@@ -879,7 +879,10 @@ def make_temp_matrix(vcf, matrix, name):
             my_file.seek(0)
             for line in my_file:
                 fields=line.split()
-                value_dict.update({fields[0]:fields[1]})
+                if len(fields[1])>1:
+                    value_dict.update({fields[0]:"-"})
+                else:
+                    value_dict.update({fields[0]:fields[1]})
     """value_dict could only contain dashes"""
     if len(value_dict)>=1:
         """here is where value_dict_set is populated"""
