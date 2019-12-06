@@ -408,25 +408,28 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                     merged_fields=fields[0]+"::"+fields[1]
                     if merged_fields in ref_set:
                         if "." != fields[4]:
-                            snp_fields=fields[9].split(':')
-                            if int(len(snp_fields))>2:
-                                prop_fields=snp_fields[1].split(',')
-                                if int(snp_fields[2])>=coverage:
-                                    if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
-                                        vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
-                                        outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
-                                        good_snps.append("1")
-                                    else:
-                                        vcf_out.write(fields[0]+"::"+"\t"+fields[1]+"\t"+"-"+"\n")
-                                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                                        mixed_snps.append("1")
-                                    """if problems are encountered, throw in a gap.  Could be too conservative"""
-                                else:
-                                    vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
-                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                            else:
+                            if len(fields[4])>1:
                                 pass
-                            """This represents the case where the call is the reference"""
+                            else:
+                                snp_fields=fields[9].split(':')
+                                if int(len(snp_fields))>2:
+                                    prop_fields=snp_fields[1].split(',')
+                                    if int(snp_fields[2])>=coverage:
+                                        if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
+                                            vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
+                                            outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
+                                            good_snps.append("1")
+                                        else:
+                                            vcf_out.write(fields[0]+"::"+"\t"+fields[1]+"\t"+"-"+"\n")
+                                            outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                            mixed_snps.append("1")
+                                        """if problems are encountered, throw in a gap.  Could be too conservative"""
+                                    else:
+                                        vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
+                                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                else:
+                                    pass
+                        """This represents the case where the call is the reference"""
                         elif "." == fields[4]:
                             nosnp_fields=fields[7].split(';')
                             cov_fields=nosnp_fields[1].replace("DP=","")
