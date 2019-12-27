@@ -28,7 +28,7 @@ rule curate:
     Executing genbankqc with {threads} threads on {wildcards.species},
     Logging to logs/{wildcards.species}_curate.log"""
     shell:
-        "genbankqc species genomes/{wildcards.species} -n {wildcards.u} "
+        "wgfast_genbankqc species genomes/{wildcards.species} -n {wildcards.u} "
         "-c {wildcards.c} -s {wildcards.a} -d {wildcards.d} "
         "--processes {threads} > logs/{wildcards.species}_curate.log 2>&1"
 
