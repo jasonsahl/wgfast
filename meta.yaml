@@ -13,7 +13,7 @@ build:
     - wgfast = wgfast.main:main
     - wgfast_prep = wgfast.tools.wgfast_prep:main
     - wgfastdb = wgfastdb.main:main
-    - wgfast_genbankqc = wgfast.genbankqc.__main__:cli
+    - wgfast_genbankqc = genbankqc.__main__:cli
 
 
 requirements:
