@@ -1,6 +1,4 @@
-#!/usr/bin/env python
 from setuptools import setup, find_packages
-import re
 
 __author__ = "Jason Sahl"
 __credits__ = ["Jason Sahl"]
@@ -25,10 +23,13 @@ setup(name='wgfast',
       url='https://github.com/jasonsahl/wgfast',
       long_description=long_description,
       packages=find_packages(),
+      install_requires=[
+          'click'],
       entry_points={'console_scripts': [
             'wgfast=wgfast.main:main',
             'wgfast_prep=wgfast.tools.wgfast_prep:main',
-            'wgfastdb=wgfastdb.main:main'
+            'wgfastdb=wgfastdb.main:main',
+            'wgfast_genbankqc=wgfast.genbankqc.__main__:cli'
             # 'wgfast_extract_tree_names=wgfast.tools.extract_tree_names:main',
             # 'wgfast_subsample_reads_and_place=wgfast.tools.subsample_reads_and_place:main',
             # 'wgfast_subsample_snps_pearson=wgfast.tools.subsample_snps_pearson:main'
