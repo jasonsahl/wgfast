@@ -26,13 +26,12 @@ requirements:
     - pandas
     - click
     - dendropy 
-    - samtools 
+    - samtools >=1.9
     - bwa
     - bbmap
     - raxml 
     - picard 
     - mash
-    - nasp 
     - ncbitk 
     - snakemake >=5 
     - logbook

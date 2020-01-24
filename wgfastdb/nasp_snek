@@ -53,14 +53,19 @@ rule remove_duplicates:
         wd = "wgfast/{species}"
     threads: 1
     log: "logs/{species}_remove_duplicates.log"
-    message: """
+    conda: "envs/nasp.yaml"
+    message:
+        """
         Removing duplicate regions in reference {input}
         Writing to {output[0]}.
         Logging to {log}.
         Using {threads} thread(s).
         """
     shell:
-        "cd {params.wd}; find_duplicates --reference ../../{input} > ../../{log} 2>&1"
+        """
+        cd {params.wd}
+        find_duplicates --reference ../../{input} > ../../{log} 2>&1
+        """
 
 
 
@@ -76,6 +81,7 @@ rule frankenfastas:
     params:
         wd="wgfast/{species}"
     threads: 1
+    conda: "envs/nasp.yaml"
     message: """
         Generating frankenfasta from {input.fa} using reference
         {input.ref}.
@@ -84,9 +90,11 @@ rule frankenfastas:
         Using {threads} thread(s).
         """
     shell:
-        "cd {params.wd}; convert_external_genome "
-        "--reference ../../{input.ref} "
-        "--external ../../{input.fa} > ../../{log} 2>&1"
+        """
+        cd {params.wd}
+        convert_external_genome --reference ../../{input.ref} \
+        --external ../../{input.fa} > ../../{log} 2>&1
+        """
 
 
 rule nasp_dto:
@@ -95,9 +103,12 @@ rule nasp_dto:
         dups="wgfast/{species}/duplicates.txt",
         franken=get_franken_fastas
     output: temp("wgfast/{species}/matrix_dto.xml")
-    message: """
+    conda: "envs/nasp.yaml"
+    message:
+        """
         Generating {output} from reference {input.ref} duplicate file 
-        {input.dups} and frankenfastas wgfast/{wildcards.species}/*.frankenfasta
+        {input.dups} and frankenfastas
+        wgfast/{wildcards.species}/*.frankenfasta
         """
     run:
         from nasp.matrix_DTO import write_dto
@@ -127,19 +138,25 @@ rule nasp_matrix:
         temp("wgfast/{species}/missingdata.tsv"),
         temp("wgfast/{species}/sample_stats.tsv"),
         temp("wgfast/{species}/general_stats.tsv")
+    conda: "envs/nasp.yaml"
     params:
         wd="wgfast/{species}"
     log: "logs/{species}_nasp.log"
-    message: """
+    message:
+        """
         Running nasp for {wildcards.species} using dto {input.dto},
         reference {input.ref} and duplicate file {input.dups}.
         Writing to {output[0]}
         Logging to {log}.
-        Using {threads} thread(s)."""
+        Using {threads} thread(s).
+        """
     threads: 8
     shell:
-        "cd {params.wd}; nasp matrix --num-threads {threads} "
-        "--dto-file ../../{input.dto} > ../../{log} 2>&1"
+        """
+        cd {params.wd}
+        nasp matrix --num-threads {threads}
+        --dto-file ../../{input.dto} > ../../{log} 2>&1
+        """
 
 # rule nasp_matrix:
     # input:
@@ -176,7 +193,8 @@ rule validate_reference:
         "wgfast/{species}/reference.fasta"
     log: "logs/{species}_move_ref.log"
     threads: 1
-    message: """
+    message:
+        """
         Validating and moving reference file ({params.ref}). 
         Writing to wgfast output directory {output}.
         Logging to {log}.
@@ -208,7 +226,8 @@ rule validate_reference:
 rule matrix_to_fasta:
     input: "wgfast/{species}/bestsnp.tsv"
     output: temp("wgfast/{species}/all.fasta")
-    message: """
+    message:
+        """
         Coverting {input} to fasta ({output}).
         Logging to {log}.
         Using {threads} thread(s).
@@ -253,22 +272,26 @@ rule raxml_tree:
         out=temp("wgfast/{species}/out.fasta")
     log: "logs/{species}_raxml_tree.log"
     threads: 1
-    message: """
+    message:
+        """
         Running raxmlHPC-SSE3 using {input}.
         Writing to {output}.
         Logging to {log}.
-        Using {threads} thread(s)."""
+        Using {threads} thread(s).
+        """
     params:
         wd="wgfast/{species}",
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     shell:
-        "sed 's/://g' {input} | sed 's/,//g' > "
-        "wgfast/{wildcards.species}/out.fasta; "
-        "cd {params.wd}; "
-        "raxmlHPC-SSE3 -f d -p 12345 -m ASC_GTRGAMMA "
-        "-s ../../{output.out} "
-        "-n {params.timestamp} --asc-corr=lewis --no-bfgs > ../../{log} 2>&1; "
-        "mv RAxML_bestTree.{params.timestamp} nasp_raxml.tree"
+        """
+        sed 's/://g' {input} | sed 's/,//g' > \
+        wgfast/{wildcards.species}/out.fasta
+        cd {params.wd}
+        raxmlHPC-SSE3 -f d -p 12345 -m ASC_GTRGAMMA -s ../../{output.out} \
+        -n {params.timestamp} --asc-corr=lewis --no-bfgs > ../../{log} 2>&1
+        mv RAxML_bestTree.{params.timestamp} nasp_raxml.tree
+        """
+
 
 rule raxml_params:
     input: 
@@ -280,14 +303,20 @@ rule raxml_params:
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     log: "logs/{species}_raxml_params.log"
     threads: 1
-    message: """
+    message:
+        """
         Running RAxML params using {input.out} and {input.tree}.
         Writing to {output}.
         Logging to {log}.
-        Using {threads} thread(s)."""
+        Using {threads} thread(s).
+        """
     shell:
-        "cd {params.wd}; raxmlHPC-SSE3 -f e -m ASC_GTRGAMMA -s ../../{input.out} "
-        "-t ../../{input.tree} -n {params.timestamp} --asc-corr=lewis --no-bfgs "
-        "> ../../{log} 2>&1; "
-        "mv RAxML_binaryModelParameters.{params.timestamp} nasp.PARAMS; "
-        "rm RAxML_*; rm out.fasta*"
+        """
+        cd {params.wd}
+        raxmlHPC-SSE3 -f e -m ASC_GTRGAMMA -s ../../{input.out} \
+        -t ../../{input.tree} -n {params.timestamp} --asc-corr=lewis --no-bfgs \
+        > ../../{log} 2>&1
+        mv RAxML_binaryModelParameters.{params.timestamp} nasp.PARAMS
+        rm RAxML_*
+        rm out.fasta*
+        """

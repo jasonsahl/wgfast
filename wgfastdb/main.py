@@ -342,7 +342,7 @@ def run(params_json, args, snakemake_args):
             LOG.info("Generating matrix and tree")
             run_snake(
                 nasp_snek,
-                paths.wrk_dir, params_json, snakemake_args
+                paths.wrk_dir, params_json, snakemake_args + ["--use-conda"]
             )
 
 PATHS = namedtuple('paths', ['genomes', 'logs', 'wgfast', 'wrk_dir'])
