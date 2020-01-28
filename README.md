@@ -16,7 +16,7 @@ or a single isolate sequencing dataset
 
 ```conda create -n wgfast python=3.5```  
 ```source activate wgfast```  
-```conda install -c bioconda gatk4 picard raxml samtools bbmap dendropy minimap2```  
+```conda install -c bioconda gatk4 picard raxml samtools bbmap dendropy minimap2 biopython```  
 ```conda install -c anaconda biopython```  
 
 2. Download the wgfast github repository, install:  
