@@ -173,6 +173,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         else:
             ref_coords = get_all_snps(matrix)
             logPrint("Loop starting")
+            print("-------------------------")
             run_loop_dev(fileSets,dir_path,"%s/reference.fasta" % scratch_dir,processors,
             ref_coords,coverage,proportion,matrix,scratch_dir,doc,tmp_dir,WGFAST_PATH,ploidy)
     """will subsample based on the number of SNPs reported by the following function"""
@@ -283,7 +284,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     logPrint("all done")
 
 if __name__ == "__main__":
-    parser = OptionParser(usage="usage: %prog [options]",version="%prog 1.0.2")
+    parser = OptionParser(usage="usage: %prog [options]",version="%prog 1.0.3")
     parser.add_option("-r", "--reference_directory", dest="reference_dir",
                       help="path to reference file directory [REQUIRED]",
                       action="callback", callback=test_dir, type="string")
