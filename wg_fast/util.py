@@ -417,7 +417,9 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                             snp_fields=fields[9].split(':')
                             if int(len(snp_fields))>2:
                                 prop_fields=snp_fields[1].split(',')
-                                if int(snp_fields[2])>=coverage:
+                                fixed_coverage = int(float(snp_fields[2]))
+                                if fixed_coverage>=coverage:
+                                #if int(snp_fields[2])>=coverage:
                                     if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
                                         outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
@@ -440,9 +442,9 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                 nosnp_fields=fields[7].split(';')
                                 #This will provide the coverage
                                 cov_fields=nosnp_fields[0].replace("DP=","")
-                                #else:
-                                #try:
-                                if int(cov_fields)>=coverage:
+                                fixed_coverage = int(float(cov_fields))
+                                if fixed_coverage>=coverage:
+                                #if int(cov_fields)>=coverage:
                                     vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[3]+"\n")
                                     outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
                                 else:
