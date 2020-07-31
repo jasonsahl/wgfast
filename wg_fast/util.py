@@ -409,7 +409,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                 merged_fields=fields[0]+"::"+fields[1]
                 if merged_fields in ref_set:
                     #This indicates that the position is a SNP
-                    if "." != fields[4]:
+                    if "." != fields[4] and len(fields[4]) == 1:
                         if fields[6] == "LowQual":
                             pass
                         else:
