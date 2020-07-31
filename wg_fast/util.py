@@ -428,7 +428,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                             good_snps.append("1")
                                         else:
                                             #Changed out a gap character with an N
-                                            vcf_out.write(fields[0]+"::"+"\t"+fields[1]+"\t"+"N"+"\n")
+                                            vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
                                             outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
                                             mixed_snps.append("1")
                                         """if problems are encountered, throw in a gap.  Could be too conservative"""
