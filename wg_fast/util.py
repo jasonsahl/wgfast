@@ -387,68 +387,74 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     ref_set = set(ref_coords)
     with open(vcf) as vcf_in:
         for line in vcf_in:
-            if line.startswith('#'):
+            newline=line.strip("\n")
+            if newline.startswith('#'):
                pass
-            elif line.startswith('Java'):
+            elif newline.startswith('Java'):
                 pass
-            elif line.startswith('/tmp'):
+            elif newline.startswith('/tmp'):
                 pass
-            elif line.startswith('Try'):
+            elif newline.startswith('Try'):
                 pass
-            elif line.startswith('INFO'):
+            elif newline.startswith('INFO'):
                 pass
-            elif line in ['\n', '\r\n']:
+            elif newline in ['\n', '\r\n']:
                 pass
             else:
-                fields=line.split()
+                fields=newline.split()
                 """for GATK, a period signifies a reference call.
                 First we want to look at the situation where this is
                 not the case"""
-                try:
-                    merged_fields=fields[0]+"::"+fields[1]
-                    if merged_fields in ref_set:
-                        if "." != fields[4]:
-                            if len(fields[4])>1:
-                                pass
-                            else:
-                                snp_fields=fields[9].split(':')
-                                if int(len(snp_fields))>2:
-                                    prop_fields=snp_fields[1].split(',')
-                                    if int(snp_fields[2])>=coverage:
-                                        if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
-                                            vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
-                                            outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
-                                            good_snps.append("1")
-                                        else:
-                                            vcf_out.write(fields[0]+"::"+"\t"+fields[1]+"\t"+"-"+"\n")
-                                            outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                                            mixed_snps.append("1")
-                                        """if problems are encountered, throw in a gap.  Could be too conservative"""
+                #try:
+                merged_fields=fields[0]+"::"+fields[1]
+                if merged_fields in ref_set:
+                    #This indicates that the position is a SNP
+                    if "." != fields[4]:
+                        #If this is an indel, we want to skip it
+                        if len(fields[4])>1:
+                            pass
+                        else:
+                            snp_fields=fields[9].split(':')
+                            if int(len(snp_fields))>2:
+                                prop_fields=snp_fields[1].split(',')
+                                if int(snp_fields[2])>=coverage:
+                                    if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
+                                        vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
+                                        outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
+                                        good_snps.append("1")
                                     else:
-                                        vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
-                                        outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                        #Changed out a gap character with an N
+                                        vcf_out.write(fields[0]+"::"+"\t"+fields[1]+"\t"+"N"+"\n")
+                                        outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
+                                        mixed_snps.append("1")
+                                    """if problems are encountered, throw in a gap.  Could be too conservative"""
                                 else:
-                                    pass
-                        elif "." == fields[4]:
-                            nosnp_fields=fields[7].split(';')
-                            cov_fields=nosnp_fields[1].replace("DP=","")
-                            try:
+                                    vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
+                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
+                            else:
+                                pass
+                    #This should indicate a reference position
+                    elif "." in fields[4]:
+                        if len(fields) == 10:
+                            if "DP" in fields[7]:
+                                nosnp_fields=fields[7].split(';')
+                                #This will provide the coverage
+                                cov_fields=nosnp_fields[0].replace("DP=","")
+                                #else:
+                                #try:
                                 if int(cov_fields)>=coverage:
                                     vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[3]+"\n")
                                     outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
                                 else:
-                                    vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
+                                    vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
                                     mixed_refs.append("1")
-                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
-                            except:
-                                vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"-"+"\n")
-                        else:
-                            print("error in vcf file found!")
-                            sys.exit()
+                                    #outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
+                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
+                            else:
+                                vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
+                                mixed_refs.append("1")
                     else:
-                        pass
-                except:
-                    pass
+                        vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
     print("number of SNPs in genome %s = " % name, len(good_snps))
     print("number of discarded SNPs in genome %s = " % name, len(mixed_snps))
     print("number of discarded Reference positions in genome %s = " % name, len(mixed_refs))
@@ -583,7 +589,8 @@ def find_used_snps():
             for line in my_file:
                 fields=line.split()
                 try:
-                    if fields[1] != "-":
+                    if fields[1] != "N":
+                    #if fields[1] != "-":
                         good_snps.append("1")
                     else:
                         pass
@@ -867,38 +874,40 @@ def make_temp_matrix(vcf, matrix, name):
     with open(matrix) as in_matrix:
         firstLine = in_matrix.readline()
         for line in in_matrix:
-            mfields=line.split()
+            newline = line.strip("\n")
+            mfields=newline.split()
             matrix_ids.append(mfields[0])
     value_dict={}
     new_dicts={}
-    in_matrix.close()
     with open(vcf) as my_file:
-        first_char = my_file.read(1)
-        #Only reads in if file isn't empty
-        if first_char:
-            my_file.seek(0)
-            for line in my_file:
-                fields=line.split()
-                if len(fields[1])>1:
-                    value_dict.update({fields[0]:"-"})
-                else:
-                    value_dict.update({fields[0]:fields[1]})
-    """value_dict could only contain dashes"""
+        for line in my_file:
+            newline = line.strip("\n")
+            if newline.startswith("#"):
+                pass
+            else:
+                fields=newline.split()
+                value_dict.update({fields[0]:fields[1]})
+                #value_dict could only contain Ns
     if len(value_dict)>=1:
         """here is where value_dict_set is populated"""
-        value_dict_set = set(value_dict)
+        keys = []
+        for k,v in value_dict.items():
+            keys.append(k)
+        value_dict_set = set(keys)
         new_dicts = value_dict
         for x in matrix_ids:
-            if x not in value_dict_set:new_dicts.update({x:"-"})
+            if x not in value_dict_set:new_dicts.update({x:"N"})
     else:
         print("no usable information in vcf file, did you use the correct reference?")
     #new_dicts contains all calls, good and bad
     value_dict = {}
     """variety will contain a complete set of SNPs"""
-    variety = [ ]
+    variety = []
+    #This ensures that the values are in order
     for x in matrix_ids:
-        if x in new_dicts:
-            variety.append(new_dicts.get('%s' % x))
+        for k,v in new_dicts.items():
+            if x == k:
+                variety.append(v)
     variety_set = set(variety)
     #Changed this from a to w on 12/5/19
     out_matrix = open("%s.tmp.xyx.matrix" % name,"w")
