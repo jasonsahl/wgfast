@@ -325,7 +325,7 @@ def main(matrix,tree,name,start,step,end,processors,iterations,deviation,remove)
                 hits.append("1")
             else:
                 pass
-        outfile.write(str(i)+"\t"+str(len(hits)))
+        outfile.write(str(i)+"\t"+str(len(hits))+"\n")
         if int(len(hits))>=int(0.95*iterations):
             print("optimal value is for %s is %s" % ("".join(fixed_name),i))
             break
