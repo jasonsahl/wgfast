@@ -446,7 +446,10 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                 if "DP" in fields[7]:
                                     nosnp_fields=fields[7].split(';')
                                     #This will provide the coverage
-                                    cov_fields=nosnp_fields[0].replace("DP=","")
+                                    if "DP" in nosnp_fields[0]:
+                                        cov_fields=nosnp_fields[0].replace("DP=","")
+                                    elif "DP" in nosnp_fields[1]:
+                                        cov_fields=nosnp_fields[1].replace("DP=","")
                                     fixed_coverage = int(float(cov_fields))
                                     if fixed_coverage>=coverage:
                                     #if int(cov_fields)>=coverage:
