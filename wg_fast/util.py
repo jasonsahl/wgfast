@@ -409,36 +409,31 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                 merged_fields=fields[0]+"::"+fields[1]
                 if merged_fields in ref_set:
                     #This indicates that the position is a SNP
-                    if "." != fields[4] and len(fields[4]) == 1:
+                    if "." != fields[4] and len(fields[4]) == 1 and len(fields[3])==1:
                         if fields[6] == "LowQual":
                             pass
                         else:
-                        #If this is an indel, we want to skip it
-                            if len(fields[4])>1:
-                                pass
-                            else:
-                                snp_fields=fields[9].split(':')
-                                if int(len(snp_fields))>2:
-                                    prop_fields=snp_fields[1].split(',')
-                                    fixed_coverage = int(float(snp_fields[2]))
-                                    if fixed_coverage>=coverage:
-                                        if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
-                                            vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
-                                            outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
-                                            good_snps.append("1")
-                                        else:
-                                            #Changed out a gap character with an N
-                                            vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
-                                            outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
-                                            mixed_snps.append("1")
-                                        """if problems are encountered, throw in a gap.  Could be too conservative"""
+                            snp_fields=fields[9].split(':')
+                            if int(len(snp_fields))>2:
+                                prop_fields=snp_fields[1].split(',')
+                                fixed_coverage = int(float(snp_fields[2]))
+                                if fixed_coverage>=coverage:
+                                    if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
+                                        vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
+                                        outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
+                                        good_snps.append("1")
                                     else:
+                                        #Changed out a gap character with an N
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
                                         outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
+                                        mixed_snps.append("1")
+                                    """if problems are encountered, throw in a gap.  Could be too conservative"""
                                 else:
-                                    pass
-                    #This should indicate a reference position
-                    elif "." in fields[4]:
+                                    vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
+                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
+                            else:
+                                pass
+                    elif "." in fields[4] and len(fields[4])==1 and len(fields[3])==1:
                         if fields[6] == "LowQual":
                             pass
                         else:
