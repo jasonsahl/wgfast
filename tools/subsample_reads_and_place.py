@@ -198,13 +198,13 @@ def parse_distances(distance_file,fixed_name):
         for line in my_file:
             if len(fixed_name)>1:
                 for name in fixed_name:
+                    #print(name)
                     fields = line.split()
                     if fields[2] == "'%s'" % name and fields[4] == "'Reference':":
+                        print(fields)
                         true_value.append(fields[5])
                     elif fields[2] =="'Reference'" and fields[4] =="'%s':" % name:
                         true_value.append(fields[5])
-                    else:
-                        pass
             else:
                 fields = line.split()
                 if fields[2] == "'%s'" % ''.join(fixed_name) and fields[4] == "'Reference':":
@@ -318,8 +318,9 @@ def main(matrix,tree,name,start,step,end,processors,iterations,deviation,remove)
         os.system("cp %s.tree_including_unknowns_noedges.tree %s.%s.%s.tree" % ("".join(fixed_name),"".join(fixed_name),i,j))
         query_names = []
         for j in range(1,iterations+1):
+            #query_names.append("QUERY__"+"QUERY_"+"".join(fixed_name)+str(j))
             query_names.append("QUERY___"+"QUERY_"+"".join(fixed_name)+str(j))
-        subsampled_values = parse_distances("%s.all_patristic_distances.txt" % "".join(fixed_name),query_names)
+        subsampled_values = parse_distances("%s.all_patristic_distances.txt" % "".join(fixed_name), query_names)
         for value in subsampled_values:
             if (float(value)/float(''.join(true_value)))<(1+float(deviation)):
                 hits.append("1")
@@ -329,6 +330,8 @@ def main(matrix,tree,name,start,step,end,processors,iterations,deviation,remove)
         if int(len(hits))>=int(0.95*iterations):
             print("optimal value is for %s is %s" % ("".join(fixed_name),i))
             break
+    if len(hits) == 0:
+        print("no results at your level of sampling. Change settings and try again")
     os.system("mv %s.results.out %s" % (''.join(fixed_name), start_path))
     os.chdir("%s" % start_path)
     os.system("rm -rf %s/%s.tmp" % (start_path,name))
