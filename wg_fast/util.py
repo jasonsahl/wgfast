@@ -414,7 +414,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                             pass
                         else:
                             snp_fields=fields[9].split(':')
-                            if int(len(snp_fields))>2:
+                            if int(len(snp_fields))>2 and "|" not in snp_fields:
                                 prop_fields=snp_fields[1].split(',')
                                 fixed_coverage = int(float(snp_fields[2]))
                                 if fixed_coverage>=coverage:
