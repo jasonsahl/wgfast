@@ -409,12 +409,12 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                 merged_fields=fields[0]+"::"+fields[1]
                 if merged_fields in ref_set:
                     #This indicates that the position is a SNP
-                    if "." != fields[4] and len(fields[4]) == 1 and len(fields[3])==1:
+                    if "." != fields[4] and len(fields[4]) == 1 and len(fields[3])==1 and fields[8]!="GT:AD:PGT:PID:PS":
                         if fields[6] == "LowQual":
                             pass
                         else:
                             snp_fields=fields[9].split(':')
-                            if int(len(snp_fields))>2 and "|" not in snp_fields:
+                            if int(len(snp_fields))>2:
                                 prop_fields=snp_fields[1].split(',')
                                 fixed_coverage = int(float(snp_fields[2]))
                                 if fixed_coverage>=coverage:
