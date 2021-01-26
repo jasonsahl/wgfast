@@ -340,8 +340,6 @@ def _perform_workflow_run_loop_dev(data):
         except:
             time.sleep(5)
             subprocess.check_call("picard AddOrReplaceReadGroups I=%s_renamed.bam O=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT" % (idx,idx,idx,idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-            #print("problem running picard tools on file: %s_renamed.bam" % idx)
-            #sys.exit()
         try:
             subprocess.check_call("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx,stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         except:
@@ -351,7 +349,7 @@ def _perform_workflow_run_loop_dev(data):
         subprocess.check_call("gatk HaplotypeCaller -R %s/reference.fasta -I %s_renamed_header.bam -O %s.test.vcf -ERC BP_RESOLUTION -ploidy %s" % (scratch_dir,idx,idx,ploidy), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         subprocess.check_call("gatk GenotypeGVCFs -O %s.vcf.out -R %s/reference.fasta -V %s.test.vcf --include-non-variant-sites" % (idx,scratch_dir,idx), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         if "T" == doc:
-            subprocess.check_call("samtools depth %s_renamed_header.bam > %s.coverage" % (idx,idx), shell=True)
+            subprocess.check_call("samtools depth -aa %s_renamed_header.bam > %s.coverage" % (idx,idx), shell=True)
             remove_column("%s.coverage" % idx, idx)
             sum_coverage("%s.coverage.out" % idx, coverage, idx)
             merge_files_by_column(0,"ref.genome_size.txt", "%s.amount_covered.txt" % idx, "%s.results.txt" % idx)
@@ -405,7 +403,6 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                 """for GATK, a period signifies a reference call.
                 First we want to look at the situation where this is
                 not the case"""
-                #try:
                 merged_fields=fields[0]+"::"+fields[1]
                 if merged_fields in ref_set:
                     #This indicates that the position is a SNP
@@ -447,13 +444,11 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                         cov_fields=nosnp_fields[1].replace("DP=","")
                                     fixed_coverage = int(float(cov_fields))
                                     if fixed_coverage>=coverage:
-                                    #if int(cov_fields)>=coverage:
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[3]+"\n")
                                         outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
                                     else:
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
                                         mixed_refs.append("1")
-                                        #outdata.append(fields[0]+"::"+fields[1]+"::"+"-")
                                         outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
                                 else:
                                     vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")

@@ -176,6 +176,8 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
             print("-------------------------")
             run_loop_dev(fileSets,dir_path,"%s/reference.fasta" % scratch_dir,processors,
             ref_coords,coverage,proportion,matrix,scratch_dir,doc,tmp_dir,WGFAST_PATH,ploidy)
+            logPrint("Loop finished")
+            print("-------------------------")
     """will subsample based on the number of SNPs reported by the following function"""
     if "T" in doc:
         os.system("cat *breadth.txt > breadth_over_%sx_out.txt" % coverage)
