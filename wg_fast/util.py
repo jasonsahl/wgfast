@@ -347,7 +347,8 @@ def _perform_workflow_run_loop_dev(data):
             sys.exit()
         #TODO: be able to change the ploidy, which will affect the number of calls
         subprocess.check_call("gatk HaplotypeCaller -R %s/reference.fasta -I %s_renamed_header.bam -O %s.test.vcf -ERC BP_RESOLUTION -ploidy %s" % (scratch_dir,idx,idx,ploidy), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        subprocess.check_call("gatk GenotypeGVCFs -O %s.vcf.out -R %s/reference.fasta -V %s.test.vcf --include-non-variant-sites" % (idx,scratch_dir,idx), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        subprocess.check_call("gatk GenotypeGVCFs -O %s.test.vcf2 -R %s/reference.fasta -V %s.test.vcf --include-non-variant-sites" % (idx,scratch_dir,idx), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+        subprocess.check_call("bcftools filter -G 5 -g 5 %s.test.vcf2 > %s.vcf.out" % (idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         if "T" == doc:
             subprocess.check_call("samtools depth -aa %s_renamed_header.bam > %s.coverage" % (idx,idx), shell=True)
             remove_column("%s.coverage" % idx, idx)
