@@ -104,7 +104,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
         print("bbduk need to be in your path as bbduk.sh")
         sys.exit()
     #test for new dependencies
-    variant_tools = ['gatk','picard','bcftools']
+    variant_tools = ['gatk','picard']
     for tool in variant_tools:
         ab = subprocess.call(['which', tool])
         if ab == 0:
