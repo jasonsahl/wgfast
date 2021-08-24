@@ -324,7 +324,7 @@ def _perform_workflow_run_loop_dev(data):
                 except:
                     print("Read trimmer did not finish correctly")
                     sys.exit()
-            subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.F.paired.fastq.gz %s.R.paired.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -Su -o %s_renamed.bam -" % (scratch_dir,idx,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.F.paired.fastq.gz %s.R.paired.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -F 4 -Su -o %s_renamed.bam -" % (scratch_dir,idx,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         else:
             """Single end read support"""
             length = int(get_sequence_length(f[0])/2)
@@ -333,7 +333,7 @@ def _perform_workflow_run_loop_dev(data):
             except:
                 print("Read trimmer did not finish correctly")
                 sys.exit()
-            subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.single.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -Su -o %s_renamed.bam -" % (scratch_dir,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.single.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -F 4 -Su -o %s_renamed.bam -" % (scratch_dir,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         """inserts read group information, required by new versions of GATK"""
         try:
             subprocess.check_call("picard AddOrReplaceReadGroups I=%s_renamed.bam O=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT" % (idx,idx,idx,idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
