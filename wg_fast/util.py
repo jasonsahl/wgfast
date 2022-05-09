@@ -359,6 +359,7 @@ def _perform_workflow_run_loop_dev(data):
             report_stats("%s.cov.results.txt" % idx, idx, "%s_sum_cov.txt" % idx)
         else:
             pass
+        #filtered.vcf will be created in this function
         good_calls = process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
         if good_calls > 0:
             make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
@@ -377,9 +378,7 @@ def run_loop_dev(fileSets,dir_path,reference,processors,ref_coords,coverage,prop
 def process_vcf(vcf, ref_coords, coverage, proportion, name):
     """finds SNPs that pass user-defined thresholds
     for coverage and proportion - needs to look at tests"""
-    #TODO: Check for compatability with GATK4
     vcf_out = open("%s.filtered.vcf" % name, "w")
-    #outdata = []
     good_snps = []
     mixed_snps = []
     mixed_refs = []
@@ -418,17 +417,14 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                 if fixed_coverage>=coverage:
                                     if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
-                                        #outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
                                         good_snps.append("1")
                                     else:
                                         #Changed out a gap character with an N
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
-                                        #outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
                                         mixed_snps.append("1")
                                     """if problems are encountered, throw in a gap.  Could be too conservative"""
                                 else:
                                     vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
-                                    #outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
                             else:
                                 pass
                     #This is if the position is reference
@@ -447,22 +443,20 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                     fixed_coverage = int(float(cov_fields))
                                     if fixed_coverage>=coverage:
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[3]+"\n")
-                                        #outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
                                     else:
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
                                         mixed_refs.append("1")
-                                        #outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
                                 else:
                                     vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
                                     mixed_refs.append("1")
                     #If it can't determine the status of the position, add an N
                     else:
                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
-    print("number of SNPs in genome %s = " % name, len(good_snps))
-    print("number of discarded SNPs in genome %s = " % name, len(mixed_snps))
-    print("number of discarded Reference positions in genome %s = " % name, len(mixed_refs))
-    print("-------------------------")
     vcf_out.close()
+    print("number of SNPs in genome %s = %s" % (name, str(len(good_snps))))
+    print("number of discarded SNPs in genome %s = %s" % (name, str(len(mixed_snps))))
+    print("number of discarded Reference positions in genome %s = %s" % (name, str(len(mixed_refs))))
+    print("-------------------------")
     return len(good_snps)
 
 def sort_information(x):
