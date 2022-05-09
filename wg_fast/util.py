@@ -361,10 +361,10 @@ def _perform_workflow_run_loop_dev(data):
             pass
         #filtered.vcf will be created in this function
         good_calls = process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
-        if good_calls > 0:
+        if int(good_calls) > 0:
             make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
         else:
-            print("sample %s had no calls and will not be inserted into the tree" % idx)
+            print("sample %s had no SNP calls and will not be inserted into the tree" % idx)
             print("-------------------------")
 
 def run_loop_dev(fileSets,dir_path,reference,processors,ref_coords,coverage,proportion,
@@ -455,7 +455,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     vcf_out.close()
     print("number of SNPs in genome %s = %s" % (name, str(len(good_snps))))
     print("number of discarded SNPs in genome %s = %s" % (name, str(len(mixed_snps))))
-    print("number of discarded Reference positions in genome %s = %s" % (name, str(len(mixed_refs))))
+    print("number of discarded Reference positions in genome due to no coverage %s = %s" % (name, str(len(mixed_refs))))
     print("-------------------------")
     return len(good_snps)
 
