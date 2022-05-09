@@ -379,7 +379,7 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
     for coverage and proportion - needs to look at tests"""
     #TODO: Check for compatability with GATK4
     vcf_out = open("%s.filtered.vcf" % name, "w")
-    outdata = []
+    #outdata = []
     good_snps = []
     mixed_snps = []
     mixed_refs = []
@@ -418,19 +418,20 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                 if fixed_coverage>=coverage:
                                     if int(prop_fields[1])/int(snp_fields[2])>=float(proportion):
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[4]+"\n")
-                                        outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
+                                        #outdata.append(fields[0]+"::"+fields[1]+"::"+fields[4])
                                         good_snps.append("1")
                                     else:
                                         #Changed out a gap character with an N
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
-                                        outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
+                                        #outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
                                         mixed_snps.append("1")
                                     """if problems are encountered, throw in a gap.  Could be too conservative"""
                                 else:
                                     vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
-                                    outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
+                                    #outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
                             else:
                                 pass
+                    #This is if the position is reference
                     elif "." in fields[4] and len(fields[4])==1 and len(fields[3])==1:
                         if fields[6] == "LowQual":
                             pass
@@ -446,14 +447,15 @@ def process_vcf(vcf, ref_coords, coverage, proportion, name):
                                     fixed_coverage = int(float(cov_fields))
                                     if fixed_coverage>=coverage:
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+fields[3]+"\n")
-                                        outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
+                                        #outdata.append(fields[0]+"::"+fields[1]+"::"+fields[3])
                                     else:
                                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
                                         mixed_refs.append("1")
-                                        outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
+                                        #outdata.append(fields[0]+"::"+fields[1]+"::"+"N")
                                 else:
                                     vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
                                     mixed_refs.append("1")
+                    #If it can't determine the status of the position, add an N
                     else:
                         vcf_out.write(fields[0]+"::"+fields[1]+"\t"+"N"+"\n")
     print("number of SNPs in genome %s = " % name, len(good_snps))
@@ -591,7 +593,6 @@ def find_used_snps():
                 fields=line.split()
                 try:
                     if fields[1] != "N":
-                    #if fields[1] != "-":
                         good_snps.append("1")
                     else:
                         pass

@@ -271,10 +271,10 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     if keep == "T":
         pass
     else:
-        try:
-            subprocess.check_call("rm ref.tmp.txt ref.genome_size.txt all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist tmp.tree temp.matrix tmp_patristic_distances.txt out* RAxML_portableTree*jplace *.unpaired.fastq.gz", shell=True, stderr=open(os.devnull, 'w'))
-        except:
-            pass
+        #try:
+            #subprocess.check_call("rm ref.tmp.txt ref.genome_size.txt all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist tmp.tree temp.matrix tmp_patristic_distances.txt out* RAxML_portableTree*jplace *.unpaired.fastq.gz", shell=True, stderr=open(os.devnull, 'w'))
+        #except:
+        #   pass
         for outname in outnames:
             try:
                 subprocess.check_call("rm %s* RAxML_log* RAxML_info*" % outname, shell=True, stderr=open(os.devnull, 'w'))
