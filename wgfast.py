@@ -271,10 +271,6 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     if keep == "T":
         pass
     else:
-        #try:
-            #subprocess.check_call("rm ref.tmp.txt ref.genome_size.txt all.dist all.fasta raxml.log raxml.out merged.vcf out.fasta* *tmp.matrix renamed.dist tmp.tree temp.matrix tmp_patristic_distances.txt out* RAxML_portableTree*jplace *.unpaired.fastq.gz", shell=True, stderr=open(os.devnull, 'w'))
-        #except:
-        #   pass
         for outname in outnames:
             try:
                 subprocess.check_call("rm %s* RAxML_log* RAxML_info*" % outname, shell=True, stderr=open(os.devnull, 'w'))
@@ -296,10 +292,10 @@ if __name__ == "__main__":
                       help="# of processors to use - defaults to 2",
                       default="2", type="int")
     parser.add_option("-c", "--coverage", dest="coverage",
-		              help="minimum SNP coverage required to be called a SNP; defaults to 3",
+                      help="minimum SNP coverage required to be called a SNP; defaults to 3",
                       default="3", type="int")
     parser.add_option("-o", "--proportion", dest="proportion",
-	                  help="proportion of alleles to be called a SNP, defaults to 0.9",
+                      help="proportion of alleles to be called a SNP, defaults to 0.9",
                       default="0.9", type="float")
     parser.add_option("-k", "--keep", dest="keep",
                       help="keep temp files?  Defaults to F",
