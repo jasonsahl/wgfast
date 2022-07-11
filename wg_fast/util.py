@@ -329,7 +329,7 @@ def _perform_workflow_run_loop_dev(data):
             """Single end read support"""
             length = int(get_sequence_length(f[0])/2)
             try:
-                subprocess.check_call("bbduk.sh in=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.single.fastq.gz minlen=%s overwrite=true ignorebadquality> /dev/null 2>&1" % (f[0],wgfast_path,idx,length), shell=True)
+                subprocess.check_call("bbduk.sh -Xmx2g in=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.single.fastq.gz minlen=%s overwrite=true ignorebadquality" % (f[0],wgfast_path,idx,length), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
             except:
                 print("Read trimmer did not finish correctly")
                 sys.exit()
