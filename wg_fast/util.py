@@ -1117,7 +1117,6 @@ def create_params_files(id, to_prune_set, full_tree, full_matrix, dist_sets, pro
             tmptree.write(final_tree)
             tmptree.close()
             tmptree2 = open("%s.tree" % new_name, "w")
-            #for line in open("%s.tmp.tree" % new_name, "U"):
             with open("%s.tmp.tree" % new_name) as my_file:
                 for line in my_file:
                     if line.startswith("[&U]"):

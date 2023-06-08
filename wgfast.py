@@ -273,7 +273,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     else:
         for outname in outnames:
             try:
-                subprocess.check_call("rm %s* RAxML_log* RAxML_info*" % outname, shell=True, stderr=open(os.devnull, 'w'))
+                subprocess.check_call("rm %s* RAxML* temp.matrix all.fasta out*" % outname, shell=True, stderr=open(os.devnull, 'w'))
             except:
                 pass
             os.chdir("%s" % ap)
@@ -281,7 +281,7 @@ def main(reference_dir,read_directory,processors,coverage,proportion,keep,subsam
     logPrint("all done")
 
 if __name__ == "__main__":
-    parser = OptionParser(usage="usage: %prog [options]",version="%prog 1.2")
+    parser = OptionParser(usage="usage: %prog [options]",version="%prog 1.3")
     parser.add_option("-r", "--reference_directory", dest="reference_dir",
                       help="path to reference file directory [REQUIRED]",
                       action="callback", callback=test_dir, type="string")
