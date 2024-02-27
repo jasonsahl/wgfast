@@ -198,10 +198,8 @@ def parse_distances(distance_file,fixed_name):
         for line in my_file:
             if len(fixed_name)>1:
                 for name in fixed_name:
-                    #print(name)
                     fields = line.split()
                     if fields[2] == "'%s'" % name and fields[4] == "'Reference':":
-                        print(fields)
                         true_value.append(fields[5])
                     elif fields[2] =="'Reference'" and fields[4] =="'%s':" % name:
                         true_value.append(fields[5])
