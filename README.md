@@ -13,10 +13,10 @@ or a single isolate sequencing dataset
 
 #### Installation
 1.  The easiest way to install is through conda:  
-
 ```conda create -n wgfast python=3.6```  
 ```source activate wgfast```  
-```conda install -c bioconda gatk4=4.2.6.1 picard=2.27.4 raxml samtools bbmap dendropy minimap2 biopython```  
+#previous required versions: gatk4=4.2.6.1, picard=2.27.4  
+```conda install -c bioconda gatk4 picard raxml samtools bbmap dendropy minimap2 biopython```  
 #You might need to install Bioconda with: pip install Biopython  
 
 2. Download the wgfast github repository, install:  
