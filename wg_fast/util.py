@@ -311,10 +311,10 @@ def _perform_workflow_run_loop_dev(data):
     processors = data[12]
     ploidy = data[13]
     if os.path.isfile("%s.tmp.xyx.matrix" % idx):
-        print("%s.tmp.xyx.matrix exists, skipping" % idx)
+        logPrint("%s.tmp.xyx.matrix exists, skipping" % idx)
     else:
         """This means that the data is paired end"""
-        print(f)
+        logPrint(f)
         if len(f)>1:
             if os.path.isfile("%s.F.paired.fastq.gz" % idx):
                 pass
