@@ -325,7 +325,11 @@ def _perform_workflow_run_loop_dev(data):
                 except:
                     print("Read trimmer did not finish correctly")
                     sys.exit()
-            subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.F.paired.fastq.gz %s.R.paired.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -F 4 -Su -o %s_renamed.bam -" % (scratch_dir,idx,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            #Skip this step, which can be long, if the bam file already exists
+            if os.path.isfile("%s_renamed.bam" % idx):
+                pass
+            else:
+                subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.F.paired.fastq.gz %s.R.paired.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -F 4 -Su -o %s_renamed.bam -" % (scratch_dir,idx,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
         else:
             """Single end read support"""
             length = int(get_sequence_length(f[0])/2)
