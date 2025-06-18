@@ -314,7 +314,7 @@ def _perform_workflow_run_loop_dev(data):
         print("%s.tmp.xyx.matrix exists, skipping" % idx)
     else:
         """This means that the data is paired end"""
-        print("processing %s" % idx)
+        print(f)
         if len(f)>1:
             if os.path.isfile("%s.F.paired.fastq.gz" % idx):
                 pass
