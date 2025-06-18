@@ -355,7 +355,7 @@ def _perform_workflow_run_loop_dev(data):
             #If the amount_covered files are empty, WG-FAST will hang here. I put in this check and need to test
             if os.path.getsize("%s.amount_covered.txt" % idx) == 0:
                 pass
-            except:
+            else:
                 merge_files_by_column(0,"ref.genome_size.txt", "%s.amount_covered.txt" % idx, "%s.results.txt" % idx)
                 merge_files_by_column(0,"ref.genome_size.txt", "%s.sum_covered.txt" % idx, "%s.cov.results.txt" % idx)
                 report_stats("%s.results.txt" % idx, idx, "%s_breadth.txt" % idx)
