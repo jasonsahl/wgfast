@@ -314,6 +314,7 @@ def _perform_workflow_run_loop_dev(data):
         print("%s.tmp.xyx.matrix exists, skipping" % idx)
     else:
         """This means that the data is paired end"""
+        print("processing %s" % idx)
         if len(f)>1:
             if os.path.isfile("%s.F.paired.fastq.gz" % idx):
                 pass
@@ -1177,7 +1178,7 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
         tmptree2 = open("%s.tree" % full_context, "w")
         #for line in open("%s.tmp.tree" % full_context, "U"):
         with open("%s.tmp.tree" % full_context) as my_file:
-            for ine in my_file:
+            for line in my_file:
                 if line.startswith("[&U]"):
                     fields = line.split()
                     fixed_fields = [ ]
@@ -1196,7 +1197,7 @@ def process_temp_matrices_dev(dist_sets, sample, tree, processors, patristics, i
                 pass
         else:
             try:
-                subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
+                subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (processors, new_name, new_name, new_name), shell=True)
                 os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
                 run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
             except:
@@ -1366,7 +1367,7 @@ def _perform_workflow_temp_matrices(data):
                 pass
         else:
             try:
-                subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (my_processors, new_name, new_name, new_name), shell=True)
+                subprocess.check_call("raxmlHPC-PTHREADS-SSE3 -T %s -f e -m GTRGAMMA -s %s_pruned.fasta -t %s.tree -n %s-PARAMS --no-bfgs > /dev/null 2>&1" % (processors, new_name, new_name, new_name), shell=True)
                 os.system("mv RAxML_binaryModelParameters.%s-PARAMS %s-PARAMS" % (new_name, new_name))
                 run_raxml("%s_in.fasta" % full_context, "%s.tree" % full_context, "%s.subsampling_classifications.txt" % full_context, insertion_method, "%s-PARAMS" % (split_fields[0]+split_fields[2]), "GTRGAMMA", "%s" % full_context)
             except:
