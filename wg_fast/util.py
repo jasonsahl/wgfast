@@ -315,59 +315,67 @@ def _perform_workflow_run_loop_dev(data):
     else:
         """This means that the data is paired end"""
         logPrint("processing %s" % idx)
-        if len(f)>1:
-            if os.path.isfile("%s.F.paired.fastq.gz" % idx):
-                pass
+        ###new troubleshooting checkpoint
+        if os.path.isfile("%s.vcf.out" % idx):
+            logPrint("%s.vcf.out exists, skipping" % idx)
+        else:
+            #####
+            if len(f)>1:
+                if os.path.isfile("%s.F.paired.fastq.gz" % idx):
+                    pass
+                else:
+                    length = int(get_sequence_length(f[0])/2)
+                    try:
+                        subprocess.check_call("bbduk.sh in=%s in2=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.F.paired.fastq.gz out2=%s.R.paired.fastq.gz minlen=%s overwrite=true > /dev/null 2>&1" % (f[0],f[1],wgfast_path,idx,idx,length), shell=True)
+                    except:
+                        print("Read trimmer did not finish correctly")
+                        sys.exit()
+                #Skip this step, which can be long, if the bam file already exists
+                if os.path.isfile("%s_renamed.bam" % idx):
+                    pass
+                else:
+                    subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.F.paired.fastq.gz %s.R.paired.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -F 4 -Su -o %s_renamed.bam -" % (scratch_dir,idx,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
             else:
+                """Single end read support"""
                 length = int(get_sequence_length(f[0])/2)
                 try:
-                    subprocess.check_call("bbduk.sh in=%s in2=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.F.paired.fastq.gz out2=%s.R.paired.fastq.gz minlen=%s overwrite=true > /dev/null 2>&1" % (f[0],f[1],wgfast_path,idx,idx,length), shell=True)
+                    subprocess.check_call("bbduk.sh -Xmx2g in=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.single.fastq.gz minlen=%s overwrite=true ignorebadquality" % (f[0],wgfast_path,idx,length), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
                 except:
                     print("Read trimmer did not finish correctly")
                     sys.exit()
-            #Skip this step, which can be long, if the bam file already exists
-            if os.path.isfile("%s_renamed.bam" % idx):
-                pass
-            else:
-                subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.F.paired.fastq.gz %s.R.paired.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -F 4 -Su -o %s_renamed.bam -" % (scratch_dir,idx,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        else:
-            """Single end read support"""
-            length = int(get_sequence_length(f[0])/2)
+                subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.single.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -F 4 -Su -o %s_renamed.bam -" % (scratch_dir,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            """inserts read group information, required by new versions of GATK"""
             try:
-                subprocess.check_call("bbduk.sh -Xmx2g in=%s ref=%s/bin/illumina_adapters_all.fasta out=%s.single.fastq.gz minlen=%s overwrite=true ignorebadquality" % (f[0],wgfast_path,idx,length), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+                subprocess.check_call("picard AddOrReplaceReadGroups I=%s_renamed.bam O=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT" % (idx,idx,idx,idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
             except:
-                print("Read trimmer did not finish correctly")
+                time.sleep(5)
+                subprocess.check_call("picard AddOrReplaceReadGroups I=%s_renamed.bam O=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT" % (idx,idx,idx,idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            try:
+                subprocess.check_call("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx,stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            except:
+                print("problem indexing file with samtools..exiting")
                 sys.exit()
-            subprocess.check_call("minimap2 -ax sr %s/reference.fasta %s.single.fastq.gz | samtools sort -l 0 -@ %s - | samtools view -F 4 -Su -o %s_renamed.bam -" % (scratch_dir,idx,processors,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        """inserts read group information, required by new versions of GATK"""
-        try:
-            subprocess.check_call("picard AddOrReplaceReadGroups I=%s_renamed.bam O=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT" % (idx,idx,idx,idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        except:
-            time.sleep(5)
-            subprocess.check_call("picard AddOrReplaceReadGroups I=%s_renamed.bam O=%s_renamed_header.bam SORT_ORDER=coordinate RGID=%s RGLB=%s RGPL=illumina RGSM=%s RGPU=name CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT" % (idx,idx,idx,idx,idx),stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        try:
-            subprocess.check_call("samtools index %s_renamed_header.bam > /dev/null 2>&1" % idx,stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        except:
-            print("problem indexing file with samtools..exiting")
-            sys.exit()
-        #TODO: be able to change the ploidy, which will affect the number of calls
-        subprocess.check_call("gatk HaplotypeCaller -R %s/reference.fasta -I %s_renamed_header.bam -O %s.test.vcf -ERC BP_RESOLUTION -ploidy %s" % (scratch_dir,idx,idx,ploidy), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        subprocess.check_call("gatk GenotypeGVCFs -O %s.vcf.out -R %s/reference.fasta -V %s.test.vcf --include-non-variant-sites" % (idx,scratch_dir,idx), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
-        if "T" == doc:
-            subprocess.check_call("samtools depth -aa %s_renamed_header.bam > %s.coverage" % (idx,idx), shell=True)
-            remove_column("%s.coverage" % idx, idx)
-            sum_coverage("%s.coverage.out" % idx, coverage, idx)
-            #If the amount_covered files are empty, WG-FAST will hang here. I put in this check and need to test
-            if os.path.getsize("%s.amount_covered.txt" % idx) == 0:
-                pass
+            #TODO: be able to change the ploidy, which will affect the number of calls
+            subprocess.check_call("gatk HaplotypeCaller -R %s/reference.fasta -I %s_renamed_header.bam -O %s.test.vcf -ERC BP_RESOLUTION -ploidy %s" % (scratch_dir,idx,idx,ploidy), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            subprocess.check_call("gatk GenotypeGVCFs -O %s.vcf.out -R %s/reference.fasta -V %s.test.vcf --include-non-variant-sites" % (idx,scratch_dir,idx), stdout=open(os.devnull, 'wb'),stderr=open(os.devnull, 'wb'),shell=True)
+            if "T" == doc:
+                subprocess.check_call("samtools depth -aa %s_renamed_header.bam > %s.coverage" % (idx,idx), shell=True)
+                remove_column("%s.coverage" % idx, idx)
+                sum_coverage("%s.coverage.out" % idx, coverage, idx)
+                #If the amount_covered files are empty, WG-FAST will hang here. I put in this check and need to test
+                if os.path.getsize("%s.amount_covered.txt" % idx) == 0:
+                    pass
+                else:
+                    merge_files_by_column(0,"ref.genome_size.txt", "%s.amount_covered.txt" % idx, "%s.results.txt" % idx)
+                    merge_files_by_column(0,"ref.genome_size.txt", "%s.sum_covered.txt" % idx, "%s.cov.results.txt" % idx)
+                    report_stats("%s.results.txt" % idx, idx, "%s_breadth.txt" % idx)
+                    report_stats("%s.cov.results.txt" % idx, idx, "%s_sum_cov.txt" % idx)
             else:
-                merge_files_by_column(0,"ref.genome_size.txt", "%s.amount_covered.txt" % idx, "%s.results.txt" % idx)
-                merge_files_by_column(0,"ref.genome_size.txt", "%s.sum_covered.txt" % idx, "%s.cov.results.txt" % idx)
-                report_stats("%s.results.txt" % idx, idx, "%s_breadth.txt" % idx)
-                report_stats("%s.cov.results.txt" % idx, idx, "%s_sum_cov.txt" % idx)
-        else:
-            pass
-        #filtered.vcf will be created in this function
+                pass
+        ###re-indent if I want to remove this checkpoint
+        #filtered.vcf will be created in this function: putting in a checkpoint for troubleshooting purposes
+        if os.path.isfile("%s.vcf.out" % idx):
+            logPrint("%s.vcf.out exists, skipping" % idx)
         good_calls = process_vcf("%s.vcf.out" % idx, ref_coords, coverage, proportion, idx)
         if int(good_calls) > 0:
             make_temp_matrix("%s.filtered.vcf" % idx, matrix, idx)
